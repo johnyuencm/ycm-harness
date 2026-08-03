@@ -6,6 +6,7 @@ import {
   mattPocockInstallHint,
   ralphLoopInstallHint,
   cavemanInstallHint,
+  ponytailInstallHint,
   runClientSync,
   runInstallScopes,
   packageRoot,
@@ -116,6 +117,7 @@ export function registerDoctor(
         mattpocock_skills_status: audit.mattpocock_skills.status,
         ralph_loop_status: audit.ralph_loop.status,
         caveman_status: audit.caveman.status,
+        ponytail_status: audit.ponytail.status,
         audit,
       };
       if (opts.json) return out.json(payload);
@@ -145,6 +147,13 @@ export function registerDoctor(
       );
       if (audit.caveman.status === "missing") {
         out.out(cavemanInstallHint());
+      }
+      out.out(
+        `ponytail: ${audit.ponytail.status}` +
+          (audit.ponytail.status === "ok" ? ` (${audit.ponytail.path})` : ""),
+      );
+      if (audit.ponytail.status === "missing") {
+        out.out(ponytailInstallHint());
       }
       if (needs_sync && !repaired) {
         out.out(`Repair: ${CLI_NAME} doctor --repair`);

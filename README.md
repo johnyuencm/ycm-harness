@@ -126,7 +126,7 @@ knows how to audit.
 | [mattpocock-skills](https://github.com/mattpocock/skills) (`mattpocock-skills@mattpocock`) | Spec/tickets, TDD, architecture finish passes the harness skills call out | `claude plugin marketplace add mattpocock/skills && claude plugin install mattpocock-skills@mattpocock` then `/setup-matt-pocock-skills` |
 | [ralph-loop](https://github.com/anthropics/claude-plugins-official) (`ralph-loop@claude-plugins-official`) | Persistence loop during long execute turns | `claude plugin install ralph-loop@claude-plugins-official` |
 | [caveman](https://github.com/JuliusBrussee/caveman) (`caveman@caveman`) | Terse agent communication / compress-review helpers | `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman` (Cursor: `npx skills add JuliusBrussee/caveman -a cursor`) |
-| [ponytail](https://github.com/DietrichGebert/ponytail) | Minimalism / YAGNI discipline so agents write less code | Install via the Cursor/Claude plugin marketplace for ponytail (not bundled; not audited by `doctor` today) |
+| [ponytail](https://github.com/DietrichGebert/ponytail) (`ponytail@ponytail`) | Minimalism / YAGNI discipline so agents write less code | `claude plugin marketplace add DietrichGebert/ponytail && claude plugin install ponytail@ponytail` (Cursor: install from the marketplace, or copy `.cursor/rules/ponytail.mdc`) |
 
 Other complementary skills (for example host-specific review or research packs)
 are fine as long as you keep **one** workflow OS per session: ycm-harness
@@ -195,8 +195,8 @@ Fix doctor failures that are clearly install-related. Do not invent personal
 overlay files or commit machine-specific audits into my repo.
 
 ### 3. Recommended vendor plugins (not bundled)
-ycm-harness does not ship these. Prefer installing them; doctor audits the first
-three when Claude Code is present:
+ycm-harness does not ship these. Prefer installing them; `ycm-harness doctor`
+audits all four when Cursor and/or Claude Code is present:
 
 - mattpocock-skills@mattpocock — TDD / architecture finish
   `claude plugin marketplace add mattpocock/skills && claude plugin install mattpocock-skills@mattpocock`
@@ -206,7 +206,9 @@ three when Claude Code is present:
 - caveman@caveman — terse compress/review helpers
   `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman`
   (Cursor: `npx skills add JuliusBrussee/caveman -a cursor`)
-- ponytail — minimalism / YAGNI (Cursor or Claude marketplace; not doctor-audited)
+- ponytail@ponytail — minimalism / YAGNI
+  `claude plugin marketplace add DietrichGebert/ponytail && claude plugin install ponytail@ponytail`
+  (Cursor: marketplace install, or copy `.cursor/rules/ponytail.mdc`)
 
 If a plugin cannot be installed non-interactively, list the exact command I
 should run and continue with the rest of setup.
@@ -239,7 +241,7 @@ owner/repo/project/parent — do not invent them).
 Report back with:
 1. `ycm-harness` path / version proof (`ycm-harness --help` ok)
 2. which client install ran and `doctor` summary (include mattpocock / ralph /
-   caveman status when shown)
+   caveman / ponytail status when shown)
 3. which vendor plugins are present vs still need a manual install
 4. whether `.ycm-harness/` was initialized
 5. goal/ticket IDs if created

@@ -33,6 +33,8 @@ export interface InstallAudit {
   ralph_loop: AuditItem;
   /** Presence of user-installed caveman (JuliusBrussee/caveman Claude Code plugin). */
   caveman: AuditItem;
+  /** Presence of user-installed ponytail (DietrichGebert/ponytail Cursor/Claude plugin). */
+  ponytail: AuditItem;
 }
 
 export interface InstallScopeOptions {
@@ -134,6 +136,10 @@ const CAVEMAN_PLUGIN_KEY = "caveman@caveman";
 const CAVEMAN_MARKETPLACE = "caveman";
 const CAVEMAN_PLUGIN_DIR = "caveman";
 const CAVEMAN_GITHUB = "JuliusBrussee/caveman";
+const PONYTAIL_PLUGIN_KEY = "ponytail@ponytail";
+const PONYTAIL_MARKETPLACE = "ponytail";
+const PONYTAIL_PLUGIN_DIR = "ponytail";
+const PONYTAIL_GITHUB = "DietrichGebert/ponytail";
 
 /**
  * Pre-rebrand skill dest folders to prune from managed install trees.
@@ -676,6 +682,139 @@ export function cavemanInstallHint(): string {
     `claude plugin install ${CAVEMAN_PLUGIN_KEY} ` +
     `(or /plugin marketplace add ${CAVEMAN_GITHUB} then install caveman). ` +
     `For Cursor: npx skills add ${CAVEMAN_GITHUB} -a cursor.`
+  );
+}
+
+async function isPonytailPluginRoot(candidate: string): Promise<boolean> {
+  return (
+    (await fileExists(path.join(candidate, "skills", "ponytail", "SKILL.md"))) ||
+    (await fileExists(path.join(candidate, ".claude-plugin", "plugin.json")))
+  );
+}
+
+/** Walk cache roots that are either version dirs or marketplace/plugin/version. */
+async function findNewestValidPluginRoot(
+  cacheRoot: string,
+  isValid: (candidate: string) => Promise<boolean>,
+): Promise<string | undefined> {
+  if (!(await fileExists(cacheRoot))) return undefined;
+  if (await isValid(cacheRoot)) return cacheRoot;
+  let entries: { name: string; isDirectory(): boolean }[];
+  try {
+    entries = await fs.readdir(cacheRoot, { withFileTypes: true });
+  } catch {
+    return undefined;
+  }
+  const dirs = entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+    .reverse();
+  for (const name of dirs) {
+    const candidate = path.join(cacheRoot, name);
+    if (await isValid(candidate)) return candidate;
+  }
+  for (const name of dirs) {
+    const nestedRoot = path.join(cacheRoot, name);
+    let nested: { name: string; isDirectory(): boolean }[];
+    try {
+      nested = await fs.readdir(nestedRoot, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    const versionDirs = nested
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort()
+      .reverse();
+    for (const ver of versionDirs) {
+      const candidate = path.join(nestedRoot, ver);
+      if (await isValid(candidate)) return candidate;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Locate ponytail in Cursor plugin cache, Claude plugin cache/marketplace,
+ * or Cursor rules/skills fallbacks.
+ */
+export async function resolvePonytailRoot(
+  home = homeDir(),
+): Promise<string | undefined> {
+  const cursorCache = path.join(
+    home,
+    ".cursor",
+    "plugins",
+    "cache",
+    PONYTAIL_MARKETPLACE,
+  );
+  const fromCursor = await findNewestValidPluginRoot(
+    cursorCache,
+    isPonytailPluginRoot,
+  );
+  if (fromCursor) return fromCursor;
+
+  const claudeCache = path.join(
+    home,
+    ".claude",
+    "plugins",
+    "cache",
+    PONYTAIL_MARKETPLACE,
+  );
+  const fromClaude = await findNewestValidPluginRoot(
+    claudeCache,
+    isPonytailPluginRoot,
+  );
+  if (fromClaude) return fromClaude;
+
+  const marketplace = path.join(
+    home,
+    ".claude",
+    "plugins",
+    "marketplaces",
+    PONYTAIL_MARKETPLACE,
+  );
+  if (await isPonytailPluginRoot(marketplace)) return marketplace;
+  const marketplacePlugin = path.join(marketplace, "plugins", PONYTAIL_PLUGIN_DIR);
+  if (await isPonytailPluginRoot(marketplacePlugin)) return marketplacePlugin;
+
+  const cursorSkill = path.join(home, ".cursor", "skills", "ponytail");
+  if (await fileExists(path.join(cursorSkill, "SKILL.md"))) return cursorSkill;
+
+  const cursorRule = path.join(home, ".cursor", "rules", "ponytail.mdc");
+  if (await fileExists(cursorRule)) return cursorRule;
+
+  return undefined;
+}
+
+export async function auditPonytail(home = homeDir()): Promise<AuditItem> {
+  const root = await resolvePonytailRoot(home);
+  if (root) return { path: root, status: "ok" };
+  const expected = path.join(
+    home,
+    ".cursor",
+    "plugins",
+    "cache",
+    PONYTAIL_MARKETPLACE,
+    PONYTAIL_PLUGIN_DIR,
+  );
+  const hostPresent =
+    (await fileExists(path.join(home, ".cursor"))) ||
+    (await fileExists(path.join(home, ".claude")));
+  return {
+    path: expected,
+    status: hostPresent ? "missing" : "n/a",
+  };
+}
+
+export function ponytailInstallHint(): string {
+  return (
+    `Ponytail is NOT bundled. Claude Code: ` +
+    `claude plugin marketplace add ${PONYTAIL_GITHUB} && ` +
+    `claude plugin install ${PONYTAIL_PLUGIN_KEY}. ` +
+    `Cursor: install the ponytail plugin from the marketplace ` +
+    `(or copy .cursor/rules/ponytail.mdc from ${PONYTAIL_GITHUB}).`
   );
 }
 
@@ -1533,7 +1672,7 @@ export async function runClientSync(
   if (matt.status === "ok") {
     reports.push(`mattpocock-skills: ok (${matt.path})`);
   } else if (matt.status === "missing") {
-    reports.push(`mattpocock-skills: MISSING ??${mattPocockInstallHint()}`);
+    reports.push(`mattpocock-skills: MISSING — ${mattPocockInstallHint()}`);
   } else {
     reports.push(`mattpocock-skills: n/a (Claude Code home not detected)`);
   }
@@ -1542,7 +1681,7 @@ export async function runClientSync(
   if (ralph.status === "ok") {
     reports.push(`ralph-loop: ok (${ralph.path})`);
   } else if (ralph.status === "missing") {
-    reports.push(`ralph-loop: MISSING ??${ralphLoopInstallHint()}`);
+    reports.push(`ralph-loop: MISSING — ${ralphLoopInstallHint()}`);
   } else {
     reports.push(`ralph-loop: n/a (Claude Code home not detected)`);
   }
@@ -1551,9 +1690,18 @@ export async function runClientSync(
   if (caveman.status === "ok") {
     reports.push(`caveman: ok (${caveman.path})`);
   } else if (caveman.status === "missing") {
-    reports.push(`caveman: MISSING ??${cavemanInstallHint()}`);
+    reports.push(`caveman: MISSING — ${cavemanInstallHint()}`);
   } else {
     reports.push(`caveman: n/a (Claude Code home not detected)`);
+  }
+
+  const ponytail = await auditPonytail();
+  if (ponytail.status === "ok") {
+    reports.push(`ponytail: ok (${ponytail.path})`);
+  } else if (ponytail.status === "missing") {
+    reports.push(`ponytail: MISSING — ${ponytailInstallHint()}`);
+  } else {
+    reports.push(`ponytail: n/a (Cursor/Claude home not detected)`);
   }
 
   return reports;
@@ -1661,6 +1809,7 @@ export async function auditInstall(
     mattpocock_skills: await auditMattPocockSkills(),
     ralph_loop: await auditRalphLoop(),
     caveman: await auditCaveman(),
+    ponytail: await auditPonytail(),
   };
 
   if (codexDetected) {

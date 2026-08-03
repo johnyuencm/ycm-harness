@@ -13,7 +13,7 @@ export function registerInstall(
   program
     .command("install")
     .description(
-      "Install Cursor-facing skills, agents, rule, and plugin assets. Defaults to project scope (.cursor/) plus user-level design/work skills and plugin. Matt Pocock skills come from mattpocock-skills@mattpocock; Ralph from ralph-loop@claude-plugins-official; Caveman from caveman@caveman — not this install.",
+      "Install Cursor-facing skills, agents, rule, and plugin assets. Defaults to project scope (.cursor/) plus user-level design/work skills and plugin. Matt Pocock skills come from mattpocock-skills@mattpocock; Ralph from ralph-loop@claude-plugins-official; Caveman from caveman@caveman; Ponytail from ponytail@ponytail — not this install.",
     )
     .option(
       "--user",
