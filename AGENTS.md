@@ -1,3 +1,18 @@
+# Public mirror notes
+
+This checkout is the **public product mirror** of `ycm-harness`.
+
+Edit product code in the sibling **private** checkout first
+(`johnyuencm/harness` / local `private-harness/`), then promote:
+
+```bash
+cd ../private-harness
+npm run promote:public
+npm run promote:public -- --apply
+```
+
+Contract: `../private-harness/docs/dual-repo-private-first.md`.
+
 ## Agent skills
 
 ### Issue tracker
