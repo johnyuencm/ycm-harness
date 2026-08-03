@@ -113,6 +113,23 @@ Local tickets are the default. A GitHub-backed goal binds to an existing parent
 issue and Project so humans and agents share one queue. Remote mutations fail
 closed — no silent local shadow queue when `gh` or the network is down.
 
+## Recommended vendor plugins
+
+ycm-harness stays a thin coordination kernel. It does **not** vendor third-party
+skill packs. Install these separately; `ycm-harness doctor` reports the ones it
+knows how to audit.
+
+| Plugin | Role in the agentic loop | Install hint |
+| ------ | ------------------------ | ------------ |
+| [mattpocock-skills](https://github.com/mattpocock/skills) (`mattpocock-skills@mattpocock`) | Spec/tickets, TDD, architecture finish passes the harness skills call out | `claude plugin marketplace add mattpocock/skills && claude plugin install mattpocock-skills@mattpocock` then `/setup-matt-pocock-skills` |
+| [ralph-loop](https://github.com/anthropics/claude-plugins-official) (`ralph-loop@claude-plugins-official`) | Persistence loop during long execute turns | `claude plugin install ralph-loop@claude-plugins-official` |
+| [caveman](https://github.com/JuliusBrussee/caveman) (`caveman@caveman`) | Terse agent communication / compress-review helpers | `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman` (Cursor: `npx skills add JuliusBrussee/caveman -a cursor`) |
+| [ponytail](https://github.com/DietrichGebert/ponytail) | Minimalism / YAGNI discipline so agents write less code | Install via the Cursor/Claude plugin marketplace for ponytail (not bundled; not audited by `doctor` today) |
+
+Other complementary skills (for example host-specific review or research packs)
+are fine as long as you keep **one** workflow OS per session: ycm-harness
+coordination plus these vendor skills, not a second competing harness.
+
 ## Paste this to an agent
 
 Copy the entire block below into a coding-agent chat **in the project you want
@@ -175,7 +192,24 @@ ycm-harness doctor
 Fix doctor failures that are clearly install-related. Do not invent personal
 overlay files or commit machine-specific audits into my repo.
 
-### 3. Initialize harness state in THIS project
+### 3. Recommended vendor plugins (not bundled)
+ycm-harness does not ship these. Prefer installing them; doctor audits the first
+three when Claude Code is present:
+
+- mattpocock-skills@mattpocock — TDD / architecture finish
+  `claude plugin marketplace add mattpocock/skills && claude plugin install mattpocock-skills@mattpocock`
+  then `/setup-matt-pocock-skills`
+- ralph-loop@claude-plugins-official — long-run persistence
+  `claude plugin install ralph-loop@claude-plugins-official`
+- caveman@caveman — terse compress/review helpers
+  `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman`
+  (Cursor: `npx skills add JuliusBrussee/caveman -a cursor`)
+- ponytail — minimalism / YAGNI (Cursor or Claude marketplace; not doctor-audited)
+
+If a plugin cannot be installed non-interactively, list the exact command I
+should run and continue with the rest of setup.
+
+### 4. Initialize harness state in THIS project
 From my project root:
 
 ```bash
@@ -199,13 +233,15 @@ ycm-harness next
 Use `--backend local` unless I explicitly asked for GitHub (then I must provide
 owner/repo/project/parent — do not invent them).
 
-### 4. Done criteria
+### 5. Done criteria
 Report back with:
 1. `ycm-harness` path / version proof (`ycm-harness --help` ok)
-2. which client install ran and `doctor` summary
-3. whether `.ycm-harness/` was initialized
-4. goal/ticket IDs if created
-5. anything I must do manually (e.g. restart the IDE session so hooks load)
+2. which client install ran and `doctor` summary (include mattpocock / ralph /
+   caveman status when shown)
+3. which vendor plugins are present vs still need a manual install
+4. whether `.ycm-harness/` was initialized
+5. goal/ticket IDs if created
+6. anything I must do manually (e.g. restart the IDE session so hooks load)
 
 Do not start implementing product code in this setup turn unless I also asked
 for that work. After setup, prefer the installed `ycm-harness-work` skill for
