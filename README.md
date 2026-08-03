@@ -113,6 +113,105 @@ Local tickets are the default. A GitHub-backed goal binds to an existing parent
 issue and Project so humans and agents share one queue. Remote mutations fail
 closed — no silent local shadow queue when `gh` or the network is down.
 
+## Paste this to an agent
+
+Copy the entire block below into a coding-agent chat **in the project you want
+coordinated**. The agent should install the CLI (if needed), project the client
+assets, initialize harness state, and report readiness — you should not have to
+run the steps by hand.
+
+````text
+Set up ycm-harness for this project so agentic work can use durable goals,
+tickets, checkpoints, and separate implementer/verifier evidence.
+
+Execute end-to-end. Only ask me when something is destructive, needs a secret,
+or needs a choice you cannot infer.
+
+### Preconditions
+- Node.js 20+ and Git available (`node -v`, `git --version`).
+- Work in THIS project root (the repo I opened), not inside the harness source,
+  except when building/linking the CLI.
+
+### 1. Install the CLI if missing
+If `ycm-harness --help` already works, skip to step 2.
+
+Otherwise install from source (package is not assumed on npm):
+
+```bash
+git clone https://github.com/johnyuencm/ycm-harness.git "$HOME/src/ycm-harness"
+cd "$HOME/src/ycm-harness"
+npm ci
+npm run build
+npm link
+ycm-harness --help
+```
+
+On Windows PowerShell, use a stable tools path instead of `$HOME/src/...`
+(e.g. `$env:USERPROFILE\src\ycm-harness`). Reuse an existing clone if present;
+do not nest a second clone inside my project unless I ask.
+
+Also install portable commander templates from that checkout:
+
+```bash
+npm run commander:install
+```
+
+### 2. Project client assets into my agent host
+Detect whether this workspace is Cursor and/or OpenCode. Then:
+
+```bash
+# Cursor (default for most users of this README)
+ycm-harness install --client cursor
+
+# OpenCode, if that client is in use
+ycm-harness install --client opencode
+
+# or both
+ycm-harness install --client all --force
+
+ycm-harness doctor
+```
+
+Fix doctor failures that are clearly install-related. Do not invent personal
+overlay files or commit machine-specific audits into my repo.
+
+### 3. Initialize harness state in THIS project
+From my project root:
+
+```bash
+ycm-harness init
+ycm-harness status
+ycm-harness next
+```
+
+If I already named an outcome in this chat, create a local goal and a first
+ticket with observable acceptance criteria:
+
+```bash
+ycm-harness goal create "<outcome>" --backend local
+ycm-harness ticket create "<first slice>" \
+  --code-changed \
+  --acceptance "<observable check>"
+ycm-harness status
+ycm-harness next
+```
+
+Use `--backend local` unless I explicitly asked for GitHub (then I must provide
+owner/repo/project/parent — do not invent them).
+
+### 4. Done criteria
+Report back with:
+1. `ycm-harness` path / version proof (`ycm-harness --help` ok)
+2. which client install ran and `doctor` summary
+3. whether `.ycm-harness/` was initialized
+4. goal/ticket IDs if created
+5. anything I must do manually (e.g. restart the IDE session so hooks load)
+
+Do not start implementing product code in this setup turn unless I also asked
+for that work. After setup, prefer the installed `ycm-harness-work` skill for
+the claim → implement → submit → verify loop.
+````
+
 ## Requirements
 
 - Node.js 20 or newer
@@ -133,9 +232,10 @@ ycm-harness --help
 Refresh managed client assets anytime with `ycm-harness sync` or
 `ycm-harness plugin update` (aliases for `install --force`).
 
-## Quick start
+## Quick start (manual)
 
-Inside the project being coordinated:
+Prefer [Paste this to an agent](#paste-this-to-an-agent) when an agent can run
+the setup. For a hand-run bootstrap after the CLI is linked:
 
 ```bash
 ycm-harness init
