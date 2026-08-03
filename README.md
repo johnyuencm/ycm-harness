@@ -99,7 +99,9 @@ ycm-harness wiki show retry-contract
 `ycm-harness install` projects skills and hooks into Cursor or OpenCode.
 SessionStart orients an active goal; Stop can enforce unfinished high-assurance
 work when you turn that on. The CLI stays the source of truth; clients get a
-thin, retry-safe mirror.
+thin, retry-safe mirror. Companion packs such as mattpocock-skills, ralph-loop,
+caveman, and ponytail stay as separate vendor installs — see
+[Recommended vendor plugins](#recommended-vendor-plugins).
 
 ```bash
 ycm-harness install --client cursor
