@@ -1,0 +1,43 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+Thumbs.db
+.ycm-harness/
+.cursor-harness/
+.worktrees/
+.omx/
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+credentials.json
+*service-account*.json
+.npmrc
+.pypirc
+.aws/
+
+# Build / test / cache
+coverage/
+.nyc_output/
+*.tsbuildinfo
+.turbo/
+.cache/
+__pycache__/
+.pytest_cache/
+
+# Editors
+.idea/
+*.swp
+*.swo
+
+# Local scratch (merge scratch, one-off patches, agent staging)
+.tmp/
+staging/
+design-artifacts-temp/
+tests/_debug-*.mjs
+/*.patch

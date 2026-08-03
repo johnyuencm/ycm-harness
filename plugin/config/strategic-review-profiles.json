@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "profile": "pm-17:00",
+      "domain": "product-management",
+      "proof": "strategic-review/v1/pm-17:00/product-management",
+      "recurrence_threshold": 2,
+      "enabled_by_default": true,
+      "capabilities": [
+        "ticket_reuse_or_create",
+        "ticket_comment",
+        "ticket_priority",
+        "installed_loop_pause",
+        "rollback"
+      ]
+    },
+    {
+      "profile": "nightly-workspace",
+      "domain": "workspace",
+      "proof": "strategic-review/v1/nightly-workspace/workspace",
+      "recurrence_threshold": 2,
+      "enabled_by_default": true,
+      "capabilities": [
+        "ticket_reuse_or_create",
+        "ticket_comment",
+        "ticket_priority",
+        "installed_loop_pause",
+        "rollback"
+      ]
+    },
+    {
+      "profile": "operations-cron-output",
+      "domain": "operations",
+      "proof": "strategic-review/v1/operations-cron-output/operations",
+      "recurrence_threshold": 2,
+      "enabled_by_default": true,
+      "capabilities": [
+        "ticket_reuse_or_create",
+        "ticket_comment",
+        "ticket_priority",
+        "installed_loop_pause",
+        "rollback"
+      ]
+    },
+    {
+      "profile": "optional-domain",
+      "domain": "optional-domain",
+      "proof": "strategic-review/v1/optional-domain/optional-domain",
+      "recurrence_threshold": 2,
+      "enabled_by_default": false,
+      "capabilities": [
+        "ticket_reuse_or_create",
+        "ticket_comment",
+        "ticket_priority",
+        "installed_loop_pause",
+        "rollback"
+      ]
+    }
+  ],
+  "forbidden_capability_expansion": true,
+  "forbidden_operations": [
+    "schedule",
+    "delivery",
+    "provider_lifecycle",
+    "merge",
+    "push",
+    "commit",
+    "history_mutation"
+  ]
+}

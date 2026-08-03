@@ -1,0 +1,54 @@
+{
+  "operation": "evaluate",
+  "profile": "pm-17:00",
+  "mode": "bounded_snapshot",
+  "producer": {
+    "id": "pm-reviewer-fixture",
+    "slot": "17:00"
+  },
+  "authority": {
+    "installation_id": "fixture-installation",
+    "profile": "pm-17:00",
+    "domain": "product-management",
+    "proof": "strategic-review/v1/pm-17:00/product-management"
+  },
+  "evidence_origin": {
+    "origin_id": "installed-review-origin",
+    "record_id": "review-evidence-pm-snapshot"
+  },
+  "evidence": {
+    "maximum_references": 4,
+    "references": [
+      {
+        "id": "current-plan",
+        "role": "current",
+        "classification": "FACT",
+        "source": "fixture://pm/current-plan",
+        "observed_at": "2026-07-18T16:55:00.000Z",
+        "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      {
+        "id": "priority-inference",
+        "role": "user_feedback",
+        "classification": "INFERENCE",
+        "source": "fixture://pm/feedback-analysis",
+        "observed_at": "2026-07-18T16:56:00.000Z",
+        "supports": ["current-plan"]
+      },
+      {
+        "id": "thirty-day-baseline",
+        "role": "recurrence_30d",
+        "classification": "UNKNOWN",
+        "source": "fixture://pm/recurrence-30d",
+        "observed_at": "2026-07-18T16:57:00.000Z"
+      },
+      {
+        "id": "provider-history",
+        "role": "prior_commitment",
+        "classification": "UNAVAILABLE",
+        "source": "fixture://pm/provider-history",
+        "observed_at": "2026-07-18T16:58:00.000Z"
+      }
+    ]
+  }
+}

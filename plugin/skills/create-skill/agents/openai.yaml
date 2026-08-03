@@ -1,0 +1,4 @@
+﻿interface:
+  display_name: "Create Skill"
+  short_description: "Author portable, abstract Agent Skills"
+  default_prompt: "Use $create-skill to draft or refine a SKILL.md. Prefer abstract portable workflows; keep one-repo details out of the mandatory path."

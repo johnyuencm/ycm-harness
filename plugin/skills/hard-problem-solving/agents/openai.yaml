@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hard Problem Solving"
+  short_description: "Evidence-first troubleshooting for unclear, failing, or expensive problems"
+  default_prompt: "Use $hard-problem-solving to diagnose a hard problem with evidence-first root-cause analysis."

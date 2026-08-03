@@ -1,0 +1,204 @@
+{
+  "operation": "evaluate",
+  "goal_id": "goal-phase-6-fixture",
+  "profile": "operations-cron-output",
+  "mode": "normal",
+  "producer": {
+    "id": "operations-reviewer-fixture",
+    "slot": "cron-output"
+  },
+  "authority": {
+    "installation_id": "fixture-installation",
+    "profile": "operations-cron-output",
+    "domain": "operations",
+    "proof": "strategic-review/v1/operations-cron-output/operations"
+  },
+  "evidence_origin": {
+    "origin_id": "installed-review-origin",
+    "record_id": "review-evidence-operations"
+  },
+  "evidence": {
+    "maximum_references": 5,
+    "references": [
+      {
+        "id": "current-plan",
+        "role": "current",
+        "classification": "FACT",
+        "source": "fixture://operations/current-plan",
+        "observed_at": "2026-07-18T16:55:00.000Z",
+        "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      {
+        "id": "prior-plan",
+        "role": "prior_commitment",
+        "classification": "FACT",
+        "source": "fixture://operations/prior-plan",
+        "observed_at": "2026-07-17T17:00:00.000Z",
+        "digest": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      {
+        "id": "explicit-feedback",
+        "role": "user_feedback",
+        "classification": "FACT",
+        "source": "fixture://operations/user-feedback",
+        "observed_at": "2026-07-18T15:00:00.000Z",
+        "digest": "3333333333333333333333333333333333333333333333333333333333333333"
+      },
+      {
+        "id": "recurrence-week",
+        "role": "recurrence_7d",
+        "classification": "FACT",
+        "source": "fixture://operations/recurrence-7d",
+        "observed_at": "2026-07-18T16:50:00.000Z",
+        "digest": "4444444444444444444444444444444444444444444444444444444444444444",
+        "finding_id": "triage-root-cause"
+      },
+      {
+        "id": "recurrence-month",
+        "role": "recurrence_30d",
+        "classification": "FACT",
+        "source": "fixture://operations/recurrence-30d",
+        "observed_at": "2026-07-18T16:51:00.000Z",
+        "digest": "5555555555555555555555555555555555555555555555555555555555555555",
+        "finding_id": "triage-root-cause"
+      }
+    ]
+  },
+  "analysis": {
+    "prior_commitments": [
+      {
+        "id": "commitment-triage",
+        "status": "confirmed",
+        "evidence": [
+          "prior-plan",
+          "current-plan"
+        ]
+      }
+    ],
+    "user_feedback": [
+      {
+        "id": "feedback-priority",
+        "priority": 1,
+        "correction": true,
+        "evidence": [
+          "explicit-feedback"
+        ]
+      }
+    ],
+    "recurrence": {
+      "seven_day": [
+        "recurrence-week"
+      ],
+      "thirty_day": [
+        "recurrence-month"
+      ]
+    },
+    "reviewer_self_correction": {
+      "defect_type": "reviewer",
+      "description": "The prior review underweighted explicit priority feedback.",
+      "evidence": [
+        "explicit-feedback",
+        "prior-plan"
+      ]
+    },
+    "findings": [
+      {
+        "id": "triage-root-cause",
+        "material": true,
+        "defect_type": "product",
+        "domain": "operations",
+        "owner": "operations-owner",
+        "control": "cron-output-review",
+        "recurrence_count": 2,
+        "recurrence_threshold": 2,
+        "symptoms": [
+          "late-triage",
+          "stale-triage"
+        ],
+        "root_cause": "Priority feedback was not bound to the daily triage control.",
+        "prevention": "Bind explicit feedback evidence to the triage ticket before review close.",
+        "postcondition": "The ticket contains the feedback reference and current priority.",
+        "safety_net": "The next review blocks if the feedback reference is absent.",
+        "indicator": "feedback-reference-present",
+        "counter_failure": "A priority change without the explicit-feedback reference.",
+        "evidence_horizon": "7d",
+        "rollback": "Restore the prior priority and retain the evidence trail.",
+        "evidence": [
+          "current-plan",
+          "explicit-feedback",
+          "recurrence-week",
+          "recurrence-month"
+        ]
+      }
+    ],
+    "lanes": {
+      "NOW": [
+        {
+          "finding_id": "triage-root-cause",
+          "action": "Bind explicit feedback evidence to cron-output-review",
+          "evidence": [
+            "explicit-feedback"
+          ],
+          "disposition": "TRACKED",
+          "ticket_id": "OPS-1"
+        }
+      ],
+      "NEXT": [],
+      "LATER": []
+    }
+  },
+  "resource_stewardship": {
+    "execution_policy": {
+      "stages": [
+        {
+          "stage": "no_agent",
+          "outcome": "sufficient"
+        },
+        {
+          "stage": "script",
+          "outcome": "skipped"
+        },
+        {
+          "stage": "targeted_read",
+          "outcome": "skipped"
+        },
+        {
+          "stage": "reuse_reference",
+          "outcome": "skipped"
+        },
+        {
+          "stage": "model",
+          "outcome": "skipped"
+        }
+      ],
+      "required_capabilities": [],
+      "model_roster": [],
+      "model_invocations": []
+    }
+  },
+  "continuation": {
+    "parent_id": "goal-phase-6-fixture",
+    "run_id": "run-operations-1",
+    "session_id": "session-operations-1",
+    "response_text": "```continuation-ledger\n{\"items\":[{\"lane\":\"NOW\",\"action\":\"Bind explicit feedback evidence to cron-output-review\",\"disposition\":\"TRACKED\",\"evidence\":\"explicit-feedback\",\"expected_impact\":\"Priority feedback remains bound to triage\",\"cost_class\":\"no_agent\",\"evidence_horizon\":\"7d\",\"ticket_id\":\"OPS-1\"}]}\n```",
+    "tickets": {
+      "OPS-1": {
+        "ticket_id": "OPS-1",
+        "configured_parent_id": "goal-phase-6-fixture",
+        "parent_id": "goal-phase-6-fixture",
+        "status": "todo",
+        "content_strings": [
+          "Bind explicit feedback evidence to cron-output-review"
+        ],
+        "evidence_reference_ids": [
+          "explicit-feedback"
+        ],
+        "readback_at": "2026-07-18T17:00:00.000Z"
+      }
+    },
+    "mutations": []
+  },
+  "integrity": {
+    "observed_source_ownership_sha256": "adb8194210f21feda5386ab9c830739e2914568da38393276910648c718b72f0"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "harness",
+  "owner": {
+    "name": "johnyuencm",
+    "url": "https://github.com/johnyuencm/ycm-harness"
+  },
+  "metadata": {
+    "description": "ycm-harness workflow plugin for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "ycm-harness",
+      "source": "./plugin",
+      "description": "Lean workflow harness for durable goals, provider-backed tickets, verification evidence, and project knowledge.",
+      "author": {
+        "name": "johnyuencm"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+---
+description: Lean ycm-harness 0.3 coordination rule for durable goals, tickets, checkpoints, verification evidence, and project knowledge.
+alwaysApply: true
+---
+
+# ycm-harness 0.3
+
+Use `.ycm-harness/state.json` as canonical project state. Do not hand-edit
+harness state or generated wiki indexes.
+
+For non-trivial tracked work:
+
+1. Run `ycm-harness status` and `ycm-harness next`.
+2. Initialize state when absent, then create or activate one goal.
+3. Create provider-backed tickets with observable acceptance criteria.
+4. Use `goal worktree init` when isolation is useful or required. It creates a
+   `harness/<goal-id>` branch by default.
+5. Record decisions, blockers, and compaction boundaries with
+   `ycm-harness checkpoint`.
+6. Submit code-changing tickets before verification.
+7. Verify the exact submitted state with distinct implementer and verifier run
+   IDs; do not fabricate evidence.
+8. Complete a goal only after all tickets are terminal and required evidence is
+   fresh.
+
+Use `wiki durable`, `wiki list`, and `wiki show` for reusable project
+knowledge. Use `doctor` to inspect client projections and `install --force` to
+refresh them.
+
+`task` aliases `ticket`; `smoke` aliases `verify`. Do not use the retired phase,
+review, ritual, session, artifact, commit, user-wiki, or caveman workflows.
+
+**Lite carve-out:** `ycm-harness-work-lite` uses its own stateless procedure and
+does not create harness goals, tickets, checkpoints, or wiki entries.
+
+Ask before destructive or irreversible actions the user did not authorize.

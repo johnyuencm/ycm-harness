@@ -1,0 +1,4 @@
+interface:
+  display_name: "Merge Branches to Master"
+  short_description: "Merge branches into master without corrupting contracts"
+  default_prompt: "Use $merge-branches-to-master to audit ancestry, spot packaging/ownership contract corruption, merge into master, and repair regressions before claiming done."

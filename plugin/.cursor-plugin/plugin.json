@@ -1,0 +1,9 @@
+{
+  "name": "ycm-harness",
+  "displayName": "YCM Harness",
+  "description": "Lean workflow harness for durable goals, provider-backed tickets, verification evidence, and project knowledge.",
+  "version": "0.3.0",
+  "license": "MIT",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks-cursor.json"
+}

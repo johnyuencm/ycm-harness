@@ -1,0 +1,20 @@
+{
+  "name": "ycm-harness",
+  "interface": {
+    "displayName": "YCM Harness"
+  },
+  "plugins": [
+    {
+      "name": "ycm-harness",
+      "source": {
+        "source": "local",
+        "path": "./plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

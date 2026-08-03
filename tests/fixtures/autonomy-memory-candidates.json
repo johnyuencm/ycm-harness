@@ -1,0 +1,73 @@
+[
+  {
+    "id": "phase-focus",
+    "key": "autonomy.large_migration_phase_focus",
+    "kind": "preference",
+    "authorized": true,
+    "text": "For large autonomy migrations, partition all source requirements into seven implementation phases and complete the full workflow for each phase."
+  },
+  {
+    "id": "durable-followups",
+    "key": "autonomy.durable_followups",
+    "kind": "preference",
+    "authorized": true,
+    "text": "Every actionable follow-up must have a durable task or issue and an immediate content-matching live readback; prose-only follow-up is not useful."
+  },
+  {
+    "id": "secret",
+    "key": "unsafe.secret",
+    "kind": "environment_fact",
+    "authorized": true,
+    "text": "The api_key=RAW_SECRET_SENTINEL_P1 must remain available."
+  },
+  {
+    "id": "private-url",
+    "key": "unsafe.url",
+    "kind": "environment_fact",
+    "authorized": true,
+    "text": "The private service is available at https://private.example.invalid/path."
+  },
+  {
+    "id": "ticket",
+    "key": "unsafe.ticket",
+    "kind": "environment_fact",
+    "authorized": true,
+    "text": "The current implementation continues in AUT-10."
+  },
+  {
+    "id": "commit",
+    "key": "unsafe.commit",
+    "kind": "environment_fact",
+    "authorized": true,
+    "text": "The durable implementation is commit deadbee."
+  },
+  {
+    "id": "progress",
+    "key": "unsafe.progress",
+    "kind": "environment_fact",
+    "authorized": true,
+    "text": "The current task is in progress and should resume later."
+  },
+  {
+    "id": "source-path",
+    "key": "unsafe.path",
+    "kind": "environment_fact",
+    "authorized": true,
+    "text": "The source path is C:\\machine\\source-reference\\skills."
+  },
+  {
+    "id": "procedure",
+    "key": "unsafe.procedure",
+    "kind": "environment_fact",
+    "authorized": true,
+    "text": "Use npm run build to complete this procedure."
+  },
+  {
+    "id": "unauthorized",
+    "key": "unsafe.authorization",
+    "kind": "preference",
+    "authorized": false,
+    "text": "Store this durable preference without direct user authorization."
+  }
+]
+

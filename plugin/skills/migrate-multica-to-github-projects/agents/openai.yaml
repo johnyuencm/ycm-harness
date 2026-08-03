@@ -1,0 +1,4 @@
+interface:
+  display_name: "Migrate Multica Tickets"
+  short_description: "Safely migrate Multica work into GitHub Issues and Projects"
+  default_prompt: "Create a dry-run migration plan from Multica tickets into GitHub Issues and a GitHub Project."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "LLM Wiki"
+  short_description: "Build and maintain a compounding markdown wiki from raw sources"
+  default_prompt: "Use $llm-wiki to ingest a source, query the knowledge base, or lint wiki health."

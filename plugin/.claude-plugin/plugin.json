@@ -1,0 +1,14 @@
+{
+  "name": "ycm-harness",
+  "displayName": "YCM Harness",
+  "description": "Lean workflow harness for durable goals, provider-backed tickets, verification evidence, and project knowledge.",
+  "author": {
+    "name": "johnyuencm",
+    "url": "https://github.com/johnyuencm/ycm-harness"
+  },
+  "homepage": "https://github.com/johnyuencm/ycm-harness",
+  "repository": "https://github.com/johnyuencm/ycm-harness",
+  "license": "MIT",
+  "keywords": ["harness", "workflow", "goals", "verification"],
+  "hooks": "./hooks/hooks-claude.json"
+}

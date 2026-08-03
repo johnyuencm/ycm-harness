@@ -1,0 +1,29 @@
+{
+  "name": "ycm-harness",
+  "version": "0.3.0",
+  "description": "Lean workflow harness for durable goals, provider-backed tickets, verification evidence, and project knowledge.",
+  "author": {
+    "name": "johnyuencm"
+  },
+  "license": "MIT",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks-codex.json",
+  "interface": {
+    "displayName": "YCM Harness",
+    "shortDescription": "Goal and ticket harness for long-running coding tasks",
+    "longDescription": "Use YCM Harness to keep agents oriented on long-running work with goals, tickets, checkpoints, verification evidence, and session-start context.",
+    "developerName": "johnyuencm",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "use ycm-harness-design",
+      "use ycm-harness",
+      "Use ycm-harness to complete this task."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

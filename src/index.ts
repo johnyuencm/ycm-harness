@@ -1,0 +1,138 @@
+export * as schema from "./schema/index.js";
+export * as state from "./state/index.js";
+export * as workflow from "./workflow/index.js";
+export * as hooks from "./hooks/index.js";
+export { buildProgram, runCli } from "./cli/index.js";
+export * from "./migration/index.js";
+export {
+  finalizeScheduledResponse,
+  finalizeScheduledResponseShadow,
+  readContinuationShadowRecords,
+  type ContinuationShadowRecord,
+  type CanonicalContinuationVerdict,
+  type ContinuationClosureSurface,
+  type ScheduledFinalizerBlock,
+  type ScheduledFinalizerResult,
+  type ScheduledResponseShadowContext,
+  type ScheduledResponseShadowDeps,
+} from "./continuation/shadow.js";
+export {
+  continuationClosureGate,
+  loadContinuationClosureVerdict,
+  requireContinuationClosure,
+  type ContinuationClosureGateInput,
+  type ContinuationProofBinding,
+} from "./continuation/closure.js";
+export {
+  reviewPm,
+  statusPm,
+  readPmReviewReceipt,
+  readPmGapReceipt,
+  pmReviewReceiptPath,
+  pmGapReceiptPath,
+  type ReviewPmInput,
+  type PmReviewReceipt,
+  type ReviewPmDeps,
+  type StatusPmInput,
+  type PmStatusReport,
+  type StatusPmDeps,
+  type TrustedPmSchedulerReadback,
+} from "./autonomy/pm.js";
+export {
+  runPmInstalledManualCanary,
+  runPmInstalledManualCanaryTrace,
+  pmInstalledCanaryReportPath,
+  type PmInstalledCanaryReport,
+  type PmInstalledCanaryTrace,
+  type PmInstalledCanaryDeps,
+} from "./autonomy/pm-installed-canary.js";
+export {
+  apply,
+  STRATEGIC_ACTION_SELECTOR_OPERATIONS,
+  canonicalStrategicActionIdentity,
+  type StrategicActionSelectorOperation,
+  type StrategicActionCapability,
+  type StrategicActionPriority,
+  type StrategicActionCommentState,
+  type StrategicActionTicketState,
+  type StrategicActionTicketSearchState,
+  type StrategicActionLoopState,
+  type StrategicActionState,
+  type StrategicActionSelector,
+  type StrategicActionRequest,
+  type StrategicActionFailure,
+  type StrategicActionReceipt,
+  type StrategicActionSuccess,
+  type StrategicActionResult,
+} from "./autonomy/strategic-action.js";
+export {
+  review,
+  type StrategicReviewOperation,
+  type StrategicReviewMode,
+  type StrategicReviewEvidenceClass,
+  type StrategicReviewCommitmentStatus,
+  type StrategicReviewLane,
+  type StrategicReviewEvidenceReference,
+  type StrategicReviewLaneItem,
+  type StrategicReviewFinding,
+  type StrategicReviewAnalysis,
+  type StrategicReviewContinuationInput,
+  type StrategicReviewIntegrityFollowUp,
+  type StrategicReviewIntegrityInput,
+  type StrategicReviewIntegrityDisposition,
+  type StrategicReviewRequest,
+  type StrategicReviewFailure,
+  type StrategicReviewSnapshotReport,
+  type StrategicReviewSnapshotSuccess,
+  type StrategicReviewNormalReport,
+  type StrategicReviewNormalSuccess,
+  type StrategicReviewStatusSuccess,
+  type StrategicReviewResult,
+} from "./autonomy/strategic-review.js";
+export {
+  promote,
+  canonicalKnowledgePromotionIdentity,
+  withKnowledgePromotionTestDependencies,
+  KNOWLEDGE_PROMOTION_LESSON_TYPES,
+  type KnowledgePromotionLessonType,
+  type KnowledgeSearchIndexAdapter,
+  type KnowledgePromotionDependencies,
+  type KnowledgePromotionRequest,
+  type KnowledgePromotionFailure,
+  type KnowledgePromotionReceipt,
+  type KnowledgePromotionSuccess,
+  type KnowledgePromotionResult,
+} from "./autonomy/knowledge-promotion.js";
+export {
+  runStrategicInstalledManualCanary,
+  runStrategicInstalledManualCanaryTrace,
+  strategicInstalledCanaryReportPath,
+  type StrategicInstalledCanaryReport,
+  type StrategicInstalledCanaryTrace,
+  type StrategicInstalledCanaryDeps,
+} from "./autonomy/strategic-installed-canary.js";
+export {
+  compareStrategicInstalledParity,
+  loadStrategicReviewProfileCatalog,
+  assertStrategicReviewProfileCapabilities,
+  sourcePluginRoot,
+  STRATEGIC_INSTALLED_ASSET_PATHS,
+  type StrategicInstalledParityReport,
+  type StrategicReviewProfileCatalog,
+} from "./autonomy/strategic-installed-parity.js";
+export {
+  CANARY_IDS,
+  POINTER_COMPLETION_MARKER,
+  runP7bDeterministicVerify,
+  runSafetyCanaries,
+  createPassingCanaryContext,
+  createCliCanaryContext,
+  createMemoryCorrectionIssueAdapter,
+  createFileCorrectionIssueAdapter,
+  type CanaryId,
+  type CanaryContext,
+  type CheckOutcome,
+  type CorrectionIssue,
+  type P7bVerifyReport,
+  type VerifyVerdict,
+} from "./autonomy/p7b-deterministic-verify.js";

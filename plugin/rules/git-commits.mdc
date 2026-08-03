@@ -1,0 +1,12 @@
+---
+description: Default git commit and push behavior after implementation, with harness worktree and irreversible-op exceptions.
+alwaysApply: true
+---
+
+# Git commits
+
+**Default:** When implementation completes, commit and push the changes, split several commits if need to
+
+**Exception — ycm-harness goal worktrees:** When `ycm-harness-design` or `ycm-harness-work` is active and you are editing inside a goal worktree (`.worktrees/<slug>/`), you **must** `git add` and `git commit` after every coherent change **without asking**. Multiple commits per task are expected. Leave the worktree clean (no uncommitted changes) before marking tasks done or leaving execute.
+
+**Still ask before:** merge to `main`/`master`, force-push, hard reset, or any other irreversible remote git operation the user did not request in this chat.

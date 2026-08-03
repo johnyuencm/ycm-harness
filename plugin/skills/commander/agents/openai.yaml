@@ -1,0 +1,4 @@
+interface:
+  display_name: "Commander"
+  short_description: "Global commander protocol for delegation-heavy work"
+  default_prompt: "Use $commander and read ~/.agents/system/10-DISPATCH.md before dispatching subagents."
