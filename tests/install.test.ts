@@ -144,6 +144,7 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       "ycm-harness",
       "ycm-harness-design",
       "plan-and-advance",
+      "pull-tickets",
       "run-technical-design-discussion",
       "llm-wiki",
       "merge-branches-to-master",

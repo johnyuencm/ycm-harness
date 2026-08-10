@@ -28,7 +28,8 @@ Context: `finish-architecture.md` — lite architecture pass (no harness rituals
 Enter this skill only when:
 
 1. The user explicitly invokes `/ycm-harness-work-lite` / `ycm-harness-work-lite`, **or**
-2. `plan-and-advance` hands off after a complete Plan.
+2. `plan-and-advance` hands off after a complete Plan, **or**
+3. `pull-tickets` hands off one claimed ticket at a time after Phase 3 claim.
 
 Do **not** auto-pick lite for arbitrary tasks. `ycm-harness-design` still hands off to full `/ycm-harness-work`.
 

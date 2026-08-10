@@ -75,6 +75,7 @@ const HARNESS_SKILL_DIRS = [
   "llm-wiki",
   "commander",
   "plan-and-advance",
+  "pull-tickets",
   "summarizing-goal-achievement",
   "run-technical-design-discussion",
   "merge-branches-to-master",
