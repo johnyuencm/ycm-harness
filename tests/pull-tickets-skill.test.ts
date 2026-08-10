@@ -14,8 +14,10 @@ test("pull-tickets ships with frontier pull, prioritize, and lite handoff", asyn
   );
   assert.match(skill, /^---\r?\nname: pull-tickets\r?\n/);
   assert.match(skill, /ycm-harness-work-lite/);
+  assert.match(skill, /ready-for-human/);
+  assert.match(skill, /gh pr list/);
+  assert.match(skill, /kind: review/);
   assert.match(skill, /dry-run/);
-  assert.match(skill, /issue_dependencies_summary/);
   assert.doesNotMatch(skill, /ycm-harness goal worktree/i);
 });
 

@@ -1,25 +1,25 @@
 ---
 name: pull-tickets
 description: >-
-  Pull open implementation tickets from the issue tracker, rank the unblocked
-  frontier, claim the top three, and implement each via ycm-harness-work-lite.
-  Use for /pull-tickets, working the backlog, or executing ready-for-agent issues.
+  Pull agent-eligible open issues and PRs from the tracker, rank the frontier,
+  claim the top three, and implement or review each via ycm-harness-work-lite.
+  Use for /pull-tickets, backlog execution, or PR review when not ready-for-human.
 disable-model-invocation: true
 ---
 
 # Pull Tickets
 
-Pull actionable tickets from the tracker, prioritize the **frontier** (unblocked, ready to start), implement the **top 3** via **`ycm-harness-work-lite`**, then close or hand back with evidence.
+Pull the **agent frontier**, prioritize, work the top **3** via **`ycm-harness-work-lite`**, then close issues or leave PR review evidence.
 
-**Compose with (not duplicate):**
+## Agent eligibility (default policy)
 
-| Skill | Role |
-| ----- | ---- |
-| `to-tickets` (mattpocock-skills) | Create tracer-bullet tickets |
-| `create-github-tickets` (plugin) | File bugs/feedback as issues |
-| `triage` (mattpocock-skills) | Label and brief — no batch implement |
-| `wayfinder` (mattpocock-skills) | Decision map — one ticket per session |
-| **`ycm-harness-work-lite`** (plugin) | **Implementation lane** — one lite run per ticket |
+**In scope:** any open **issue** or **PR** that does **not** carry `ready-for-human`.
+
+**Out of scope:** anything labeled `ready-for-human` (device validation, ops, secrets, vendor decisions, human merge approval).
+
+`ready-for-agent` is a strong positive signal but **not required**. Unlabeled issues and draft PRs are eligible unless `ready-for-human`.
+
+**Compose with (not duplicate):** `to-tickets`, `create-github-tickets`, `triage`, `wayfinder`, **`ycm-harness-work-lite`**.
 
 **Do not** use bare `implement`, full `ycm-harness` goals/worktrees, or orchestrator-authored product code.
 
@@ -33,80 +33,79 @@ Pull actionable tickets from the tracker, prioritize the **frontier** (unblocked
 
 | Arg | Effect |
 | --- | --- |
-| `#81` / parent issue URL | Scope to epic children (`Part of #81` in body or sub-issues) |
-| `label:ready-for-agent` | Filter (default AFK-ready label from triage doc) |
-| `limit:3` | Tickets to implement (default **3**) |
-| `dry-run` | Rank and present only — no claim or implement |
+| `#81` / parent URL | Scope to epic children (`Part of #81` or sub-issues) |
+| `issues-only` | Skip open PRs |
+| `prs-only` | Only open PRs |
+| `limit:N` | Items to work (default **3**) |
+| `dry-run` | Rank only |
 
 ## Phase 1 — Pull
 
-1. `gh auth status` — stop with exact blocker if not authenticated.
-2. List open issues: default `--label ready-for-agent`; intersect with parent when scoped.
-3. Fetch `number`, `title`, `body`, `labels`, `assignees`, `createdAt`, `updatedAt`, `issue_dependencies_summary` (or parse `## Blocked by` in body).
-4. **Drop:** assigned to someone else; open blockers; `wontfix`, `needs-info`, `needs-triage`, `wayfinder:map`; unlabeled (unless parent-scoped).
-5. `gh issue view <n> --comments` when acceptance criteria are thin.
+1. `gh auth status` — stop if not authenticated.
+2. **Issues:** `gh issue list --state open` (add `--label` only when user scoped a label).
+3. **PRs:** `gh pr list --state open` unless `issues-only`.
+4. Fetch `number`, `title`, `body`, `labels`, `assignees`, `createdAt`, `updatedAt`, `issue_dependencies_summary`; for PRs also `isDraft`, `reviewDecision`, `additions`, `deletions`.
+5. **Drop:** `ready-for-human`; `wontfix`; assigned to someone else (unless overruled); open issue blockers.
+6. Tag each survivor `kind: implement` (issue) or `kind: review` (PR).
+7. `gh issue view` / `gh pr view` when criteria or test plan are thin.
 
 ## Phase 2 — Prioritize
 
-Score frontier tickets. Higher wins. Ties: lower issue number, then older `createdAt`.
+Score all survivors. Higher wins. Ties: lower number, then older `createdAt`.
 
 | Signal | Points |
 | --- | --- |
-| User named issue/parent in invocation | +100 |
-| `bug` label or fix/broken/regression in title/body | +40 |
-| Unblocks other frontier tickets | +30 per dependent (cap +60) |
-| Small / UI / copy-only | +20 |
+| User named item/parent in invocation | +100 |
+| `ready-for-agent` label | +50 |
+| `kind: review` (open PR) | +45 |
+| `bug` or fix/regression in title/body | +40 |
+| Unblocks other frontier items | +30 per dependent (cap +60) |
+| Small diff / UI / copy-only | +20 |
 | User-reported pain this session | +50 |
-| `ready-for-human` | −20 |
 | Large feature / migration | −30 |
 | Assignee @me | +10 |
 
-Take top `limit` (default 3). Present ranked table unless user said "just do it". **`dry-run`** stops here.
+Take top `limit`. Present table with `kind` column. **`dry-run`** stops here.
 
 ## Phase 3 — Claim
 
 ```bash
-gh issue edit <n> --add-assignee @me
+gh issue edit <n> --add-assignee @me   # issues
+gh pr edit <n> --add-assignee @me      # PRs
 ```
 
-## Phase 4 — Implement via ycm-harness-work-lite
+## Phase 4 — Work via ycm-harness-work-lite
 
-Orchestrator only. Run **`/ycm-harness-work-lite`** once per ticket (sequential by default).
+Orchestrator only. One lite run per item.
 
-Per ticket, hand lite:
+### `kind: implement` (issue)
 
-- Issue link + acceptance criteria
-- Done-when (one sentence)
-- Working directory = target repo root (no harness worktree)
+Hand lite: issue link, acceptance criteria, done-when, workspace = repo root.
 
-Follow `plugin/skills/ycm-harness-work-lite/SKILL.md`:
+Follow `plugin/skills/ycm-harness-work-lite/SKILL.md`. After PASS: comment; close when criteria met.
 
-```text
-dispatch implementer → real verify → fresh combined_reviewer → fix-loop → commit/push → finish-architecture → report
-```
+### `kind: review` (PR)
 
-After lite PASS:
+Hand lite: PR link, `gh pr diff <n>`, author test claims, done-when = review verdict posted.
 
-1. `gh issue comment <n>` — shipped summary, verify command + result, review PASS.
-2. `gh issue close <n>` when criteria met.
-3. If blocked: comment blocker; leave open.
+Checkout PR branch → verify on branch → **combined_reviewer** on diff → fix-loop if needed → report.
 
-Lite forbids harness rituals/wiki mirroring beyond claim/comment/close on the ticket.
+After PASS: `gh pr comment` with verdict + verify; optionally `--add-label ready-for-agent`. Do not merge unless user asked.
 
 ## Phase 5 — Session report
 
-Table: issue, status, evidence. List remaining frontier.
+Table with `kind`, status, evidence. List remaining frontier.
 
 ## Parallelism
 
-Default **sequential** lite runs. Multitask only when user requests it **and** tickets touch disjoint files.
+Sequential by default. Multitask only when user asks and items touch disjoint files.
 
 ## Stop conditions
 
-Ask the user when: fewer than `limit` unblocked tickets; top ticket needs product decision; verify fails after two fix attempts; destructive git not requested.
+Ask when nothing eligible; merge/deploy required; verify fails twice; destructive git not requested.
 
 ## Examples
 
-- **`/pull-tickets #81`** — epic children; top 3 UX tickets.
+- **`/pull-tickets`** — top 3 agent-eligible issues + PRs.
+- **`/pull-tickets prs-only`** — review open PRs.
 - **`/pull-tickets dry-run`** — ranked frontier only.
-- **`/pull-tickets limit:1`** — highest-priority ticket only.
