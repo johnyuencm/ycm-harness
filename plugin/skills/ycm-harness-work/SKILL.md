@@ -5,10 +5,15 @@ description: Coordinate long-running coding work with lean ycm-harness goals, ti
 
 # ycm-harness work
 
-Use the lean 0.3 CLI as a coordination ledger. The harness records work; it
-does not replace reading the code, making a focused change, or running the
-project's real checks. Enter after `ycm-harness-design` or when resuming an
-existing goal.
+The harness is a **coordination ledger for a strong agent** (Opus-class). It
+records goals, tickets, and proof so work survives context loss. It does not
+replace reading the code, making a focused change, or running the project's
+real checks. Do not walk retired phase/ritual SOPs. Do not invent extra
+reviewers or a review JSON file.
+
+Enter after `ycm-harness-design` or when resuming an existing goal. Use the
+strongest available model for implementation **and** for the one independent
+reviewer.
 
 ## Start or resume
 
@@ -48,18 +53,9 @@ Do not run `ycm-harness review *` (deprecated exit-2 alias). Do not write
 `review-combined.json` or any harness review evidence file. Optional durable
 note after PASS: `checkpoint` or `wiki durable`.
 
-Close-out is mechanical kernel proof, not a review JSON file:
-
-```bash
-ycm-harness ticket submit <id>
-ycm-harness verify run \
-  --ticket <id> \
-  --command "<real project verification command>" \
-  --implementer-run <id> \
-  --verifier-run <different-id>
-```
-
-Inspect with `verify verdict` / `verify status`.
+Kernel proof (same command as verify below): `ticket submit` then `verify run`
+with distinct implementer vs verifier run IDs. Inspect with `verify verdict` /
+`verify status`.
 
 ## Verify and complete
 
@@ -97,6 +93,21 @@ ycm-harness wiki durable --id <slug> --title "<title>" \
 
 Never put credentials, private identifiers, personal paths, or transient task
 progress in durable knowledge.
+
+## Depth (optional, when sibling files exist)
+
+Skip any file that is missing (public install ships `SKILL.md` +
+`github-tickets.md` only). These are lookup, not a second SOP:
+
+- `review-fix-loop.md` — independent review dispatch
+- `execute-agents.md` — implementer + acceptance verifier
+- `commander-dispatch.md` — model tier and done bar
+- `context-index.md` — when to read other siblings
+- `orchestrator-checklist.md` — close-out scan
+- `autonomy.md` — what to do without asking
+- `commands.md` — live 0.3 CLI
+- `github-tickets.md` — GitHub mirror
+- `anti-stop.md` — do not stop after execute
 
 ## Boundaries
 

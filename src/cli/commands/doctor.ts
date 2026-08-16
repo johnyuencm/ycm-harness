@@ -9,6 +9,7 @@ import {
   ponytailInstallHint,
   runClientSync,
   runInstallScopes,
+  repairLegacyAgentDirs,
   packageRoot,
 } from "../install-kit.js";
 import { readFile } from "node:fs/promises";
@@ -87,6 +88,7 @@ export function registerDoctor(
             sourceRoot,
           })),
         );
+        repairReports.push(...(await repairLegacyAgentDirs(ctx.cwd)));
         repaired = true;
         ({ audit, needs_sync } = await auditInstall(ctx.cwd));
       }

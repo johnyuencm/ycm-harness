@@ -43,6 +43,9 @@ const REQUIRED_SKILL_PHRASES = [
   "wiki durable",
   "goal worktree init",
   "ycm-harness review",
+  "when sibling files exist",
+  "review-fix-loop.md",
+  "orchestrator-checklist.md",
 ];
 
 const REQUIRED_DESIGN_SKILL_PHRASES = [
@@ -67,6 +70,7 @@ const REQUIRED_RULE_PHRASES = [
   "GitHub",
   "wiki durable",
   "ycm-harness review",
+  "strongest available model",
 ];
 
 const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
@@ -117,7 +121,7 @@ const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
     "Orchestrator fulfillment checklist",
     "verify run",
     "ticket submit",
-    "blocking_gates",
+    "ticket submit",
     "anti-gaming",
     "improve-codebase-architecture",
   ],
@@ -150,6 +154,9 @@ test("skill file stays focused on workflow steps and links context files", async
   );
   assert.doesNotMatch(content, /## Autonomy contract/);
   assert.doesNotMatch(content, /## Core commands/);
+  assert.doesNotMatch(content, /ycm-harness review start/);
+  assert.doesNotMatch(content, /phase start/);
+  assert.doesNotMatch(content, /ritual record/);
 });
 
 test("design skill drives grill-me into to-spec and to-tickets planning", async () => {
@@ -243,4 +250,39 @@ test("shipped context docs use split skill activation names", async () => {
       `${file} still mentions old slash activation`,
     );
   }
+});
+
+test("execute-agents does not invent a second reviewer", async () => {
+  const content = await readIfPresent(
+    path.join(workSkillDir, "execute-agents.md"),
+  );
+  if (content === null) return;
+  assert.doesNotMatch(content, /spec-reviewer/);
+  assert.match(content, /combined_reviewer/);
+});
+
+test("install-kit prunes leftover cursor-harness agent dirs", async () => {
+  const kit = await fs.readFile(
+    path.join(root, "src", "cli", "install-kit.ts"),
+    "utf8",
+  );
+  assert.match(kit, /LEGACY_AGENT_DIRS/);
+  assert.match(kit, /pruneLegacyAgentDirs/);
+  assert.match(kit, /staleLegacyAgentItems/);
+  assert.match(kit, /export async function repairLegacyAgentDirs/);
+  const doctor = await fs.readFile(
+    path.join(root, "src", "cli", "commands", "doctor.ts"),
+    "utf8",
+  );
+  assert.match(doctor, /repairLegacyAgentDirs/);
+});
+
+test("commander-dispatch defaults implementer and reviewer to strongest HIGH", async () => {
+  const content = await readIfPresent(
+    path.join(workSkillDir, "commander-dispatch.md"),
+  );
+  if (content === null) return;
+  assert.match(content, /strongest available model/);
+  assert.doesNotMatch(content, /MID \(default\)/);
+  assert.match(content, /HIGH \(default for implementer \+ combined reviewer\)/);
 });

@@ -19,6 +19,6 @@ Record only reusable project knowledge. Do not store credentials, private
 identifiers, personal paths, raw session transcripts, or transient task
 progress.
 
-Do not run `wiki init`, `wiki source add`, `wiki page upsert`, `wiki query`,
-`wiki lint`, `user-wiki *`, `wiki promote`, or `session tick` (deprecated
-exit-2 aliases).
+Do not run `wiki init`, `wiki query`, `wiki lint`, `wiki source add`,
+`wiki page upsert`, `wiki promote`, `user-wiki *`, or `session tick`
+(retired stubs, exit 2). Use `wiki durable` or `$llm-wiki` file edits.

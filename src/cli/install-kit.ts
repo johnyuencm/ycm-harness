@@ -1,4 +1,4 @@
-import { promises as fs } from "node:fs";
+﻿import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,7 +51,7 @@ export interface ClientSyncOptions {
   codex?: boolean;
   opencode?: boolean;
   claude?: boolean;
-  /** Prefer GitHub marketplace (johnyuencm/ycm-harness) over local checkout for Claude. */
+  /** Prefer GitHub marketplace (johnyuen/harness) over local checkout for Claude. */
   claudeGit?: boolean;
   /** Git ref (branch/tag) when using Claude GitHub marketplace. Defaults to master. */
   claudeRef?: string;
@@ -74,9 +74,12 @@ const HARNESS_SKILL_DIRS = [
   "hard-problem-solving",
   "llm-wiki",
   "commander",
+  "building-ios-ipa-sideloadly",
+  "deploying-to-mumu-emulator",
   "plan-and-advance",
   "pull-tickets",
   "summarizing-goal-achievement",
+  "setup-autonomy-p1-p7",
   "run-technical-design-discussion",
   "merge-branches-to-master",
   "create-skill",
@@ -152,22 +155,14 @@ const LEGACY_WORK_SKILL_DIRS = [
   "cursor-harness-design",
   "cursor-harness-work-lite",
 ] as const;
-/** Codex marketplace name (must match `.agents/plugins/marketplace.json`). */
-const CODEX_MARKETPLACE_NAME = "ycm-harness";
+const LEGACY_AGENT_DIRS = ["cursor-harness"] as const;
+const CODEX_MARKETPLACE_NAME = "ycm-harness-local";
 const CODEX_PLUGIN_KEY = `${PLUGIN_NAME}@${CODEX_MARKETPLACE_NAME}`;
-/** Prefer SSH for Codex git marketplaces; HTTPS often lacks credentials in agent shells. */
-const CODEX_GIT_REMOTE = "git@github.com:johnyuencm/ycm-harness.git";
-const HARNESS_GIT_HTTPS = "https://github.com/johnyuencm/ycm-harness.git";
-const HARNESS_GIT_SSH = "git@github.com:johnyuencm/ycm-harness.git";
-const LEGACY_CODEX_MARKETPLACE_NAME = "ycm-harness-local";
-const LEGACY_CODEX_PLUGIN_KEY = `${PLUGIN_NAME}@${LEGACY_CODEX_MARKETPLACE_NAME}`;
-const LEGACY_CURSOR_CODEX_MARKETPLACE = "cursor-harness-local";
-const LEGACY_CURSOR_CODEX_PLUGIN_KEY = `cursor-harness@${LEGACY_CURSOR_CODEX_MARKETPLACE}`;
-const OPENCODE_PLUGIN_GIT_REMOTE = `${PLUGIN_NAME}@git+https://github.com/johnyuencm/ycm-harness.git`;
+const OPENCODE_PLUGIN_GIT_REMOTE = `${PLUGIN_NAME}@git+https://github.com/johnyuen/harness.git`;
 /** Claude Code marketplace name (must match `.claude-plugin/marketplace.json`). */
 const CLAUDE_MARKETPLACE_NAME = "harness";
 const CLAUDE_PLUGIN_KEY = `${PLUGIN_NAME}@${CLAUDE_MARKETPLACE_NAME}`;
-const CLAUDE_GITHUB_REPO = "johnyuencm/ycm-harness";
+const CLAUDE_GITHUB_REPO = "johnyuen/harness";
 const CLAUDE_DEFAULT_REF = "master";
 const RUNTIME_DEPENDENCIES = ["commander", "zod"] as const;
 
@@ -210,11 +205,10 @@ export function claudeMarketplaceSource(
   opts?: { useGit?: boolean; ref?: string },
 ): string {
   if (opts?.useGit) {
-    // HTTPS avoids SSH agent gaps when Claude clones the marketplace.
     const ref = (opts.ref ?? CLAUDE_DEFAULT_REF).trim();
     return ref && ref !== CLAUDE_DEFAULT_REF
-      ? `${HARNESS_GIT_HTTPS}#${ref}`
-      : HARNESS_GIT_HTTPS;
+      ? `${CLAUDE_GITHUB_REPO}#${ref}`
+      : CLAUDE_GITHUB_REPO;
   }
   return path.resolve(sourceRoot);
 }
@@ -397,6 +391,59 @@ async function pruneLegacyWorkSkillDirs(
     removed += 1;
   }
   return removed;
+}
+
+async function pruneLegacyAgentDirs(
+  destAgentsRoot: string,
+  force: boolean,
+): Promise<number> {
+  let removed = 0;
+  for (const legacyDir of LEGACY_AGENT_DIRS) {
+    const target = path.join(destAgentsRoot, legacyDir);
+    if (!(await fileExists(target))) continue;
+    if (!force) continue;
+    await fs.rm(target, { recursive: true, force: true });
+    removed += 1;
+  }
+  return removed;
+}
+
+async function reportLegacyAgentPrunes(
+  label: string,
+  destAgentsRoot: string,
+  force: boolean,
+): Promise<string[]> {
+  const removed = await pruneLegacyAgentDirs(destAgentsRoot, force);
+  return removed > 0 ? [`${label} legacy agents pruned: ${removed}`] : [];
+}
+
+/** Doctor --repair: remove leftover pre-rebrand agent dirs even when project force is off. */
+export async function repairLegacyAgentDirs(cwd: string): Promise<string[]> {
+  return [
+    ...(await reportLegacyAgentPrunes(
+      "cursor user",
+      path.join(cursorHome(), "agents"),
+      true,
+    )),
+    ...(await reportLegacyAgentPrunes(
+      "project",
+      path.join(cwd, ".cursor", "agents"),
+      true,
+    )),
+  ];
+}
+
+async function staleLegacyAgentItems(
+  destAgentsRoot: string,
+): Promise<AuditItem[]> {
+  const items: AuditItem[] = [];
+  for (const legacyDir of LEGACY_AGENT_DIRS) {
+    const target = path.join(destAgentsRoot, legacyDir);
+    if (await fileExists(target)) {
+      items.push({ path: target, status: "stale" });
+    }
+  }
+  return items;
 }
 
 async function pruneStalePluginWorkSkillDir(
@@ -995,17 +1042,42 @@ function tomlLiteral(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
-function marketplaceBlock(_pluginRoot?: string): string {
+function marketplaceBlock(pluginRoot: string): string {
   return [
     `[marketplaces.${CODEX_MARKETPLACE_NAME}]`,
-    `source_type = "git"`,
-    `source = ${tomlLiteral(CODEX_GIT_REMOTE)}`,
+    `source_type = "local"`,
+    `source = ${tomlLiteral(pluginRoot)}`,
     "",
   ].join("\n");
 }
 
 function pluginEnabledBlock(): string {
   return [`[plugins."${CODEX_PLUGIN_KEY}"]`, "enabled = true", ""].join("\n");
+}
+
+function installedCodexMarketplaceManifest(): string {
+  return `${JSON.stringify(
+    {
+      name: CODEX_MARKETPLACE_NAME,
+      interface: { displayName: "YCM Harness Local Plugins" },
+      plugins: [
+        {
+          name: PLUGIN_NAME,
+          source: {
+            source: "local",
+            path: "./plugins/ycm-harness",
+          },
+          policy: {
+            installation: "AVAILABLE",
+            authentication: "ON_INSTALL",
+          },
+          category: "Developer Tools",
+        },
+      ],
+    },
+    null,
+    2,
+  )}\n`;
 }
 
 async function readTextIfExists(file: string): Promise<string | undefined> {
@@ -1048,14 +1120,14 @@ function upsertTomlSection(raw: string, header: string, block: string): string {
   return `${normalized}${suffix}${block}`;
 }
 
-async function ensureCodexConfig(): Promise<string[]> {
+async function ensureCodexConfig(pluginRoot: string): Promise<string[]> {
   const configPath = codexConfigPath();
   await ensureDir(path.dirname(configPath));
   const original = (await readTextIfExists(configPath)) ?? "";
   const withMarketplace = upsertTomlSection(
     original,
     `marketplaces.${CODEX_MARKETPLACE_NAME}`,
-    marketplaceBlock(),
+    marketplaceBlock(pluginRoot),
   );
   const next = upsertTomlSection(
     withMarketplace,
@@ -1265,10 +1337,11 @@ async function ensureClaudeAutoUpdate(
 
   const marketplaces = { ...(parsed.extraKnownMarketplaces ?? {}) };
   const refMatch = /^([^#]+)#(.+)$/.exec(marketplaceSource);
+  const repo = refMatch?.[1] ?? marketplaceSource;
   const ref = refMatch?.[2];
   const githubSource: { source: "github"; repo: string; ref?: string } = {
     source: "github",
-    repo: CLAUDE_GITHUB_REPO,
+    repo,
   };
   if (ref) githubSource.ref = ref;
 
@@ -1410,10 +1483,8 @@ async function auditCodexConfig(): Promise<{
     };
   }
 
-  const marketplaceOk =
-    raw.includes(`marketplaces.${CODEX_MARKETPLACE_NAME}`) &&
-    raw.includes(`source_type = "git"`) &&
-    raw.includes(CODEX_GIT_REMOTE);
+  const pluginRoot = codexInstallRoot();
+  const marketplaceOk = raw.includes(marketplaceBlock(pluginRoot).trim());
   const pluginOk = raw.includes(pluginEnabledBlock().trim());
   return {
     marketplace: { path: configPath, status: marketplaceOk ? "ok" : "stale" },
@@ -1480,6 +1551,13 @@ export async function runInstallScopes(
           ),
         ),
       );
+      reports.push(
+        ...(await reportLegacyAgentPrunes(
+          "cursor user",
+          path.join(cursorHome(), "agents"),
+          force,
+        )),
+      );
     }
 
     reports.push(
@@ -1518,6 +1596,13 @@ export async function runInstallScopes(
             force,
           ),
         ),
+      );
+      reports.push(
+        ...(await reportLegacyAgentPrunes(
+          "project",
+          path.join(ctx.cwd, ".cursor", "agents"),
+          force,
+        )),
       );
     }
 
@@ -1576,54 +1661,48 @@ export async function runClientSync(
         ),
       ),
     );
+    reports.push(
+      ...(await reportLegacyAgentPrunes(
+        "cursor user",
+        path.join(cursorHome(), "agents"),
+        force,
+      )),
+    );
   }
 
   if (opts.codex) {
-    reports.push(...(await ensureCodexConfig()));
-    try {
-      await runCodexPluginCommand([
-        "plugin",
-        "marketplace",
-        "add",
-        CODEX_GIT_REMOTE,
-      ]);
-      reports.push(`codex marketplace add: ${CODEX_GIT_REMOTE}`);
-    } catch (err) {
-      reports.push(
-        `codex marketplace add: skipped (${err instanceof Error ? err.message : String(err)})`,
-      );
+    const installedMarketplaceManifest = path.join(
+      codexMarketplaceConfigRoot(),
+      "marketplace.json",
+    );
+    await ensureDir(path.dirname(installedMarketplaceManifest));
+    const existingMarketplace = await readTextIfExists(
+      installedMarketplaceManifest,
+    );
+    const nextMarketplace = installedCodexMarketplaceManifest();
+    let marketplaceResult: "installed" | "updated" | "skipped" = "skipped";
+    if (existingMarketplace === undefined) {
+      await fs.writeFile(installedMarketplaceManifest, nextMarketplace, "utf8");
+      marketplaceResult = "installed";
+    } else if (existingMarketplace !== nextMarketplace && force) {
+      await fs.writeFile(installedMarketplaceManifest, nextMarketplace, "utf8");
+      marketplaceResult = "updated";
     }
-    for (const legacyPlugin of [
-      LEGACY_CURSOR_CODEX_PLUGIN_KEY,
-      LEGACY_CODEX_PLUGIN_KEY,
-    ]) {
-      try {
-        await runCodexPluginCommand(["plugin", "remove", legacyPlugin]);
-        reports.push(`codex plugin remove: ${legacyPlugin}`);
-      } catch (err) {
-        reports.push(
-          `codex plugin remove ${legacyPlugin}: skipped (${err instanceof Error ? err.message : String(err)})`,
-        );
-      }
-    }
-    for (const legacyMarketplace of [
-      LEGACY_CURSOR_CODEX_MARKETPLACE,
-      LEGACY_CODEX_MARKETPLACE_NAME,
-    ]) {
-      try {
-        await runCodexPluginCommand([
-          "plugin",
-          "marketplace",
-          "remove",
-          legacyMarketplace,
-        ]);
-        reports.push(`codex marketplace remove: ${legacyMarketplace}`);
-      } catch (err) {
-        reports.push(
-          `codex marketplace remove ${legacyMarketplace}: skipped (${err instanceof Error ? err.message : String(err)})`,
-        );
-      }
-    }
+    reports.push(
+      renderTreeReport(
+        "codex plugin",
+        await installPluginProjection(sourceRoot, codexInstalledPluginRoot(), force),
+      ),
+    );
+    reports.push(
+      ...(await reportPluginSkillPrunes(
+        "codex plugin",
+        codexInstalledPluginRoot(),
+        force,
+      )),
+    );
+    reports.push(`codex marketplace manifest: ${marketplaceResult}`);
+    reports.push(...(await ensureCodexConfig(codexInstallRoot())));
     if (opts.refreshCodexCache) {
       reports.push(...(await refreshCodexPluginCache()));
     } else {
@@ -1743,14 +1822,20 @@ export async function auditInstall(
       path.join(pluginRoot, "rules", "ycm-harness.mdc"),
       path.join(cwd, ".cursor", "rules", "ycm-harness.mdc"),
     ),
-    user_agents: await auditTree(
-      path.join(pluginRoot, "agents"),
-      path.join(cursorHome(), "agents", PLUGIN_NAME),
-    ),
-    project_agents: await auditTree(
-      path.join(pluginRoot, "agents"),
-      path.join(cwd, ".cursor", "agents", PLUGIN_NAME),
-    ),
+    user_agents: [
+      ...(await auditTree(
+        path.join(pluginRoot, "agents"),
+        path.join(cursorHome(), "agents", PLUGIN_NAME),
+      )),
+      ...(await staleLegacyAgentItems(path.join(cursorHome(), "agents"))),
+    ],
+    project_agents: [
+      ...(await auditTree(
+        path.join(pluginRoot, "agents"),
+        path.join(cwd, ".cursor", "agents", PLUGIN_NAME),
+      )),
+      ...(await staleLegacyAgentItems(path.join(cwd, ".cursor", "agents"))),
+    ],
     cursor_plugin: [
       ...(await auditPluginProjection(root, cursorInstallRoot())),
       ...(await Promise.all(
@@ -1814,17 +1899,25 @@ export async function auditInstall(
   };
 
   if (codexDetected) {
+    audit.codex_plugin = [
+      ...(await auditPluginProjection(root, codexInstalledPluginRoot())),
+      {
+        path: path.join(codexMarketplaceConfigRoot(), "marketplace.json"),
+        status:
+          (await readTextIfExists(
+            path.join(codexMarketplaceConfigRoot(), "marketplace.json"),
+          )) === installedCodexMarketplaceManifest()
+            ? "ok"
+            : (await fileExists(
+                  path.join(codexMarketplaceConfigRoot(), "marketplace.json"),
+                ))
+              ? "stale"
+              : "missing",
+      },
+    ];
     const configAudit = await auditCodexConfig();
     audit.codex_marketplace = configAudit.marketplace;
     audit.codex_plugin_enabled = configAudit.plugin;
-    audit.codex_plugin = [
-      {
-        path: `git:${CODEX_GIT_REMOTE}`,
-        status: configAudit.marketplace.status === "ok" && configAudit.plugin.status === "ok"
-          ? "ok"
-          : "stale",
-      },
-    ];
   }
 
   if (opencodeDetected) {
