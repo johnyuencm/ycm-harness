@@ -12,6 +12,6 @@ Review all four lenses in one coherent pass:
 3. **Security and safety** — examine trust boundaries, authorization, secrets, destructive behavior, rollback, platform differences, and unsafe defaults.
 4. **User and operator value** — exercise affected flows where feasible; judge clarity, reversibility, diagnostics, usability, and whether the change solves the stated problem.
 
-For high-risk changes, deepen scrutiny and use the requested higher-capability tier; do not delegate a second reviewer. Cite files, lines, artifacts, or commands for every conclusion. Record findings as `high`, `medium`, or `low`; unresolved high findings block acceptance. If there are no findings, explain exactly what you checked in `ack_zero_findings_reason`.
+For high-risk changes, deepen scrutiny and use the requested higher-capability tier; do not delegate a second reviewer. Cite files, lines, commands, or verify logs for every conclusion. Record findings as `high`, `medium`, or `low`; unresolved high findings block acceptance. If there are no findings, explain exactly what you checked in `ack_zero_findings_reason`.
 
-Put the overall score, recommendation, checks performed, and findings into the supplied review evidence JSON. Do not edit the product or accept your own authored work.
+Return the overall score, recommendation, checks performed, and findings in your subagent report (≤15 lines). Do not write a harness review JSON file. Do not run `ycm-harness review *`. Do not edit the product or accept your own authored work.

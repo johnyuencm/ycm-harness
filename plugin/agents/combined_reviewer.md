@@ -13,4 +13,4 @@ For high-risk changes, perform deeper checks using the requested higher-capabili
 
 ## Evidence contract
 
-Fill the supplied JSON with `reviewer: combined_reviewer`, `reviewer_source: subagent`, `subagent_kind: combined_reviewer`, score, recommendation, checks, and findings. If findings are empty, provide a specific `ack_zero_findings_reason` of at least 20 characters. Return the evidence path and a report of at most 15 lines; do not modify product files.
+Return a report of at most 15 lines: verdict first, findings with file:line or command evidence, and `ack_zero_findings_reason` (min 20 characters) if findings are empty. Do not write a harness review JSON file. Do not run `ycm-harness review *` (deprecated exit-2 alias). Do not modify product files. Durable harness proof is the orchestrator's `ticket submit` + `verify run`; persist a reusable PASS only via `checkpoint` or `wiki durable` if asked.

@@ -11,6 +11,8 @@ project's real checks.
 
 ## Start or resume
 
+If the CLI resolves through an npm link to a moved checkout, do not recreate the stale path. Use shell-appropriate executable lookup, inspect npm's active global prefix, relink only the current checkout, and verify with `ycm-harness --help` rather than `--version`; never record machine-specific absolute paths.
+
 1. Run `ycm-harness status` and `ycm-harness next`.
 2. If state is absent, run `ycm-harness init`.
 3. Create or activate one goal. Use the local backend unless the user or

@@ -1,36 +1,74 @@
 ---
-description: Lean ycm-harness 0.3 coordination rule for durable goals, tickets, checkpoints, verification evidence, and project knowledge.
+description: ycm-harness V4 strict SOP workflow rule. Tells Cursor agents to use the harness CLI for durable goal/phase/ritual/task/checkpoint/smoke state, hard phase gates, project wiki memory, user-wiki promotion with redaction, review/fix-loop validation, Caveman compression for agent-internal text, and the polled wiki-update nudge. Agent acts autonomously but must record ritual evidence before phase transitions.
 alwaysApply: true
 ---
 
-# ycm-harness 0.3
+# ycm-harness (V5 strict SOP)
 
-Use `.ycm-harness/state.json` as canonical project state. Do not hand-edit
-harness state or generated wiki indexes.
+This project uses ycm-harness as a strict workflow operating system: durable state, one git worktree per goal, typed artifacts, hard phase gates, required ritual evidence, a project wiki, optional user-level wiki, a review/fix-loop gate, agent-internal Caveman compression, and a session nudge for wiki maintenance. Treat `.ycm-harness/state.json` as canonical for project state and `~/.ycm-harness/state.json` as canonical for user state.
 
-For non-trivial tracked work:
+## Full-run (mandatory)
 
-1. Run `ycm-harness status` and `ycm-harness next`.
-2. Initialize state when absent, then create or activate one goal.
-3. Create provider-backed tickets with observable acceptance criteria.
-4. Use `goal worktree init` when isolation is useful or required. It creates a
-   `harness/<goal-id>` branch by default.
-5. Record decisions, blockers, and compaction boundaries with
-   `ycm-harness checkpoint`.
-6. Submit code-changing tickets before verification.
-7. Verify the exact submitted state with distinct implementer and verifier run
-   IDs; do not fabricate evidence.
-8. Complete a goal only after all tickets are terminal and required evidence is
-   fresh.
+On `ycm-harness-design` or `ycm-harness-work`, first run `ycm-harness doctor --repair` so project/user skills and this rule match the installed CLI (no stale gaps). Confirm `mattpocock-skills` is installed (Claude Code plugin `mattpocock-skills@mattpocock`); planning/TDD skills are **not** vendored into ycm-harness. Confirm `caveman` is installed (Claude Code plugin `caveman@caveman`); Caveman skills are **not** vendored into ycm-harness.
 
-Use `wiki durable`, `wiki list`, and `wiki show` for reusable project
-knowledge. Use `doctor` to inspect client projections and `install --force` to
-refresh them.
+**Lite carve-out:** when `ycm-harness-work-lite` is active, do **not** enter harness goals/phases/rituals/wiki/issue-tracker/worktrees. Follow `plugin/skills/ycm-harness-work-lite/SKILL.md` only (implement → verify → independent review → `finish-architecture` → ship).
 
-`task` aliases `ticket`; `smoke` aliases `verify`. Do not use the retired phase,
-review, ritual, session, artifact, commit, user-wiki, or caveman workflows.
+When `ycm-harness-design` or `ycm-harness-work` is active for a goal: the main agent is an **orchestrator**, not the implementer. Use `ycm-harness-design` for explore, `grill-with-docs`, PRD, issue, and design planning; use `ycm-harness-work` for execute, validate, and finish. Loop `ycm-harness next --json` through **finish**; maintain state/artifacts, delegate product work to subagents, inspect diffs, verify, and record evidence. In **execute**, also follow the **Ralph** skill via `ralph-loop.md` (persist until tasks verified; parallelize; fresh test evidence). Ralph finishing does not replace harness validate/finish. In Codex installs, the ycm-harness `Stop` hook enforces this by blocking premature stops while post-discuss phases remain active. Mirror the goal in **GitHub Issues + Project harness** with direct `gh` commands: one parent issue, one child issue per phase (board TheNewBee #1), then follow-up issues at finish. Do not stop after execute/plan to ask about validate, merge, or "next steps." Read `full-run.md`, `execute-agents.md`, `ralph-loop.md`, `github-tickets.md`, `orchestrator-checklist.md`, and `anti-stop.md` before ending any turn. Before claiming the goal is done, complete every item in `orchestrator-checklist.md`.
 
-**Lite carve-out:** `ycm-harness-work-lite` uses its own stateless procedure and
-does not create harness goals, tickets, checkpoints, or wiki entries.
+When working on long-running tasks, follow the V5 SOP:
 
-Ask before destructive or irreversible actions the user did not authorize.
+1. Run `ycm-harness status` (and `ycm-harness next --json` for ids) at the start of any non-trivial change. Read-only commands never require user permission. Run `ycm-harness doctor --json`; auto-refresh user skill drift with `ycm-harness install --user --force`, but do not force-overwrite project-local `.cursor/` files unless the user asked for project sync.
+2. Preflight `gh` before ticket sync. If the CLI is missing, dispatch a **Composer 2.5 Fast** subagent to install it, then verify `gh auth status` / `gh --help`. If setup still needs browser login, token entry, or org/project access, surface that exact blocker.
+3. Bind a worktree to each goal: `ycm-harness goal worktree init` (creates `.worktrees/<slug>/` as detached HEAD — no new branch). All execute work runs in that worktree. Agents **must `git commit` after every coherent change** in the worktree without asking.
+4. Move phases explicitly via `ycm-harness phase start <explore|discuss|design|plan|execute|validate|finish>`. The CLI refuses forward transitions unless the current phase exit gate is satisfied.
+5. Record required rituals with `ycm-harness ritual record --kind <kind> --evidence-file <path> --summary "..." [--meta key=value]`. Evidence files must exist.
+6. Create tasks during plan via `ycm-harness task create`. Tasks drafted in plan migrate forward when you `task start <id>` from execute.
+7. Record verification via **`ycm-harness ticket submit <id>`** then **`ycm-harness verify run --ticket <id> --command "..." --implementer-run <id> --verifier-run <different-id>`** before marking runnable behavior changes as done. Do not fabricate pass evidence; do not reuse the implementer as verifier.
+8. Capture decisions and blockers via `ycm-harness checkpoint <kind> "<title>" --decision "..."`. Always record a `context_compaction` checkpoint before context loss.
+9. Use `ycm-harness next` whenever you need the suggested next command.
+
+Required phase rituals:
+
+- `explore`: always fan out at least 2 read-only subagents (codebase + risks), scan the project + user wiki, register at least 2 `explore-report` artifacts plus one `explore-synthesis` artifact, and record both `explore-codebase` and `explore-knowledge-base` rituals before `discuss`.
+- **Modes:** At each phase boundary, if wrong mode, **ask user to switch** (Plan / Agent / Ask / Multitask per `cursor-modes.md`) and wait for **ready** — never plain-text grill instead of AskQuestion.
+- `discuss`: in `ycm-harness-design`, run **`grill-with-docs` in Plan mode** — AskQuestion only; apply `domain-modeling` as decisions crystallize. After discuss, use `to-spec`, `to-tickets`, and Wayfinder when needed; prompt **Agent** for `ycm-harness-work` execute (and **/multitask** when 3+ parallel tasks). Register `user-story`/`prd`, `grill-me` ritual, decision checkpoints, then `design`.
+- `design`: register a `design` artifact before `plan`.
+- `plan`: always invoke `writing-plans`; register `implementation-plan` and `test-plan` artifacts; record `writing-plans` with `ralplan_required=true|false`. Invoke and record `ralplan` when architecture, security, data persistence, multiple subsystems, more than 5 files, parallel agents, or high-risk scope applies. Create at least one task before `execute`.
+- `execute`: always invoke `ultrawork`, then `ralph`; record both rituals. Dispatch one implementer subagent per task by default, keep ownership scopes explicit, and have the orchestrator independently inspect diffs/checks. Implementers **commit after every change** in the goal worktree; worktree must be clean before leaving execute. Finish or block all tasks, then `ticket submit` + `verify run` (distinct implementer/verifier run IDs) before `validate`.
+- `validate`: always run build/tests/lints as appropriate. `ticket submit` then **`verify run --ticket <id> --command "..."`** with distinct implementer/verifier run IDs. Dispatch exactly one fresh combined reviewer distinct from all authors; findings live in the subagent report. Do not run `ycm-harness review *` and do not write a harness review JSON file. Optional `checkpoint` after PASS; then `finish`.
+- `finish`: register a `progress` artifact; update project wiki, record `project-wiki-update`, create actionable child follow-up issues in GitHub, add a final parent summary comment (include PR URL), run user-wiki dry-run when reusable lessons exist, ask before `--confirm`, record a final manual checkpoint, then `goal worktree finish` for merge readiness.
+
+When durable knowledge surfaces:
+
+- Run `ycm-harness wiki init` once per project, then `ycm-harness wiki source add <path>` for any non-trivial reference document.
+- Synthesize knowledge units with `ycm-harness wiki page upsert --id <slug> --title "..." --source <id> --body-file <path>`. Cross-reference pages with `[[other-page-id]]`.
+- Run `ycm-harness wiki lint --json` after a batch of upserts.
+- For knowledge that is useful across projects: `ycm-harness user-wiki init` once per user, then `ycm-harness wiki promote <project_page_id> --dry-run` to inspect redaction, and `... --confirm` to write. The redactor strips emails, IPs, common API keys, PEM blocks, and absolute home paths.
+
+When validating a meaningful change, use independent review (skill procedure, not a harness review file):
+
+- Dispatch exactly one fresh read-only `combined_reviewer`, distinct from every author/implementer. Findings live in the subagent report. Do not run `ycm-harness review *` (deprecated exit-2 alias). Do not write a harness review JSON file.
+- Durable harness proof: `ycm-harness ticket submit <id>` then `ycm-harness verify run --ticket <id> --command "..." --implementer-run <id> --verifier-run <different-id>`.
+- Optional: `ycm-harness checkpoint manual "independent review PASS"` if the PASS is a reusable fact.
+- If the reviewer returns FAIL or high findings: invoke `$hard-problem-solving` before editing, fix, `ticket submit` again, re-dispatch one fresh combined reviewer distinct from the fix author, then fresh `verify run`. Max 3 rounds; if still failing, delegate to a human reviewer. Open `high` findings block close-out; `medium` is orchestrator-discretion; `low` is deferred and named as not-done.
+
+Session nudge: after every user-visible reply run `ycm-harness session tick --kind user_message`, then `ycm-harness session nudge --json`. If `due` is true, run `wiki page upsert` to capture the most recent learning - that resets the counter automatically.
+
+Caveman compression: for agent-internal text only, use the installed **`caveman@caveman`** plugin (JuliusBrussee/caveman) — not a harness-vendored copy. Never apply it to user-facing replies or to irreversible-action confirmations.
+
+## Autonomy contract
+
+Do not leave work to the user that you can do yourself.
+
+- Run read-only commands and resolve ids yourself (`status`, `next --json`, `ticket list`, `verify verdict`, `wiki list`, `session nudge --json`).
+- Auto-init when state is missing, auto-advance to the obvious next phase when the previous one is complete, auto-activate the only pending task.
+- Propose concrete values (goal titles, task titles, page ids, redaction allowlist regexes, severity classifications) instead of asking open-ended "what should X be?" questions.
+- Capture decisions as checkpoints the moment they are made; persist re-usable knowledge as wiki pages instead of leaving it in chat. Promote to the user wiki only after a `--dry-run` review.
+- Never treat a chat PASS as harness proof; close out with `ticket submit` + `verify run` after an independent combined reviewer, or surface a blocker after 3 failed fix rounds.
+- Never advance a phase by hand-editing state. If the CLI blocks a phase transition, satisfy the listed ritual/artifact requirements or record a blocker.
+- Auto-create goals from user intent when clear; auto-advance **explore** then **grill-with-docs discuss** then **design → finish** without "should I continue?" (except the deliberate discuss interview)
+- Ask the user only for **breaking changes**, scope abandonment, smoke `not_applicable` on runnable changes, irreversible git/system ops they did not request (push/merge to main still requires explicit approval), or user-wiki `--confirm` after dry-run.
+- **Do not ask before `git commit`** inside an active goal worktree — commits are mandatory and autonomous there.
+- Never ask to run validate/finish after execute; run them immediately when gates allow.
+
+Do not hand-edit `.ycm-harness/state.json`, `events.jsonl`, `wiki/index.md`, `wiki/log.md`, or `~/.ycm-harness/state.json`. Mutate state only via the CLI.
