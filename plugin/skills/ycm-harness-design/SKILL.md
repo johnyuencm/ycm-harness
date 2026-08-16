@@ -6,16 +6,20 @@ description: Turn a non-trivial coding goal into a bounded lean ycm-harness goal
 # ycm-harness design
 
 Use this skill when scope or acceptance needs design before implementation.
+Enter `ycm-harness-work` after tickets exist.
 
 1. Inspect the repository and existing issue/spec context.
 2. Resolve the problem, constraints, non-goals, risks, and observable success
-   criteria with the user when code and docs cannot answer them.
+   criteria with the user when code and docs cannot answer them. In Cursor,
+   prefer Plan mode + AskQuestion (`grill-with-docs` from
+   `mattpocock-skills@mattpocock`); see `discuss-grill-me.md` when present.
 3. Run `ycm-harness status`; initialize state if absent.
 4. Create one goal. Use local tickets by default; use the GitHub backend only
    when an existing parent issue and Project binding are known.
 5. Create dependency-ordered vertical-slice tickets. Each ticket must be small
    enough for one implementation pass, contain observable acceptance criteria,
-   and include enough context for a fresh implementer.
+   and include enough context for a fresh implementer. Optional:
+   `to-spec` / `to-tickets` / `wayfinder` from `mattpocock-skills@mattpocock`.
 6. Record major decisions with `ycm-harness checkpoint decision`.
 7. Run `ycm-harness next` and hand execution to `ycm-harness-work`.
 

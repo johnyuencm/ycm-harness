@@ -7,7 +7,8 @@ description: Coordinate long-running coding work with lean ycm-harness goals, ti
 
 Use the lean 0.3 CLI as a coordination ledger. The harness records work; it
 does not replace reading the code, making a focused change, or running the
-project's real checks.
+project's real checks. Enter after `ycm-harness-design` or when resuming an
+existing goal.
 
 ## Start or resume
 
@@ -35,6 +36,30 @@ For each actionable ticket:
 
 Do not change code or acceptance criteria after submission without submitting
 again.
+
+## Independent review
+
+Dispatch **one** fresh-context `combined_reviewer` that is not the implementer.
+Cover tech, spec, security, and user-value in that single pass. Never self-score.
+Findings live in the subagent report. Max **3** fix rounds (implementer fix →
+submit again → fresh reviewer).
+
+Do not run `ycm-harness review *` (deprecated exit-2 alias). Do not write
+`review-combined.json` or any harness review evidence file. Optional durable
+note after PASS: `checkpoint` or `wiki durable`.
+
+Close-out is mechanical kernel proof, not a review JSON file:
+
+```bash
+ycm-harness ticket submit <id>
+ycm-harness verify run \
+  --ticket <id> \
+  --command "<real project verification command>" \
+  --implementer-run <id> \
+  --verifier-run <different-id>
+```
+
+Inspect with `verify verdict` / `verify status`.
 
 ## Verify and complete
 

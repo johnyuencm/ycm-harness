@@ -1,8 +1,8 @@
 ---
 name: summarizing-goal-achievement
 description: >-
-  Use when a ycm-harness goal has finished all phases, or when the user asks
-  what was achieved, what now, phase status, how much shipped, or how well the
+  Use when a ycm-harness goal has finished, or when the user asks
+  what was achieved, what now, ticket status, how much shipped, or how well the
   harness run went after finish bookkeeping.
 ---
 
@@ -10,32 +10,35 @@ description: >-
 
 Closing report for a finished harness goal. Evidence only — no invented scores.
 
-**When:** after finish bookkeeping (progress, wiki, GitHub Issues, architecture, worktree finish, checkpoint, finish complete), or when the user asks for the same retrospective.
+**When:** after finish bookkeeping (wiki durable if needed, GitHub Issues, architecture, worktree finish, checkpoint, goal complete), or when the user asks for the same retrospective.
 
 ## Evidence
 
 ```bash
+ycm-harness status
 ycm-harness goal status --json
-ycm-harness phase list
-ycm-harness task list
-ycm-harness ritual status --json
-ycm-harness smoke verify --phase <validate-phase-id>
+ycm-harness ticket list
+ycm-harness verify status
+ycm-harness verify verdict
 ```
 
-Also: `progress` + plan artifacts, review gate, GitHub follow-ups, `.ycm-harness/followups.md`, named blockers.
+Also: named blockers, `.ycm-harness/followups.md` if present, GitHub follow-ups.
 
-Phase purpose cheat-sheet (status from CLI): explore=lock codebase; discuss=grill ambiguity; design=architecture; plan=impl+test plan; execute=Ralph/T5+smoke; validate=full bar+review; finish=wiki/follow-ups/merge-ready.
+Do not run `ycm-harness review *`, `phase list`, `ritual status`, or
+`smoke verify --phase`. Independent review findings live in the combined_reviewer
+report. Kernel proof is `ticket submit` + `verify run` with distinct implementer
+vs verifier run IDs.
 
 ## Report (exact headings, in order)
 
-1. **Achieved so far** — shipped tasks/artifacts/worktree; name anything not done.
+1. **Achieved so far** — shipped tickets/worktree; name anything not done.
 2. **What now** — follow-ups, deferred findings, human blockers, open merge/PR; or one line “nothing left”.
-3. **Phases — purpose and status now** — one line each explore→finish (purpose + CLI status).
-4. **How much we achieved** — counts (`7/8 tasks`), acceptance covered vs open — not “mostly”.
-5. **How well we achieved** — T5, smoke, review/fix-loop, ritual gaps; no fake letter grades.
+3. **Tickets — status now** — one line each: id, title, terminal status, verify run IDs if present.
+4. **How much we achieved** — counts (`7/8 tickets`), acceptance covered vs open — not “mostly”.
+5. **How well we achieved** — independent combined_reviewer PASS/FAIL, fresh verify evidence, named leftovers; no fake letter grades.
 
 ## Rules / red flags
 
 - Unknown → say **unknown** + which command failed. Never hide blockers inside “achieved”.
-- Complements GitHub parent summary + `progress` artifact; does not replace them.
+- Complements GitHub parent summary; does not replace it.
 - Skip this after `ycm-harness-work` finish = violation. “Complete” with unowned leftovers in §2 = violation. Ungrounded % scores = violation.

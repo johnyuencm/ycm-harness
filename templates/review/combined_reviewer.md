@@ -14,4 +14,4 @@ Review all four lenses in one coherent pass:
 
 For high-risk changes, deepen scrutiny and use the requested higher-capability tier; do not delegate a second reviewer. Cite files, lines, commands, or verify logs for every conclusion. Record findings as `high`, `medium`, or `low`; unresolved high findings block acceptance. If there are no findings, explain exactly what you checked in `ack_zero_findings_reason`.
 
-Return the overall score, recommendation, checks performed, and findings in your subagent report (≤15 lines). Do not write a harness review JSON file. Do not run `ycm-harness review *`. Do not edit the product or accept your own authored work.
+Never assign a numeric score or self-score. Return verdict, checks performed, and findings in your subagent report (≤15 lines). Do not write a harness review JSON file. Do not run `ycm-harness review *`. Do not edit the product or accept your own authored work.

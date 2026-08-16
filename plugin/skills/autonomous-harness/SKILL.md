@@ -20,7 +20,7 @@ This skill is portable policy, not proof that later runtime enforcement exists.
 4. Run deterministic scripts, focused reads, and existing tests before using an agent. When an agent is required, use the least expensive adequate tier and one bounded correction path. Do not add a per-run LLM judge where deterministic validation works.
 5. Stay inside the sandbox, selected repository/worktree, and explicit external authority. Snapshot affected state and define rollback before installation, scheduling, messaging, credential, or user-level mutation.
 6. Separate observation, guidance, shadow evidence, and enforced behavior. Never claim a control exists until its target-native mechanism and tests pass.
-7. Finish only after current evidence, tests, live ticket reconciliation, rollback/re-enable, and independent review satisfy the owning phase.
+7. Finish only after current evidence, tests, live ticket reconciliation, rollback/re-enable, and independent review satisfy the ticket acceptance.
 
 Read [operating-policy.md](references/operating-policy.md) for the decision table, memory boundary, assurance language, and phase exclusions.
 

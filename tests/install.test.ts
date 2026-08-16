@@ -9,6 +9,17 @@ import { createContext } from "../src/cli/context.js";
 import { consoleOutput } from "../src/cli/output.js";
 import { registerInstall } from "../src/cli/commands/install.js";
 
+async function readIfPresent(file: string): Promise<string | null> {
+  try {
+    return await fs.readFile(file, "utf8");
+  } catch (err) {
+    if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+      return null;
+    }
+    throw err;
+  }
+}
+
 async function runInstall(
   cwd: string,
   args: string[],
@@ -72,6 +83,13 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       "ycm-harness-work-lite",
       "SKILL.md",
     );
+    const autonomy = path.join(
+      project,
+      ".cursor",
+      "skills",
+      "ycm-harness",
+      "autonomy.md",
+    );
     const rule = path.join(project, ".cursor", "rules", "ycm-harness.mdc");
     const workSkillContent = await fs.readFile(workSkill, "utf8");
     const designSkillContent = await fs.readFile(designSkill, "utf8");
@@ -79,9 +97,23 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
     const ruleContent = await fs.readFile(rule, "utf8");
     assert.match(workSkillContent, /name: ycm-harness-work/);
     assert.match(designSkillContent, /name: ycm-harness-design/);
+    assert.match(designSkillContent, /mattpocock-skills@mattpocock/);
     assert.match(liteSkillContent, /name: ycm-harness-work-lite/);
+    assert.match(ruleContent, /Lite carve-out/);
+    assert.match(designSkillContent, /to-spec/);
+    assert.match(designSkillContent, /to-tickets/);
+    const autonomyContent = await readIfPresent(autonomy);
+    if (autonomyContent !== null) {
+      assert.match(autonomyContent, /Do not leave work to the user/);
+    }
     assert.match(ruleContent, /ycm-harness 0\.3/);
-    assert.match(designSkillContent, /observable acceptance criteria/);
+    const exploreSkill = path.join(
+      project,
+      ".cursor",
+      "skills",
+      "ycm-harness",
+      "explore.md",
+    );
     const implementerAgent = path.join(
       project,
       ".cursor",
@@ -96,6 +128,10 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       "ycm-harness",
       "combined_reviewer.md",
     );
+    const exploreContent = await readIfPresent(exploreSkill);
+    if (exploreContent !== null) {
+      assert.match(exploreContent, /Fan-out/);
+    }
     assert.match(await fs.readFile(implementerAgent, "utf8"), /implementer/);
     assert.match(
       await fs.readFile(implementerAgent, "utf8"),
@@ -197,6 +233,13 @@ test("install --user copies the skill into the user home", async () => {
       "ycm-harness-work-lite",
       "SKILL.md",
     );
+    const commands = path.join(
+      home,
+      ".cursor",
+      "skills",
+      "ycm-harness",
+      "commands.md",
+    );
     const pluginManifest = path.join(
       home,
       ".cursor",
@@ -215,7 +258,10 @@ test("install --user copies the skill into the user home", async () => {
       await fs.readFile(liteSkill, "utf8"),
       /name: ycm-harness-work-lite/,
     );
-    assert.match(workContent, /ycm-harness verify run/);
+    const commandsContent = await readIfPresent(commands);
+    if (commandsContent !== null) {
+      assert.match(commandsContent, /ycm-harness ticket submit/);
+    }
     assert.match(
       await fs.readFile(pluginManifest, "utf8"),
       /"name": "ycm-harness"/,

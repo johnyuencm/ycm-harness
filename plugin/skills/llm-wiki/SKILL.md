@@ -63,16 +63,7 @@ Use file edits directly. Good for Obsidian vaults, book companions, long-running
    - Synthesis/overview if claims shift
    - Flag contradictions with older pages
 5. Add `[[wikilinks]]` between related pages.
-6. Update `index.md`; append parseable log entry:
-
-```markdown
-## [YYYY-MM-DD] ingest | Source Title
-
-- Source: raw/path/to/file
-- Pages created: ...
-- Pages updated: ...
-- Notes: contradictions, open questions
-```
+6. Update `index.md`; append parseable entry to `log.md`.
 
 **Harness path:** use `wiki durable` for curated facts, contracts, decisions,
 and root causes. Keep raw source management outside the 0.3 CLI.
@@ -87,46 +78,24 @@ Prefer one-at-a-time ingest with user review unless they ask to batch.
 3. Match output form to the question: markdown, table, Marp slides, chart, canvas.
 4. **File durable answers back into the wiki** — comparisons, analyses, and connections compound; chat history does not.
 
-Append to `log.md`:
-
-```markdown
-## [YYYY-MM-DD] query | Short label
-
-- Question: ...
-- Answer page: pages/... or wiki/...
-- Pages read: ...
-```
-
 ## Lint
 
-Run periodically or on request. Check:
-
-- Contradictions between pages
-- Stale claims superseded by newer sources
-- Orphan pages (no inbound links)
-- Important concepts mentioned but lacking dedicated pages
-- Missing cross-references
-- Gaps fillable via web search
+Run periodically or on request. Check contradictions, stale claims, orphans,
+missing concept pages, missing cross-references, and fillable gaps.
 
 The 0.3 harness CLI has no active lint command. Inspect the Markdown files
 directly or use the standalone backend's lint workflow.
-
-Fix what you can; report the rest with suggested sources/questions. Log lint passes.
 
 ## Page conventions
 
 - One topic per page; slug-friendly filename.
 - Lead with a one-paragraph summary.
 - Use `[[page-name]]` wikilinks liberally.
-- Optional YAML frontmatter for Obsidian/Dataview: `tags`, `sources`, `updated`.
 - Source pages link back to `raw/` paths.
 
 ## Scale and tooling
 
-- **Small (~100 sources):** `index.md` + grep/`wiki query` is enough.
-- **Growing:** local search ([qmd](https://github.com/tobi/qmd) CLI or MCP).
-- **Obsidian:** user browses graph; agent writes files. Web Clipper → `raw/`; download images locally for LLM access.
-- **Git:** wiki is a markdown repo — version history for free.
+- **Small (~100 sources):** `index.md` + grep is enough.
 - Keep private cross-project memory outside a public project repository.
 
 ## Reference

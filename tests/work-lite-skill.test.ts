@@ -21,6 +21,8 @@ test("ycm-harness-work-lite ships with procedure and forbid list", async () => {
   assert.doesNotMatch(skill, /phase start validate/);
   assert.doesNotMatch(skill, /ycm-harness ritual record/);
   assert.doesNotMatch(skill, /smoke run --/);
+  assert.match(skill, /wiki durable/);
+  assert.doesNotMatch(skill, /wiki page upsert/);
 });
 
 test("ycm-harness-work-lite finish-architecture triggers external mattpocock skill", async () => {

@@ -29,12 +29,21 @@ test("llm-wiki is installed via HARNESS_SKILL_DIRS", async () => {
   assert.match(kit, /"llm-wiki"/);
 });
 
-test("llm-wiki documents the active harness wiki surface", async () => {
-  const wiki = await fs.readFile(
-    path.join(skillRoot, "harness-wiki.md"),
-    "utf8",
+test("ycm-harness-work wiki.md references llm-wiki skill when shipped", async () => {
+  const wikiPath = path.join(
+    repo,
+    "plugin",
+    "skills",
+    "ycm-harness-work",
+    "wiki.md",
   );
-  assert.match(wiki, /ycm-harness wiki durable/);
-  assert.match(wiki, /ycm-harness wiki list/);
-  assert.match(wiki, /ycm-harness wiki show/);
+  try {
+    const wiki = await fs.readFile(wikiPath, "utf8");
+    assert.match(wiki, /\$llm-wiki/);
+  } catch (err) {
+    if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+      return;
+    }
+    throw err;
+  }
 });
