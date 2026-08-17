@@ -49,7 +49,7 @@ If scope grows mid-run: **stay in lite**. Tighten verify and review. Do not swit
 ## Procedure
 
 ```text
-dispatch implementer → real verify → fresh combined_reviewer → fix-loop → commit/push → finish-architecture → llm-wiki run record → report
+dispatch implementer → real verify → review panel → fix-loop → commit/push → finish-architecture → llm-wiki run record → report
 ```
 
 ### 1. Dispatch implementer
@@ -74,23 +74,27 @@ Run the project’s real test / lint / build bar in the **current workspace** vi
 
 ### 3. Independent review
 
-Dispatch **one fresh-context** read-only reviewer bound to `plugin/agents/combined_reviewer.md`. Cover all four lenses (tech, spec, security, user-value) in that single pass.
+Dispatch the **four-agent review panel** in one parallel turn, each bound to
+`plugin/agents/<role>.md`: `tech_lead`, `spec_reviewer`, `user_advocate`,
+`project_manager`.
 
-- Reviewer must not be the implementer / author. Never self-score.
-- Findings live in the subagent report (≤15 lines back + severity).
+- No reviewer may be the implementer / author. Never self-score.
+- Full findings live in `artifacts/review-<role>-<ticket-or-slug>.md`.
+  Subagent returns ≤15 lines + path.
 - Do not run `ycm-harness review *` (deprecated exit-2 alias). Do not write
-  `review-combined.json` or any harness review evidence file.
+  `review-combined.json` or any harness review evidence file. Do not dispatch
+  `combined_reviewer` (retired).
 - Lite close-out is plain-shell verify (this skill forbids harness tickets).
   Full-harness close-out elsewhere is `ticket submit` + `verify run` with
   distinct implementer vs verifier run IDs.
 
 ### 4. Fix-loop
 
-If review has actionable findings:
+If review has actionable high findings:
 
 1. Dispatch implementer to fix
 2. Re-verify
-3. Fresh combined reviewer again
+3. Fresh review panel again
 
 Max **3** rounds. If still failing: report blocked with remaining findings — **still under lite** (do not escalate skills).
 
@@ -136,7 +140,7 @@ Claim done only when **all** hold:
 
 - [ ] Implementer finished; orchestrator did not author product code
 - [ ] Real verify command(s) passed (evidence: command + exit)
-- [ ] Fresh combined reviewer returned PASS (or only deferred low noise explicitly named)
+- [ ] Fresh review panel returned PASS (or only deferred low noise explicitly named)
 - [ ] Git working tree clean; commits pushed when the environment expects push
 - [ ] **`finish-architecture.md`** ran: HTML report path noted; Top recommendation in user report
 - [ ] **`$llm-wiki` run record** upserted (page id + log entry); path noted in user report

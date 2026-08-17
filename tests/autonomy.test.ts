@@ -38,7 +38,7 @@ const REQUIRED_SKILL_PHRASES = [
   "ycm-harness-design",
   "ticket submit",
   "verify run",
-  "combined_reviewer",
+  "tech_lead",
   "Independent review",
   "wiki durable",
   "goal worktree init",
@@ -60,7 +60,7 @@ const REQUIRED_RULE_PHRASES = [
   "Autonomy contract",
   "Do not leave work to the user",
   "next --json",
-  "combined_reviewer",
+  "tech_lead",
   "ticket submit",
   "verify run",
   "Lite carve-out",
@@ -95,11 +95,10 @@ const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
   ],
   "wiki.md": ["$llm-wiki", "wiki durable", "redaction", "session tick"],
   "review-fix-loop.md": [
-    "combined_reviewer",
-    "Technical correctness",
-    "Specification completeness",
-    "Security",
-    "User/operator value",
+    "tech_lead",
+    "spec_reviewer",
+    "user_advocate",
+    "project_manager",
     "author",
     "Review dispatch SOP",
     "$hard-problem-solving",
@@ -120,7 +119,6 @@ const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
   "orchestrator-checklist.md": [
     "Orchestrator fulfillment checklist",
     "verify run",
-    "ticket submit",
     "ticket submit",
     "anti-gaming",
     "improve-codebase-architecture",
@@ -252,13 +250,13 @@ test("shipped context docs use split skill activation names", async () => {
   }
 });
 
-test("execute-agents does not invent a second reviewer", async () => {
+test("execute-agents puts spec completeness on the specialist panel", async () => {
   const content = await readIfPresent(
     path.join(workSkillDir, "execute-agents.md"),
   );
   if (content === null) return;
-  assert.doesNotMatch(content, /spec-reviewer/);
-  assert.match(content, /combined_reviewer/);
+  assert.match(content, /spec_reviewer/);
+  assert.match(content, /review panel/);
 });
 
 test("install-kit prunes leftover cursor-harness agent dirs", async () => {
@@ -284,5 +282,5 @@ test("commander-dispatch defaults implementer and reviewer to strongest HIGH", a
   if (content === null) return;
   assert.match(content, /strongest available model/);
   assert.doesNotMatch(content, /MID \(default\)/);
-  assert.match(content, /HIGH \(default for implementer \+ combined reviewer\)/);
+  assert.match(content, /HIGH \(default for implementer \+ review panel\)/);
 });

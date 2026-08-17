@@ -16,8 +16,10 @@ For non-trivial tracked work:
 4. Use `goal worktree init` when isolation is useful or required.
 5. Record decisions, blockers, and compaction boundaries with
    `ycm-harness checkpoint`.
-6. Dispatch one fresh-context `combined_reviewer` that is not the implementer.
-   Findings live in the subagent report. Never self-score. Max 3 fix rounds.
+6. Dispatch the four-agent review panel (`tech_lead`, `spec_reviewer`,
+   `user_advocate`, `project_manager`); none may be the implementer.
+   Findings live in `artifacts/review-<role>-<ticket>.md`. Never self-score.
+   Max 3 fix rounds.
 7. Submit code-changing tickets before verification (`ticket submit` refuses a
    dirty tree).
 8. Verify the exact submitted state with distinct implementer and verifier run
@@ -27,9 +29,10 @@ For non-trivial tracked work:
 
 Independent review is a skill procedure, not a harness review file:
 
-- Cover tech, spec, security, and user-value in that one combined pass.
+- Cover tech, spec, security, and user-value via the named specialist panel.
 - Do not run `ycm-harness review *` (deprecated exit-2 alias).
 - Do not write `review-combined.json` or any harness review evidence file.
+- Do not dispatch `combined_reviewer` (retired).
 - Optional durable note after PASS: `checkpoint` or `wiki durable`.
 
 Kernel proof:
@@ -52,7 +55,7 @@ review, ritual, session, artifact, commit, user-wiki, or caveman workflows.
 
 **Lite carve-out:** `ycm-harness-work-lite` uses its own stateless procedure and
 does not create harness goals, tickets, checkpoints, or wiki entries. Lite still
-dispatches one independent `combined_reviewer` and never calls `ycm-harness review *`.
+dispatches the independent review panel and never calls `ycm-harness review *`.
 
 ## Autonomy contract
 
@@ -63,4 +66,4 @@ verification evidence or reuse the implementer as verifier.
 Ask before destructive or irreversible actions the user did not authorize.
 GitHub follow-up issues are allowed at finish; do not invent bindings.
 
-The harness records; a strong agent still owns judgment. Use the strongest available model for the implementer and for the one independent combined reviewer. Sibling skill files are optional depth when present; skip missing files. Do not invent a second reviewer, a review JSON file, or a retired phase/ritual SOP.
+The harness records; a strong agent still owns judgment. Use the strongest available model for the implementer and for each seat on the independent review panel. Sibling skill files are optional depth when present; skip missing files. Do not invent extra reviewers beyond the named panel, a review JSON file, or a retired phase/ritual SOP.

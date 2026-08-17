@@ -121,12 +121,12 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       "ycm-harness",
       "implementer.md",
     );
-    const combinedReviewer = path.join(
+    const techLead = path.join(
       project,
       ".cursor",
       "agents",
       "ycm-harness",
-      "combined_reviewer.md",
+      "tech_lead.md",
     );
     const exploreContent = await readIfPresent(exploreSkill);
     if (exploreContent !== null) {
@@ -137,9 +137,44 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       await fs.readFile(implementerAgent, "utf8"),
       /mattpocock-skills@mattpocock/,
     );
-    assert.match(
-      await fs.readFile(combinedReviewer, "utf8"),
-      /combined reviewer/,
+    assert.match(await fs.readFile(techLead, "utf8"), /tech lead/);
+    for (const agent of [
+      "spec_reviewer.md",
+      "user_advocate.md",
+      "project_manager.md",
+      "explore-architecture.md",
+      "explore-risks.md",
+    ]) {
+      const agentPath = path.join(
+        project,
+        ".cursor",
+        "agents",
+        "ycm-harness",
+        agent,
+      );
+      assert.ok(
+        await fs
+          .stat(agentPath)
+          .then(() => true)
+          .catch(() => false),
+        `expected agent: ${agentPath}`,
+      );
+    }
+    assert.equal(
+      await fs
+        .stat(
+          path.join(
+            project,
+            ".cursor",
+            "agents",
+            "ycm-harness",
+            "combined_reviewer.md",
+          ),
+        )
+        .then(() => true)
+        .catch(() => false),
+      false,
+      "retired combined_reviewer.md must not be installed",
     );
     for (const external of [
       "grill-me",
@@ -375,6 +410,42 @@ test("install refuses to overwrite without --force", async () => {
     await runInstall(project, ["--project", "--force"], home);
     const overwritten = await fs.readFile(rule, "utf8");
     assert.match(overwritten, /ycm-harness 0\.3/);
+  } finally {
+    await cleanup(project);
+    await cleanup(home);
+  }
+});
+
+test("install --project --force prunes retired combined_reviewer agent", async () => {
+  const project = await tempProject();
+  const home = await tempProject();
+  try {
+    await runInstall(project, ["--project"], home);
+    const leftover = path.join(
+      project,
+      ".cursor",
+      "agents",
+      "ycm-harness",
+      "combined_reviewer.md",
+    );
+    await fs.writeFile(leftover, "# retired leftover\n", "utf8");
+    await runInstall(project, ["--project", "--force"], home);
+    assert.equal(
+      await fs
+        .stat(leftover)
+        .then(() => true)
+        .catch(() => false),
+      false,
+      "force install must prune retired combined_reviewer.md",
+    );
+    assert.ok(
+      await fs
+        .stat(
+          path.join(project, ".cursor", "agents", "ycm-harness", "tech_lead.md"),
+        )
+        .then(() => true)
+        .catch(() => false),
+    );
   } finally {
     await cleanup(project);
     await cleanup(home);

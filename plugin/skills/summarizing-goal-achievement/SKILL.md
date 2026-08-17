@@ -25,9 +25,9 @@ ycm-harness verify verdict
 Also: named blockers, `.ycm-harness/followups.md` if present, GitHub follow-ups.
 
 Do not run `ycm-harness review *`, `phase list`, `ritual status`, or
-`smoke verify --phase`. Independent review findings live in the combined_reviewer
-report. Kernel proof is `ticket submit` + `verify run` with distinct implementer
-vs verifier run IDs.
+`smoke verify --phase`. Independent review findings live in the review-panel
+artifact files. Kernel proof is `ticket submit` + `verify run` with distinct
+implementer vs verifier run IDs.
 
 ## Report (exact headings, in order)
 
@@ -35,7 +35,7 @@ vs verifier run IDs.
 2. **What now** — follow-ups, deferred findings, human blockers, open merge/PR; or one line “nothing left”.
 3. **Tickets — status now** — one line each: id, title, terminal status, verify run IDs if present.
 4. **How much we achieved** — counts (`7/8 tickets`), acceptance covered vs open — not “mostly”.
-5. **How well we achieved** — independent combined_reviewer PASS/FAIL, fresh verify evidence, named leftovers; no fake letter grades.
+5. **How well we achieved** — independent review panel PASS/FAIL, fresh verify evidence, named leftovers; no fake letter grades.
 
 ## Rules / red flags
 

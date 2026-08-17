@@ -334,6 +334,19 @@ async function copyTreeManaged(
   return { installed, updated, skipped };
 }
 
+async function copyManagedAgents(
+  pluginRoot: string,
+  destRoot: string,
+  force: boolean,
+): Promise<{ installed: number; updated: number; skipped: number }> {
+  const srcRoot = path.join(pluginRoot, "agents");
+  const result = await copyTreeManaged(srcRoot, destRoot, force);
+  if (force) {
+    await pruneRetiredFiles(destRoot, new Set(await relativeFiles(srcRoot)));
+  }
+  return result;
+}
+
 async function pruneRetiredFiles(
   destRoot: string,
   expectedFiles: ReadonlySet<string>,
@@ -1544,8 +1557,8 @@ export async function runInstallScopes(
       reports.push(
         renderTreeReport(
           "cursor user agents",
-          await copyTreeManaged(
-            path.join(pluginRoot, "agents"),
+          await copyManagedAgents(
+            pluginRoot,
             path.join(cursorHome(), "agents", PLUGIN_NAME),
             force,
           ),
@@ -1590,8 +1603,8 @@ export async function runInstallScopes(
       reports.push(
         renderTreeReport(
           "project agents",
-          await copyTreeManaged(
-            path.join(pluginRoot, "agents"),
+          await copyManagedAgents(
+            pluginRoot,
             path.join(ctx.cwd, ".cursor", "agents", PLUGIN_NAME),
             force,
           ),
@@ -1654,8 +1667,8 @@ export async function runClientSync(
     reports.push(
       renderTreeReport(
         "cursor user agents",
-        await copyTreeManaged(
-          path.join(pluginRoot, "agents"),
+        await copyManagedAgents(
+          pluginRoot,
           path.join(cursorHome(), "agents", PLUGIN_NAME),
           force,
         ),

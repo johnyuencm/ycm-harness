@@ -1,5 +1,5 @@
 ---
-description: Lean ycm-harness 0.3 coordination rule for durable goals, tickets, checkpoints, verification evidence, and project knowledge.
+description: Lean ycm-harness 0.3 coordination rule for durable goals, tickets, checkpoints, verification evidence, independent review, and project knowledge.
 alwaysApply: true
 ---
 
@@ -10,18 +10,41 @@ harness state or generated wiki indexes.
 
 For non-trivial tracked work:
 
-1. Run `ycm-harness status` and `ycm-harness next`.
+1. Run `ycm-harness status` and `ycm-harness next` (`next --json` for ids).
 2. Initialize state when absent, then create or activate one goal.
 3. Create provider-backed tickets with observable acceptance criteria.
-4. Use `goal worktree init` when isolation is useful or required. It creates a
-   `harness/<goal-id>` branch by default.
+4. Use `goal worktree init` when isolation is useful or required.
 5. Record decisions, blockers, and compaction boundaries with
    `ycm-harness checkpoint`.
-6. Submit code-changing tickets before verification.
-7. Verify the exact submitted state with distinct implementer and verifier run
-   IDs; do not fabricate evidence.
-8. Complete a goal only after all tickets are terminal and required evidence is
+6. Dispatch the four-agent review panel (`tech_lead`, `spec_reviewer`,
+   `user_advocate`, `project_manager`); none may be the implementer.
+   Findings live in `artifacts/review-<role>-<ticket>.md`. Never self-score.
+   Max 3 fix rounds.
+7. Submit code-changing tickets before verification (`ticket submit` refuses a
+   dirty tree).
+8. Verify the exact submitted state with distinct implementer and verifier run
+   IDs; do not fabricate evidence. Inspect with `verify verdict` / `verify status`.
+9. Complete a goal only after all tickets are terminal and required evidence is
    fresh.
+
+Independent review is a skill procedure, not a harness review file:
+
+- Cover tech, spec, security, and user-value via the named specialist panel.
+- Do not run `ycm-harness review *` (deprecated exit-2 alias).
+- Do not write `review-combined.json` or any harness review evidence file.
+- Do not dispatch `combined_reviewer` (retired).
+- Optional durable note after PASS: `checkpoint` or `wiki durable`.
+
+Kernel proof:
+
+```bash
+ycm-harness ticket submit <id>
+ycm-harness verify run \
+  --ticket <id> \
+  --command "<real project verification command>" \
+  --implementer-run <id> \
+  --verifier-run <different-id>
+```
 
 Use `wiki durable`, `wiki list`, and `wiki show` for reusable project
 knowledge. Use `doctor` to inspect client projections and `install --force` to
@@ -31,6 +54,16 @@ refresh them.
 review, ritual, session, artifact, commit, user-wiki, or caveman workflows.
 
 **Lite carve-out:** `ycm-harness-work-lite` uses its own stateless procedure and
-does not create harness goals, tickets, checkpoints, or wiki entries.
+does not create harness goals, tickets, checkpoints, or wiki entries. Lite still
+dispatches the independent review panel and never calls `ycm-harness review *`.
+
+## Autonomy contract
+
+Do not leave work to the user that you can do yourself. Use `ycm-harness-design`
+then `ycm-harness-work`. Resolve ids with `next --json`. Do not fabricate
+verification evidence or reuse the implementer as verifier.
 
 Ask before destructive or irreversible actions the user did not authorize.
+GitHub follow-up issues are allowed at finish; do not invent bindings.
+
+The harness records; a strong agent still owns judgment. Use the strongest available model for the implementer and for each seat on the independent review panel. Sibling skill files are optional depth when present; skip missing files. Do not invent extra reviewers beyond the named panel, a review JSON file, or a retired phase/ritual SOP.

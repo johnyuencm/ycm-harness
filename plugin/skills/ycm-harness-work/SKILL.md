@@ -9,11 +9,11 @@ The harness is a **coordination ledger for a strong agent** (Opus-class). It
 records goals, tickets, and proof so work survives context loss. It does not
 replace reading the code, making a focused change, or running the project's
 real checks. Do not walk retired phase/ritual SOPs. Do not invent extra
-reviewers or a review JSON file.
+reviewers beyond the named panel or a review JSON file.
 
 Enter after `ycm-harness-design` or when resuming an existing goal. Use the
-strongest available model for implementation **and** for the one independent
-reviewer.
+strongest available model for implementation **and** for the independent
+review panel.
 
 ## Start or resume
 
@@ -44,14 +44,23 @@ again.
 
 ## Independent review
 
-Dispatch **one** fresh-context `combined_reviewer` that is not the implementer.
-Cover tech, spec, security, and user-value in that single pass. Never self-score.
-Findings live in the subagent report. Max **3** fix rounds (implementer fix →
-submit again → fresh reviewer).
+Dispatch a fresh-context **review panel** in one parallel turn. None of these
+agents may be the implementer. Prefer a different model family. Each follows
+`plugin/agents/<role>.md`:
+
+- `tech_lead` — architecture, correctness, tests, ops, security
+- `spec_reviewer` — every acceptance criterion vs code and evidence
+- `user_advocate` — live UX / operator value
+- `project_manager` — goal alignment and honest done-state
+
+Panel PASS requires every reviewer PASS and no unresolved high findings.
+Never self-score. Full findings go in `artifacts/review-<role>-<ticket>.md`.
+Max **3** fix rounds (implementer fix → submit again → fresh panel).
 
 Do not run `ycm-harness review *` (deprecated exit-2 alias). Do not write
-`review-combined.json` or any harness review evidence file. Optional durable
-note after PASS: `checkpoint` or `wiki durable`.
+`review-combined.json` or any harness review evidence file. Do not dispatch
+`combined_reviewer` (retired). Optional durable note after PASS: `checkpoint`
+or `wiki durable`.
 
 Kernel proof (same command as verify below): `ticket submit` then `verify run`
 with distinct implementer vs verifier run IDs. Inspect with `verify verdict` /

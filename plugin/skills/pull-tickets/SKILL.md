@@ -86,9 +86,9 @@ Follow `plugin/skills/ycm-harness-work-lite/SKILL.md`. After PASS: comment; clos
 
 ### `kind: review` (PR)
 
-Hand lite: PR link, `gh pr diff <n>`, author test claims, done-when = independent combined_reviewer PASS in the report.
+Hand lite: PR link, `gh pr diff <n>`, author test claims, done-when = independent review panel PASS (`tech_lead` + `spec_reviewer` + `user_advocate` + `project_manager`).
 
-Checkout PR branch → verify on branch → **combined_reviewer** on diff → fix-loop if needed → report.
+Checkout PR branch → verify on branch → **review panel** on diff → fix-loop if needed → report.
 
 After PASS: `gh pr comment` with verdict + verify; optionally `--add-label ready-for-agent`. Do not merge unless user asked.
 

@@ -2,7 +2,8 @@
 name: ycm-harness-work-lite
 description: >-
   Lightweight implement→verify→review loop for quick tasks without harness
-  state, phases, rituals, wiki, or issue-tracker mirroring. Use when the user invokes
+  state, phases, rituals, or issue-tracker mirroring. Requires an llm-wiki run
+  record so future agents know what happened. Use when the user invokes
   /ycm-harness-work-lite, ycm-harness-work-lite, or when plan-and-advance
   hands off after a complete Plan. Not for full harness goals.
 ---
@@ -28,7 +29,8 @@ Context: `finish-architecture.md` — lite architecture pass (no harness rituals
 Enter this skill only when:
 
 1. The user explicitly invokes `/ycm-harness-work-lite` / `ycm-harness-work-lite`, **or**
-2. `plan-and-advance` hands off after a complete Plan.
+2. `plan-and-advance` hands off after a complete Plan, **or**
+3. `pull-tickets` hands off one claimed ticket at a time after Phase 3 claim.
 
 Do **not** auto-pick lite for arbitrary tasks. `ycm-harness-design` still hands off to full `/ycm-harness-work`.
 
@@ -39,7 +41,7 @@ If scope grows mid-run: **stay in lite**. Tighten verify and review. Do not swit
 - `ycm-harness` goals, phases, rituals, artifacts, smoke CLI, review CLI, checkpoints
 - Goal worktrees (`.worktrees/`)
 - Issue-tracker (GitHub) ticket mirroring
-- Project/user wiki updates, session nudge, progress/PRD/design docs “for the harness”
+- Harness ritual wiki (`project-wiki-update`), session nudge, progress/PRD/design docs “for the harness”, user-wiki `--confirm` without approval
 - Ralph / ultrawork ritual recording
 - Writing product code yourself (orchestrator lane)
 - Self-certifying without a fresh-context independent reviewer
@@ -47,7 +49,7 @@ If scope grows mid-run: **stay in lite**. Tighten verify and review. Do not swit
 ## Procedure
 
 ```text
-dispatch implementer → real verify → fresh combined_reviewer → fix-loop → commit/push → finish-architecture → report
+dispatch implementer → real verify → review panel → fix-loop → commit/push → finish-architecture → llm-wiki run record → report
 ```
 
 ### 1. Dispatch implementer
@@ -72,19 +74,27 @@ Run the project’s real test / lint / build bar in the **current workspace** vi
 
 ### 3. Independent review
 
-Dispatch **one fresh-context** read-only reviewer bound to `plugin/agents/combined_reviewer.md`. Cover all four lenses (tech, spec, security, user-value) in that single pass.
+Dispatch the **four-agent review panel** in one parallel turn, each bound to
+`plugin/agents/<role>.md`: `tech_lead`, `spec_reviewer`, `user_advocate`,
+`project_manager`.
 
-- Reviewer must not be the implementer / author
-- No harness `review start` / `verdict` / evidence registry
-- Collect findings in the subagent report (≤15 lines back + severity)
+- No reviewer may be the implementer / author. Never self-score.
+- Full findings live in `artifacts/review-<role>-<ticket-or-slug>.md`.
+  Subagent returns ≤15 lines + path.
+- Do not run `ycm-harness review *` (deprecated exit-2 alias). Do not write
+  `review-combined.json` or any harness review evidence file. Do not dispatch
+  `combined_reviewer` (retired).
+- Lite close-out is plain-shell verify (this skill forbids harness tickets).
+  Full-harness close-out elsewhere is `ticket submit` + `verify run` with
+  distinct implementer vs verifier run IDs.
 
 ### 4. Fix-loop
 
-If review has actionable findings:
+If review has actionable high findings:
 
 1. Dispatch implementer to fix
 2. Re-verify
-3. Fresh combined reviewer again
+3. Fresh review panel again
 
 Max **3** rounds. If still failing: report blocked with remaining findings — **still under lite** (do not escalate skills).
 
@@ -97,9 +107,32 @@ Max **3** rounds. If still failing: report blocked with remaining findings — *
 
 Run **`finish-architecture.md`** (`improve-codebase-architecture` from mattpocock-skills). Scope to this run's diff; write/open the HTML report; carry the **Top recommendation** into the report below.
 
-### 7. Report
+### 7. llm-wiki run record
 
-Short user report: what shipped, verify command + result, review PASS/FAIL, architecture **Top recommendation**, leftovers if any
+**Required.** Invoke **`$llm-wiki`** and file a durable run record so future agents know what happened on this task. Chat history does not compound; the wiki does.
+
+Minimum page content:
+
+- **Goal** — one-line task summary
+- **Shipped** — what changed (modules/files, commit SHAs or branch if relevant)
+- **Verify** — command(s) run + pass/fail
+- **Review** — PASS/FAIL; actionable findings fixed or explicitly deferred
+- **Architecture** — Top recommendation from step 6
+- **Leftovers** — blockers, follow-ups, or “none”
+
+**Harness project** (`.ycm-harness/wiki/`):
+
+1. `ycm-harness wiki durable --id work-lite-YYYY-MM-DD-<short-slug> --title "<goal>" --trigger <decision|root-cause> --body-file <path>`
+2. Append a parseable entry to `log.md` (see `$llm-wiki` ingest format)
+3. Do not run deprecated wiki init/upsert aliases (exit-2)
+
+**Standalone / non-harness workspace:** follow `$llm-wiki` standalone backend (`WIKI.md` layout); same minimum content.
+
+Do **not** skip because the task was “small”. Do **not** run `session nudge` or record harness rituals — only this run record.
+
+### 8. Report
+
+Short user report: what shipped, verify command + result, review PASS/FAIL, architecture **Top recommendation**, **wiki page id/path**, leftovers if any
 
 ## Done bar
 
@@ -107,7 +140,8 @@ Claim done only when **all** hold:
 
 - [ ] Implementer finished; orchestrator did not author product code
 - [ ] Real verify command(s) passed (evidence: command + exit)
-- [ ] Fresh combined reviewer returned PASS (or only deferred low noise explicitly named)
+- [ ] Fresh review panel returned PASS (or only deferred low noise explicitly named)
 - [ ] Git working tree clean; commits pushed when the environment expects push
 - [ ] **`finish-architecture.md`** ran: HTML report path noted; Top recommendation in user report
-- [ ] No harness state / rituals / wiki / issue-tracker side effects from this run
+- [ ] **`$llm-wiki` run record** upserted (page id + log entry); path noted in user report
+- [ ] No harness state / rituals / issue-tracker side effects beyond the required wiki run record
