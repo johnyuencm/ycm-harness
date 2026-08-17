@@ -28,10 +28,21 @@ import {
   ISSUE_MARKER_BRAND_RE,
 } from "../../branding.js";
 
+const LIVE_WIKI_COMMANDS = new Set(["durable", "list", "show"]);
+
+function deprecateWiki(command: string): never {
+  throw new DeprecatedCommandError(command, "wiki durable");
+}
+
 export function registerWiki(program: Command, ctx: CliContext, out: CliOutput): void {
   const wiki = program.command("wiki").description("Project wiki memory");
+  // Leaf names collide (`list`/`show`). Gate direct wiki children here; nested
+  // `wiki source` / `wiki page` trees have their own always-deprecate hooks.
   wiki.hook("preAction", (_command, actionCommand) => {
-    if (!["durable", "list", "show"].includes(actionCommand.name())) throw new DeprecatedCommandError("wiki " + actionCommand.name(), "wiki durable");
+    if (actionCommand.parent !== wiki) return;
+    if (!LIVE_WIKI_COMMANDS.has(actionCommand.name())) {
+      deprecateWiki("wiki " + actionCommand.name());
+    }
   });
 
   wiki
@@ -66,6 +77,9 @@ export function registerWiki(program: Command, ctx: CliContext, out: CliOutput):
     });
 
   const source = wiki.command("source").description("Manage wiki sources");
+  source.hook("preAction", (_command, actionCommand) => {
+    deprecateWiki("wiki source " + actionCommand.name());
+  });
 
   source
     .command("add <path>")
@@ -137,6 +151,9 @@ export function registerWiki(program: Command, ctx: CliContext, out: CliOutput):
     });
 
   const page = wiki.command("page").description("Manage wiki pages");
+  page.hook("preAction", (_command, actionCommand) => {
+    deprecateWiki("wiki page " + actionCommand.name());
+  });
 
   page
     .command("upsert")

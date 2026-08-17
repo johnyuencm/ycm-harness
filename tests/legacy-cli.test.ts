@@ -12,6 +12,7 @@ import { registerRitual } from "../src/cli/commands/ritual.js";
 import { registerSession } from "../src/cli/commands/session.js";
 import { registerPlugin } from "../src/cli/commands/plugin.js";
 import { registerUserWiki } from "../src/cli/commands/user-wiki.js";
+import { registerWiki } from "../src/cli/commands/wiki.js";
 
 const ctx = {} as CliContext;
 const out: CliOutput = { out() {}, err() {}, json() {} };
@@ -54,5 +55,33 @@ test("plugin update delegates to install --force when available", async () => {
   registerPlugin(program, ctx, out);
   await program.parseAsync(["plugin", "update"], { from: "user" });
   assert.equal(forced, true);
+});
+
+test("retired wiki subcommands fail closed including nested list/show", async () => {
+  const retired = [
+    ["wiki", "init"],
+    ["wiki", "query", "x"],
+    ["wiki", "lint"],
+    ["wiki", "source", "list"],
+    ["wiki", "source", "add", "x"],
+    ["wiki", "page", "list"],
+    ["wiki", "page", "show", "x"],
+    ["wiki", "page", "upsert", "--id", "x", "--title", "t", "--body", "b"],
+    ["wiki", "promote", "x"],
+    ["wiki", "checkpoint", "-n", "n"],
+  ];
+  for (const args of retired) {
+    const program = new Command().name("ycm-harness").exitOverride();
+    registerWiki(program, ctx, out);
+    await assert.rejects(
+      () => program.parseAsync(args, { from: "user" }),
+      (error: unknown) => {
+        const e = error as { exitCode?: number; message?: string };
+        assert.equal(e.exitCode, 2, args.join(" "));
+        assert.match(e.message ?? "", /deprecated/i, args.join(" "));
+        return true;
+      },
+    );
+  }
 });
 
