@@ -50,7 +50,8 @@ agents may be the implementer. Prefer a different model family. Each follows
 
 - `tech_lead` — architecture, correctness, tests, ops, security
 - `spec_reviewer` — every acceptance criterion vs code and evidence
-- `user_advocate` — live UX / operator value
+- `user_advocate` — live operator value and job-to-be-done
+- `uiux` — Shneiderman / modern usability; always `kimi-k3-high`; pairs with `user_advocate`
 - `project_manager` — goal alignment and honest done-state
 
 Panel PASS requires every reviewer PASS and no unresolved high findings.

@@ -16,8 +16,9 @@ For non-trivial tracked work:
 4. Use `goal worktree init` when isolation is useful or required.
 5. Record decisions, blockers, and compaction boundaries with
    `ycm-harness checkpoint`.
-6. Dispatch the four-agent review panel (`tech_lead`, `spec_reviewer`,
-   `user_advocate`, `project_manager`); none may be the implementer.
+6. Dispatch the named review panel (`tech_lead`, `spec_reviewer`,
+   `user_advocate`, `uiux`, `project_manager`); none may be the implementer.
+   `uiux` always uses `kimi-k3-high` and pairs with `user_advocate`.
    Findings live in `artifacts/review-<role>-<ticket>.md`. Never self-score.
    Max 3 fix rounds.
 7. Submit code-changing tickets before verification (`ticket submit` refuses a

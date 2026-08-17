@@ -2,11 +2,12 @@
 
 Canonical reviewer and explorer prompts live in `plugin/agents/`.
 
-Independent review is a four-agent panel dispatched in parallel:
+Independent review is a named panel dispatched in parallel:
 
 - `tech_lead.md`
 - `spec_reviewer.md`
 - `user_advocate.md`
+- `uiux.md` (Kimi K3 / `kimi-k3-high`; pairs with `user_advocate`)
 - `project_manager.md`
 
 Explore fan-out:

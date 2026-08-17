@@ -98,6 +98,7 @@ const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
     "tech_lead",
     "spec_reviewer",
     "user_advocate",
+    "uiux",
     "project_manager",
     "author",
     "Review dispatch SOP",
@@ -155,6 +156,44 @@ test("skill file stays focused on workflow steps and links context files", async
   assert.doesNotMatch(content, /ycm-harness review start/);
   assert.doesNotMatch(content, /phase start/);
   assert.doesNotMatch(content, /ritual record/);
+});
+
+test("plugin skills and rules do not prescribe the cursor-harness CLI", async () => {
+  const roots = [
+    path.join(root, "plugin", "skills"),
+    path.join(root, "plugin", "rules"),
+    path.join(root, "plugin", ".cursor-plugin"),
+    path.join(root, "plugin", ".claude-plugin"),
+  ];
+  async function walk(dir: string): Promise<string[]> {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const files: string[] = [];
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) files.push(...(await walk(full)));
+      else if (/\.(md|mdc|json)$/.test(entry.name)) files.push(full);
+    }
+    return files;
+  }
+  for (const start of roots) {
+    for (const file of await walk(start)) {
+      const content = await fs.readFile(file, "utf8");
+      assert.doesNotMatch(
+        content,
+        /cursor-harness/,
+        `${path.relative(root, file)} still names cursor-harness`,
+      );
+    }
+  }
+});
+
+test("finish.md uses live 0.3 close-out commands", async () => {
+  const content = await readIfPresent(path.join(workSkillDir, "finish.md"));
+  if (content === null) return;
+  assert.match(content, /wiki durable/);
+  assert.match(content, /goal complete/);
+  assert.doesNotMatch(content, /progress` artifact/);
+  assert.doesNotMatch(content, /project-wiki-update/);
 });
 
 test("design skill drives grill-me into to-spec and to-tickets planning", async () => {

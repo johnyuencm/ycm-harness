@@ -141,6 +141,7 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
     for (const agent of [
       "spec_reviewer.md",
       "user_advocate.md",
+      "uiux.md",
       "project_manager.md",
       "explore-architecture.md",
       "explore-risks.md",
@@ -410,6 +411,42 @@ test("install refuses to overwrite without --force", async () => {
     await runInstall(project, ["--project", "--force"], home);
     const overwritten = await fs.readFile(rule, "utf8");
     assert.match(overwritten, /ycm-harness 0\.3/);
+  } finally {
+    await cleanup(project);
+    await cleanup(home);
+  }
+});
+
+test("install --project --force prunes leftover nested skill files", async () => {
+  const project = await tempProject();
+  const home = await tempProject();
+  try {
+    await runInstall(project, ["--project"], home);
+    const leftover = path.join(
+      project,
+      ".cursor",
+      "skills",
+      "llm-wiki",
+      "llm-wiki",
+      "SKILL.md",
+    );
+    await fs.mkdir(path.dirname(leftover), { recursive: true });
+    await fs.writeFile(leftover, "# stale nested cursor-harness wiki\n", "utf8");
+    await runInstall(project, ["--project", "--force"], home);
+    assert.equal(
+      await fs
+        .stat(leftover)
+        .then(() => true)
+        .catch(() => false),
+      false,
+      "force install must prune leftover nested llm-wiki/llm-wiki",
+    );
+    assert.ok(
+      await fs
+        .stat(path.join(project, ".cursor", "skills", "llm-wiki", "SKILL.md"))
+        .then(() => true)
+        .catch(() => false),
+    );
   } finally {
     await cleanup(project);
     await cleanup(home);

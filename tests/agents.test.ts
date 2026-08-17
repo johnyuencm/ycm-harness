@@ -12,6 +12,7 @@ const EXPECTED_AGENTS = [
   "tech_lead.md",
   "spec_reviewer.md",
   "user_advocate.md",
+  "uiux.md",
   "project_manager.md",
   "explore-architecture.md",
   "explore-risks.md",
@@ -57,4 +58,14 @@ test("plugin ships specialist harness agents with Cursor frontmatter", async () 
     ),
   );
   assert.equal(pluginJson.agents, "./agents");
+
+  const uiux = await fs.readFile(path.join(agentsDir, "uiux.md"), "utf8");
+  const uiuxMeta = frontmatter(uiux);
+  assert.equal(uiuxMeta.model, "kimi-k3-high");
+  assert.match(uiux, /Shneiderman/);
+  assert.match(uiux, /user_advocate/);
+  assert.match(
+    await fs.readFile(path.join(agentsDir, "user_advocate.md"), "utf8"),
+    /uiux/,
+  );
 });

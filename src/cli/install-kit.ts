@@ -334,12 +334,15 @@ async function copyTreeManaged(
   return { installed, updated, skipped };
 }
 
-async function copyManagedAgents(
-  pluginRoot: string,
+function relKey(rel: string): string {
+  return rel.split(path.sep).join("/");
+}
+
+async function copyManagedTree(
+  srcRoot: string,
   destRoot: string,
   force: boolean,
 ): Promise<{ installed: number; updated: number; skipped: number }> {
-  const srcRoot = path.join(pluginRoot, "agents");
   const result = await copyTreeManaged(srcRoot, destRoot, force);
   if (force) {
     await pruneRetiredFiles(destRoot, new Set(await relativeFiles(srcRoot)));
@@ -347,15 +350,52 @@ async function copyManagedAgents(
   return result;
 }
 
+async function copyManagedAgents(
+  pluginRoot: string,
+  destRoot: string,
+  force: boolean,
+): Promise<{ installed: number; updated: number; skipped: number }> {
+  return copyManagedTree(path.join(pluginRoot, "agents"), destRoot, force);
+}
+
+async function pruneEmptyDirs(root: string): Promise<void> {
+  if (!(await fileExists(root))) return;
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const full = path.join(root, entry.name);
+    await pruneEmptyDirs(full);
+    const leftover = await fs.readdir(full);
+    if (leftover.length === 0) await fs.rmdir(full);
+  }
+}
+
 async function pruneRetiredFiles(
   destRoot: string,
   expectedFiles: ReadonlySet<string>,
 ): Promise<void> {
+  const expected = new Set([...expectedFiles].map(relKey));
   for (const rel of await relativeFiles(destRoot)) {
-    if (!expectedFiles.has(rel)) {
+    if (!expected.has(relKey(rel))) {
       await fs.rm(path.join(destRoot, rel), { force: true });
     }
   }
+  await pruneEmptyDirs(destRoot);
+}
+
+async function auditUnexpectedFiles(
+  expectedRoot: string,
+  actualRoot: string,
+): Promise<AuditItem[]> {
+  if (!(await fileExists(actualRoot))) return [];
+  const expected = new Set((await relativeFiles(expectedRoot)).map(relKey));
+  const extras: AuditItem[] = [];
+  for (const rel of await relativeFiles(actualRoot)) {
+    if (!expected.has(relKey(rel))) {
+      extras.push({ path: path.join(actualRoot, rel), status: "stale" });
+    }
+  }
+  return extras;
 }
 
 async function removeManagedSymlinks(root: string): Promise<void> {
@@ -886,7 +926,7 @@ async function copyHarnessSkills(
 ): Promise<{ installed: number; updated: number; skipped: number }> {
   const totals = { installed: 0, updated: 0, skipped: 0 };
   for (const skillDir of HARNESS_SKILL_DIRS) {
-    const result = await copyTreeManaged(
+    const result = await copyManagedTree(
       path.join(pluginRoot, "skills", harnessSkillSourceDir(skillDir)),
       path.join(destSkillsRoot, skillDir),
       force,
@@ -907,12 +947,10 @@ async function auditHarnessSkills(
 ): Promise<AuditItem[]> {
   const items: AuditItem[] = [];
   for (const skillDir of HARNESS_SKILL_DIRS) {
-    items.push(
-      ...(await auditTree(
-        path.join(pluginRoot, "skills", harnessSkillSourceDir(skillDir)),
-        path.join(destSkillsRoot, skillDir),
-      )),
-    );
+    const src = path.join(pluginRoot, "skills", harnessSkillSourceDir(skillDir));
+    const dest = path.join(destSkillsRoot, skillDir);
+    items.push(...(await auditTree(src, dest)));
+    items.push(...(await auditUnexpectedFiles(src, dest)));
   }
   for (const legacyDir of LEGACY_WORK_SKILL_DIRS) {
     if ((HARNESS_SKILL_DIRS as readonly string[]).includes(legacyDir)) continue;

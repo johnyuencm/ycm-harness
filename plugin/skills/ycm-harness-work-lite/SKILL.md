@@ -74,9 +74,9 @@ Run the project’s real test / lint / build bar in the **current workspace** vi
 
 ### 3. Independent review
 
-Dispatch the **four-agent review panel** in one parallel turn, each bound to
+Dispatch the **named review panel** in one parallel turn, each bound to
 `plugin/agents/<role>.md`: `tech_lead`, `spec_reviewer`, `user_advocate`,
-`project_manager`.
+`uiux` (`kimi-k3-high`, pairs with `user_advocate`), `project_manager`.
 
 - No reviewer may be the implementer / author. Never self-score.
 - Full findings live in `artifacts/review-<role>-<ticket-or-slug>.md`.

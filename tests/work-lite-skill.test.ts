@@ -16,6 +16,7 @@ test("ycm-harness-work-lite ships with procedure and forbid list", async () => {
   assert.match(skill, /Forbidden/);
   assert.match(skill, /tech_lead/);
   assert.match(skill, /review panel/);
+  assert.match(skill, /uiux/);
   assert.match(skill, /finish-architecture\.md/);
   assert.match(skill, /improve-codebase-architecture/);
   assert.match(skill, /Done bar/);
