@@ -94,6 +94,6 @@ Triage labels (see `docs/agents/triage-labels.md`): `needs-triage`, `needs-info`
 
 Before the harness goal is treated as done:
 
-1. Convert each actionable leftover into a child **follow-up** issue under the parent (body `Parent: #<parent>` + board on Project harness) — **search existing issues first**.
+1. Convert each actionable leftover into a child **follow-up** issue under the parent (body `Parent: #<parent>` + board on Project harness) — **search existing issues first**. Architecture-report candidates implemented in the finish pass are **not** leftovers. File architecture follow-ups only for candidates that were skipped (ADR conflict, blocked, human-only).
 2. Add one final parent issue comment summarizing completed work, verification, PR URL, risks, and future notes.
 3. Mark ticket child issues Done on the Project board (and close them), then mark the parent issue Done.

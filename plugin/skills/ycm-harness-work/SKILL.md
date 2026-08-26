@@ -84,7 +84,14 @@ The command must exercise the submitted behavior. Fix failures, rerun project
 checks, submit again, and obtain fresh verification. Use `ticket done` only
 when fresh passing evidence exists.
 
-When every ticket is done or cancelled:
+When every ticket is done or cancelled, follow `finish.md` then
+`finish-architecture.md` when those siblings exist. Always run the
+architecture pass even if the sibling is missing: invoke
+`improve-codebase-architecture` (mattpocock-skills), write the HTML report,
+then implement every candidate in the report. Do **not** ask which to
+explore. Do **not** wait on the grilling loop. Skip only ADR-contradicting or
+unauthorized destructive work (name those leftovers). Re-verify and commit,
+then:
 
 ```bash
 ycm-harness goal verify <goal-id>
@@ -118,6 +125,7 @@ Skip any file that is missing (public install ships `SKILL.md` +
 - `commands.md` — live 0.3 CLI
 - `github-tickets.md` — GitHub mirror
 - `anti-stop.md` — do not stop after execute
+- `finish.md` / `finish-architecture.md` — close-out; implement every architecture candidate
 
 ## Boundaries
 

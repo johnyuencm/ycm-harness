@@ -19,6 +19,7 @@ test("ycm-harness-work-lite ships with procedure and forbid list", async () => {
   assert.match(skill, /uiux/);
   assert.match(skill, /finish-architecture\.md/);
   assert.match(skill, /improve-codebase-architecture/);
+  assert.match(skill, /every candidate/);
   assert.match(skill, /Done bar/);
   assert.doesNotMatch(skill, /phase start validate/);
   assert.doesNotMatch(skill, /ycm-harness ritual record/);
@@ -34,8 +35,14 @@ test("ycm-harness-work-lite finish-architecture triggers external mattpocock ski
   );
   assert.match(doc, /improve-codebase-architecture/);
   assert.match(doc, /Top recommendation/);
+  assert.match(doc, /every candidate/);
+  assert.match(doc, /Do \*\*not\*\* ask/);
   assert.match(doc, /not bundled/);
   assert.match(doc, /Attach the skill/);
+  assert.doesNotMatch(
+    doc,
+    /Do \*\*not\*\* block completion on the optional grilling loop/,
+  );
 });
 
 test("plan-and-advance hard-wires handoff to ycm-harness-work-lite", async () => {

@@ -46,6 +46,8 @@ const REQUIRED_SKILL_PHRASES = [
   "when sibling files exist",
   "review-fix-loop.md",
   "orchestrator-checklist.md",
+  "improve-codebase-architecture",
+  "every candidate",
 ];
 
 const REQUIRED_DESIGN_SKILL_PHRASES = [
@@ -116,6 +118,7 @@ const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
     "Project",
     "follow-up",
     "Fixes #",
+    "Architecture-report candidates",
   ],
   "orchestrator-checklist.md": [
     "Orchestrator fulfillment checklist",
@@ -127,6 +130,8 @@ const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
   "finish-architecture.md": [
     "improve-codebase-architecture",
     "Top recommendation",
+    "every candidate",
+    "Do **not** ask",
   ],
 };
 
