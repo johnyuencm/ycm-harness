@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Session-start adapter for Cursor and OpenCode-compatible hosts.
-// The core CLI owns state; this adapter only normalizes the Cursor envelope.
+// Session-start adapter for Cursor, Claude Code, and Codex.
+// The core CLI owns state; this adapter normalizes the host envelope.
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readSync } from "node:fs";
@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 const FALLBACK_CONTEXT =
   "ycm-harness is configured but the CLI is not available. Install it (npm i -g ycm-harness) or run 'ycm-harness init' inside this project.";
 const MAX_STDIN_BYTES = 128 * 1024;
+const CLI_TIMEOUT_MS = 3_500;
 
 function readStdin() {
   try {
@@ -44,7 +45,10 @@ function extractAdditionalContext(stdout) {
   try {
     const parsed = JSON.parse(trimmed);
     if (parsed && typeof parsed === "object") {
-      const direct = parsed.additional_context ?? parsed.additionalContext;
+      const nested = parsed.hookSpecificOutput && typeof parsed.hookSpecificOutput === "object"
+        ? parsed.hookSpecificOutput.additionalContext
+        : undefined;
+      const direct = parsed.additional_context ?? parsed.additionalContext ?? nested;
       if (typeof direct === "string") return direct.trim();
       return "";
     }
@@ -70,6 +74,9 @@ function tryHarness(cwd, stdin) {
     encoding: "utf8",
     shell: false,
     input: stdin || undefined,
+    timeout: CLI_TIMEOUT_MS,
+    maxBuffer: 64 * 1024,
+    windowsHide: true,
   });
   return {
     kind: "ran",
@@ -77,7 +84,20 @@ function tryHarness(cwd, stdin) {
   };
 }
 
-function emitOutput(context) {
+function usesNativeSessionStartEnvelope(hookInput) {
+  if (process.env.CLAUDE_PLUGIN_ROOT || process.env.CLAUDE_ENV_FILE) return true;
+  if (!hookInput || typeof hookInput !== "object" || Array.isArray(hookInput)) return false;
+  const event = hookInput.hook_event_name ?? hookInput.hookEventName;
+  return event === "SessionStart" && typeof hookInput.source === "string";
+}
+
+function emitOutput(context, hookInput) {
+  if (usesNativeSessionStartEnvelope(hookInput)) {
+    const hookSpecificOutput = { hookEventName: "SessionStart" };
+    if (context) hookSpecificOutput.additionalContext = context;
+    process.stdout.write(JSON.stringify({ hookSpecificOutput }) + "\n");
+    return;
+  }
   if (!context) {
     process.stdout.write("{}\n");
     return;
@@ -85,14 +105,19 @@ function emitOutput(context) {
   process.stdout.write(JSON.stringify({ additional_context: context }) + "\n");
 }
 
-const read = readStdin();
-const hookInput = parseHookInput(read.stdin);
-const harness = tryHarness(process.cwd(), hookInput ? read.stdin : "");
-// absent CLI in source / unbuilt tree → silent; broken install or failed CLI → warn.
-const context =
-  harness.kind === "absent"
-    ? null
-    : harness.kind === "broken-install" || harness.stdout === null
-      ? FALLBACK_CONTEXT
-      : extractAdditionalContext(harness.stdout);
-emitOutput(context);
+let hookInput = null;
+try {
+  const read = readStdin();
+  hookInput = parseHookInput(read.stdin);
+  const harness = tryHarness(process.cwd(), hookInput ? read.stdin : "");
+  // absent CLI in source / unbuilt tree → silent; broken install or failed CLI → warn.
+  const context =
+    harness.kind === "absent"
+      ? null
+      : harness.kind === "broken-install" || harness.stdout === null
+        ? FALLBACK_CONTEXT
+        : extractAdditionalContext(harness.stdout);
+  emitOutput(context, hookInput);
+} catch {
+  emitOutput(null, hookInput);
+}

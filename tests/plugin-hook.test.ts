@@ -37,12 +37,33 @@ const opencodePlugin = path.join(
   "ycm-harness.js",
 );
 
-function runHook(stdin: string, cwd = repoRoot) {
+function runHook(stdin: string, cwd = repoRoot, env?: NodeJS.ProcessEnv) {
   return spawnSync(process.execPath, [hookScript], {
     cwd,
     encoding: "utf8",
     input: stdin,
+    env: env ?? process.env,
   });
+}
+
+function parseHookJson(stdout: string): Record<string, unknown> {
+  return JSON.parse(stdout.trim()) as Record<string, unknown>;
+}
+
+function assertNativeSessionStartJson(
+  stdout: string,
+  additionalContext?: string,
+) {
+  const parsed = parseHookJson(stdout);
+  assert.equal(parsed.additional_context, undefined);
+  const specific = parsed.hookSpecificOutput as Record<string, unknown> | undefined;
+  assert.ok(specific && typeof specific === "object");
+  assert.equal(specific.hookEventName, "SessionStart");
+  if (additionalContext !== undefined) {
+    assert.equal(specific.additionalContext, additionalContext);
+  } else if (specific.additionalContext !== undefined) {
+    assert.equal(typeof specific.additionalContext, "string");
+  }
 }
 
 test("session-start hook stays silent without active context", async () => {
@@ -65,6 +86,40 @@ test("session-start hook keeps SessionStart stdin silent without active context"
     );
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout.trim()), {});
+  } finally {
+    await cleanup(root);
+  }
+});
+
+test("Claude/Codex SessionStart emits hookSpecificOutput instead of Cursor additional_context", async () => {
+  const root = await tempProject("ch-hook-claude-envelope-");
+  try {
+    const result = runHook(
+      JSON.stringify({
+        hook_event_name: "SessionStart",
+        source: "startup",
+        session_id: "claude-session",
+        cwd: root,
+      }),
+      root,
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assertNativeSessionStartJson(result.stdout);
+  } finally {
+    await cleanup(root);
+  }
+});
+
+test("CLAUDE_PLUGIN_ROOT forces the native SessionStart envelope even without source", async () => {
+  const root = await tempProject("ch-hook-claude-env-");
+  try {
+    const result = runHook(
+      JSON.stringify({ hook_event_name: "SessionStart", cwd: root }),
+      root,
+      { ...process.env, CLAUDE_PLUGIN_ROOT: root },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assertNativeSessionStartJson(result.stdout);
   } finally {
     await cleanup(root);
   }
@@ -112,8 +167,7 @@ test("session-start wrapper enforces the stdin byte boundary without trusting dr
 
     const exact = run(sized(128 * 1024));
     assert.equal(exact.status, 0, exact.stderr);
-    assert.equal(JSON.parse(exact.stdout).additional_context,
-      "131072:startup:generation-boundary");
+    assertNativeSessionStartJson(exact.stdout, "131072:startup:generation-boundary");
 
     const oversized = run(sized(128 * 1024 + 1));
     assert.equal(oversized.status, 0, oversized.stderr);
@@ -124,6 +178,15 @@ test("session-start wrapper enforces the stdin byte boundary without trusting dr
     assert.equal(malformed.status, 0, malformed.stderr);
     assert.equal(JSON.parse(malformed.stdout).additional_context, "empty");
     assert.equal(JSON.parse(malformed.stdout).hookSpecificOutput, undefined);
+
+    const claudeEnv = spawnSync(process.execPath, [path.join(scripts, "session-start-hook.mjs")], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, PATH: "", CLAUDE_PLUGIN_ROOT: root },
+      input: "",
+    });
+    assert.equal(claudeEnv.status, 0, claudeEnv.stderr);
+    assertNativeSessionStartJson(claudeEnv.stdout, "empty");
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
