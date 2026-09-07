@@ -86,7 +86,7 @@ Follow `plugin/skills/ycm-harness-work-lite/SKILL.md`. After PASS: comment; clos
 
 ### `kind: review` (PR)
 
-Hand lite: PR link, `gh pr diff <n>`, author test claims, done-when = independent review panel PASS (`tech_lead` + `spec_reviewer` + `user_advocate` + `uiux` + `project_manager`).
+Hand lite: PR link, `gh pr diff <n>`, author test claims, done-when = two-phase review PASS (`tech_lead` × `project_manager` debate, then `user_advocate` last).
 
 Checkout PR branch → verify on branch → **review panel** on diff → fix-loop if needed → report.
 

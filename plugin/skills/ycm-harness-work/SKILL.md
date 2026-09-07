@@ -44,19 +44,38 @@ again.
 
 ## Independent review
 
-Dispatch a fresh-context **review panel** in one parallel turn. None of these
-agents may be the implementer. Prefer a different model family. Each follows
-`plugin/agents/<role>.md`:
+Cost-efficient **two-phase panel**. None of these agents may be the
+implementer. Prefer a different HIGH model family. Each follows
+`plugin/agents/<role>.md`. Do not dispatch `spec_reviewer` or `uiux`
+(retired). Do not dispatch `combined_reviewer`. If a retired seat is
+dispatched anyway, ignore its artifact — it does not count toward PASS
+or FAIL.
+
+Happy path is **3** agent calls. Worst case one pass is **7** (3 debate
+rounds × 2 + `user_advocate`). Stop on first settlement.
+
+**Phase 1 — `tech_lead` × `project_manager` debate (max 3 rounds):**
+dispatch both in parallel. Settled when both PASS with no unresolved
+high. Medium-only disagreements do not block settlement and do not force
+another round. Do not start round N+1 until both round-N artifacts exist.
+If not settled, resume (or short-redispatch with only disagreements).
+After 3 rounds still unsettled → FAIL; do **not** run `user_advocate`.
+
+**Phase 2 — `user_advocate` last:** only after phase 1 settled. Owns live
+operator value, job-to-be-done, and Shneiderman / usability. Give them the
+worktree, diff, and phase-1 artifact paths; do not re-do spec or architecture
+unless live behavior contradicts them.
 
 - `tech_lead` — architecture, correctness, tests, ops, security
-- `spec_reviewer` — every acceptance criterion vs code and evidence
-- `user_advocate` — live operator value and job-to-be-done
-- `uiux` — Shneiderman / modern usability; always `kimi-k3-high`; pairs with `user_advocate`
-- `project_manager` — goal alignment and honest done-state
+- `project_manager` — goal alignment, honest done-state, every acceptance
+  criterion vs code and evidence
+- `user_advocate` — live operator value, job-to-be-done, interaction design
 
-Panel PASS requires every reviewer PASS and no unresolved high findings.
-Never self-score. Full findings go in `artifacts/review-<role>-<ticket>.md`.
-Max **3** fix rounds (implementer fix → submit again → fresh panel).
+Panel PASS requires phase 1 settled, `user_advocate` PASS, and no unresolved
+high findings. Never self-score. Full findings go in
+`artifacts/review-<role>-<ticket>.md`. Max **3** fix rounds (implementer
+fix → submit again → restart phase 1). Never skip to phase 2 after a code
+change.
 
 Do not run `ycm-harness review *` (deprecated exit-2 alias). Do not write
 `review-combined.json` or any harness review evidence file. Do not dispatch

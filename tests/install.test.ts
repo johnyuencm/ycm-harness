@@ -139,9 +139,7 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
     );
     assert.match(await fs.readFile(techLead, "utf8"), /tech lead/);
     for (const agent of [
-      "spec_reviewer.md",
       "user_advocate.md",
-      "uiux.md",
       "project_manager.md",
       "explore-architecture.md",
       "explore-risks.md",
@@ -177,6 +175,18 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       false,
       "retired combined_reviewer.md must not be installed",
     );
+    for (const retired of ["spec_reviewer.md", "uiux.md"]) {
+      assert.equal(
+        await fs
+          .stat(
+            path.join(project, ".cursor", "agents", "ycm-harness", retired),
+          )
+          .then(() => true)
+          .catch(() => false),
+        false,
+        `retired ${retired} must not be installed`,
+      );
+    }
     for (const external of [
       "grill-me",
       "grill-with-docs",
@@ -458,23 +468,29 @@ test("install --project --force prunes retired combined_reviewer agent", async (
   const home = await tempProject();
   try {
     await runInstall(project, ["--project"], home);
-    const leftover = path.join(
-      project,
-      ".cursor",
-      "agents",
-      "ycm-harness",
+    const leftoverNames = [
       "combined_reviewer.md",
-    );
-    await fs.writeFile(leftover, "# retired leftover\n", "utf8");
+      "spec_reviewer.md",
+      "uiux.md",
+    ];
+    for (const name of leftoverNames) {
+      await fs.writeFile(
+        path.join(project, ".cursor", "agents", "ycm-harness", name),
+        "# retired leftover\n",
+        "utf8",
+      );
+    }
     await runInstall(project, ["--project", "--force"], home);
-    assert.equal(
-      await fs
-        .stat(leftover)
-        .then(() => true)
-        .catch(() => false),
-      false,
-      "force install must prune retired combined_reviewer.md",
-    );
+    for (const name of leftoverNames) {
+      assert.equal(
+        await fs
+          .stat(path.join(project, ".cursor", "agents", "ycm-harness", name))
+          .then(() => true)
+          .catch(() => false),
+        false,
+        `force install must prune retired ${name}`,
+      );
+    }
     assert.ok(
       await fs
         .stat(

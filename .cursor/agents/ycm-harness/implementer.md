@@ -39,8 +39,8 @@ ycm-harness verify run \
   --verifier-run <different-id>
 ```
 
-Independent review is a separate fresh-context **review panel**
-(`tech_lead`, `spec_reviewer`, `user_advocate`, `uiux`, `project_manager`).
+Independent review is a separate fresh-context **two-phase panel**
+(`tech_lead` × `project_manager` debate, then `user_advocate` last).
 Do not self-score. Do not write a harness review JSON file.
 
 ## Constraints

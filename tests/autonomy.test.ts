@@ -98,10 +98,9 @@ const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
   "wiki.md": ["$llm-wiki", "wiki durable", "redaction", "session tick"],
   "review-fix-loop.md": [
     "tech_lead",
-    "spec_reviewer",
-    "user_advocate",
-    "uiux",
     "project_manager",
+    "user_advocate",
+    "two-phase",
     "author",
     "Review dispatch SOP",
     "$hard-problem-solving",
@@ -299,7 +298,7 @@ test("execute-agents puts spec completeness on the specialist panel", async () =
     path.join(workSkillDir, "execute-agents.md"),
   );
   if (content === null) return;
-  assert.match(content, /spec_reviewer/);
+  assert.match(content, /project_manager/);
   assert.match(content, /review panel/);
 });
 

@@ -49,7 +49,7 @@ If scope grows mid-run: **stay in lite**. Tighten verify and review. Do not swit
 ## Procedure
 
 ```text
-dispatch implementer → real verify → review panel → fix-loop → commit/push → finish-architecture (implement every candidate) → re-verify → commit/push → llm-wiki run record → report
+dispatch implementer → real verify → two-phase review → fix-loop → commit/push → finish-architecture (implement every candidate) → re-verify → commit/push → llm-wiki run record → report
 ```
 
 ### 1. Dispatch implementer
@@ -74,9 +74,21 @@ Run the project’s real test / lint / build bar in the **current workspace** vi
 
 ### 3. Independent review
 
-Dispatch the **named review panel** in one parallel turn, each bound to
-`plugin/agents/<role>.md`: `tech_lead`, `spec_reviewer`, `user_advocate`,
-`uiux` (`kimi-k3-high`, pairs with `user_advocate`), `project_manager`.
+Cost-efficient **two-phase panel**, each bound to `plugin/agents/<role>.md`.
+Do not dispatch `spec_reviewer` or `uiux` (retired). Ignore a retired-seat
+artifact if one appears.
+
+Happy path is **3** agent calls; worst case one pass is **7**. Stop early.
+
+**Phase 1:** dispatch `tech_lead` and `project_manager` in parallel. They
+debate at most 3 rounds. Settled when both PASS with no unresolved high.
+Medium-only disagreements do not block settlement. Do not start round N+1
+until both round-N artifacts exist. If phase 1 fails, do **not** run
+`user_advocate`.
+
+**Phase 2:** dispatch `user_advocate` last, only after phase 1 settled.
+They own job-to-be-done, live operator value, and Shneiderman / usability.
+Give them the worktree, diff, and phase-1 artifact paths.
 
 - No reviewer may be the implementer / author. Never self-score.
 - Full findings live in `artifacts/review-<role>-<ticket-or-slug>.md`.
@@ -94,7 +106,7 @@ If review has actionable high findings:
 
 1. Dispatch implementer to fix
 2. Re-verify
-3. Fresh review panel again
+3. Restart the two-phase panel (phase 1 first; `user_advocate` last)
 
 Max **3** rounds. If still failing: report blocked with remaining findings — **still under lite** (do not escalate skills).
 

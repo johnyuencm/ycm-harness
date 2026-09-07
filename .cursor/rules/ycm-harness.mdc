@@ -16,11 +16,11 @@ For non-trivial tracked work:
 4. Use `goal worktree init` when isolation is useful or required.
 5. Record decisions, blockers, and compaction boundaries with
    `ycm-harness checkpoint`.
-6. Dispatch the named review panel (`tech_lead`, `spec_reviewer`,
-   `user_advocate`, `uiux`, `project_manager`); none may be the implementer.
-   `uiux` always uses `kimi-k3-high` and pairs with `user_advocate`.
+6. Dispatch the two-phase review panel: `tech_lead` × `project_manager`
+   debate (max 3 rounds), then `user_advocate` last. None may be the
+   implementer. Do not dispatch `spec_reviewer` or `uiux` (retired).
    Findings live in `artifacts/review-<role>-<ticket>.md`. Never self-score.
-   Max 3 fix rounds.
+   Max 3 fix rounds. Never skip to `user_advocate` after a phase-1 FAIL.
 7. Submit code-changing tickets before verification (`ticket submit` refuses a
    dirty tree).
 8. Verify the exact submitted state with distinct implementer and verifier run
@@ -30,7 +30,7 @@ For non-trivial tracked work:
 
 Independent review is a skill procedure, not a harness review file:
 
-- Cover tech, spec, security, and user-value via the named specialist panel.
+- Cover tech, spec, security, and user-value via the two-phase panel.
 - Do not run `ycm-harness review *` (deprecated exit-2 alias).
 - Do not write `review-combined.json` or any harness review evidence file.
 - Do not dispatch `combined_reviewer` (retired).

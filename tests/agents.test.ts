@@ -10,12 +10,16 @@ const agentsDir = path.join(repo, "plugin", "agents");
 const EXPECTED_AGENTS = [
   "implementer.md",
   "tech_lead.md",
-  "spec_reviewer.md",
   "user_advocate.md",
-  "uiux.md",
   "project_manager.md",
   "explore-architecture.md",
   "explore-risks.md",
+] as const;
+
+const RETIRED_AGENTS = [
+  "combined_reviewer.md",
+  "spec_reviewer.md",
+  "uiux.md",
 ] as const;
 
 function frontmatter(content: string): Record<string, string> {
@@ -33,7 +37,9 @@ function frontmatter(content: string): Record<string, string> {
 test("plugin ships specialist harness agents with Cursor frontmatter", async () => {
   const names = (await fs.readdir(agentsDir)).filter((n) => n.endsWith(".md")).sort();
   assert.deepEqual(names, [...EXPECTED_AGENTS].sort());
-  assert.ok(!names.includes("combined_reviewer.md"));
+  for (const retired of RETIRED_AGENTS) {
+    assert.ok(!names.includes(retired), `retired agent must not ship: ${retired}`);
+  }
 
   for (const file of EXPECTED_AGENTS) {
     const content = await fs.readFile(path.join(agentsDir, file), "utf8");
@@ -48,7 +54,7 @@ test("plugin ships specialist harness agents with Cursor frontmatter", async () 
     path.join(agentsDir, "implementer.md"),
     "utf8",
   );
-  assert.match(implementer, /review panel/);
+  assert.match(implementer, /two-phase panel/);
   assert.match(implementer, /mattpocock-skills@mattpocock/);
 
   const pluginJson = JSON.parse(
@@ -59,13 +65,22 @@ test("plugin ships specialist harness agents with Cursor frontmatter", async () 
   );
   assert.equal(pluginJson.agents, "./agents");
 
-  const uiux = await fs.readFile(path.join(agentsDir, "uiux.md"), "utf8");
-  const uiuxMeta = frontmatter(uiux);
-  assert.equal(uiuxMeta.model, "kimi-k3-high");
-  assert.match(uiux, /Shneiderman/);
-  assert.match(uiux, /user_advocate/);
-  assert.match(
-    await fs.readFile(path.join(agentsDir, "user_advocate.md"), "utf8"),
-    /uiux/,
+  const pm = await fs.readFile(
+    path.join(agentsDir, "project_manager.md"),
+    "utf8",
   );
+  assert.match(pm, /Per-criterion map/);
+  assert.match(pm, /Debate with tech_lead/);
+
+  const tl = await fs.readFile(path.join(agentsDir, "tech_lead.md"), "utf8");
+  assert.match(tl, /Debate with project_manager/);
+
+  const ua = await fs.readFile(
+    path.join(agentsDir, "user_advocate.md"),
+    "utf8",
+  );
+  assert.match(ua, /Shneiderman/);
+  assert.match(ua, /last/);
+  const uaMeta = frontmatter(ua);
+  assert.notEqual(uaMeta.model, "kimi-k3-high");
 });
