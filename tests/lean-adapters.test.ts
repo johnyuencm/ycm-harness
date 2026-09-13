@@ -28,6 +28,10 @@ test("SessionStart absent CLI stays silent without a runtime projection", async 
     path.join(root, "plugin", "scripts", "session-start-hook.mjs"),
     path.join(scripts, "session-start-hook.mjs"),
   );
+  await fs.copyFile(
+    path.join(root, "plugin", "scripts", "harness-cli-path.mjs"),
+    path.join(scripts, "harness-cli-path.mjs"),
+  );
   const result = spawnSync(process.execPath, [path.join(scripts, "session-start-hook.mjs")], {
     cwd: tmp,
     encoding: "utf8",

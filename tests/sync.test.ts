@@ -86,7 +86,26 @@ test("sync defaults to detected Cursor and Codex clients", async () => {
         ".cursor-plugin",
         "plugin.json",
       );
+      const codexPlugin = path.join(
+        home,
+        ".codex",
+        "marketplaces",
+        "ycm-harness",
+        "plugins",
+        "ycm-harness",
+        ".cursor-plugin",
+        "plugin.json",
+      );
       const codexConfig = path.join(home, ".codex", "config.toml");
+      const codexMarketplace = path.join(
+        home,
+        ".codex",
+        "marketplaces",
+        "ycm-harness",
+        ".agents",
+        "plugins",
+        "marketplace.json",
+      );
 
       assert.ok(
         await fs
@@ -95,16 +114,29 @@ test("sync defaults to detected Cursor and Codex clients", async () => {
           .catch(() => false),
         `expected cursor plugin at ${cursorPlugin}`,
       );
-      const configText = await fs.readFile(codexConfig, "utf8");
-      assert.match(configText, /\[marketplaces\.ycm-harness\]/);
-      assert.match(configText, /source_type = "git"/);
-      assert.match(
-        configText,
-        /source = 'git@github\.com:johnyuencm\/ycm-harness\.git'/,
+      assert.ok(
+        await fs
+          .stat(codexPlugin)
+          .then(() => true)
+          .catch(() => false),
+        `expected codex plugin at ${codexPlugin}`,
       );
-      assert.match(configText, /\[plugins\."ycm-harness@ycm-harness"\]/);
+      assert.match(
+        await fs.readFile(codexConfig, "utf8"),
+        /\[marketplaces\.ycm-harness-local\]/,
+      );
+      assert.match(
+        await fs.readFile(codexConfig, "utf8"),
+        /\[plugins\."ycm-harness@ycm-harness-local"\]/,
+      );
+      assert.match(
+        await fs.readFile(codexMarketplace, "utf8"),
+        /"\.\/plugins\/ycm-harness"/,
+      );
+      assert.match(await fs.readFile(codexPlugin, "utf8"), /"name": "ycm-harness"/);
+      const configText = await fs.readFile(codexConfig, "utf8");
       assert.equal(
-        (configText.match(/source = 'git@github\.com:johnyuencm\/ycm-harness\.git'/g) ?? [])
+        (configText.match(/source = '.*marketplaces\\ycm-harness'/g) ?? [])
           .length,
         1,
       );
@@ -147,6 +179,22 @@ test("sync --cursor updates only Cursor assets", async () => {
           .stat(cursorPlugin)
           .then(() => true)
           .catch(() => false),
+      );
+      const localPlugin = path.join(
+        home,
+        ".cursor",
+        "plugins",
+        "local",
+        "ycm-harness",
+        ".cursor-plugin",
+        "plugin.json",
+      );
+      assert.ok(
+        await fs
+          .stat(localPlugin)
+          .then(() => true)
+          .catch(() => false),
+        `expected cursor local plugin at ${localPlugin}`,
       );
       assert.equal(
         await fs

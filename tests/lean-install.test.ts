@@ -34,6 +34,7 @@ test("client install prunes retired assets, bundles runtime, and audits OpenCode
       const sentinel = path.join(external, "sentinel.txt");
       await fs.mkdir(path.join(external, ".codex-plugin"), { recursive: true });
       await fs.writeFile(path.join(external, ".codex-plugin", "plugin.json"), "stale", "utf8");
+      await fs.writeFile(path.join(external, "hijacked-extra.txt"), "stale-extra", "utf8");
       await fs.writeFile(sentinel, "outside", "utf8");
       await fs.mkdir(path.dirname(installed), { recursive: true });
       await fs.symlink(external, installed, process.platform === "win32" ? "junction" : "dir");
@@ -41,21 +42,18 @@ test("client install prunes retired assets, bundles runtime, and audits OpenCode
       await runClientSync({ cursor: true, force: true, sourceRoot: source });
 
       assert.equal((await fs.lstat(installed)).isSymbolicLink(), false);
-      assert.equal(
-        JSON.parse(await fs.readFile(path.join(installed, ".codex-plugin", "plugin.json"), "utf8")).name,
-        "ycm-harness",
-      );
+      await assert.rejects(fs.stat(path.join(installed, "hijacked-extra.txt")));
       assert.equal(await fs.readFile(unmanagedSibling, "utf8"), "preserve");
       assert.equal(await fs.readFile(sentinel, "utf8"), "outside");
       const runtimeRoot = path.join(installed, "runtime");
       await fs.rm(runtimeRoot, { recursive: true, force: true });
       await fs.symlink(external, runtimeRoot, process.platform === "win32" ? "junction" : "dir");
-      const codexManifest = path.join(installed, ".codex-plugin", "plugin.json");
-      await fs.mkdir(path.dirname(codexManifest), { recursive: true });
-      await fs.writeFile(codexManifest, "stale", "utf8");
+      const retired = path.join(installed, "hijacked-extra.txt");
+      await fs.mkdir(path.dirname(retired), { recursive: true });
+      await fs.writeFile(retired, "stale", "utf8");
       await runClientSync({ cursor: true, force: true, sourceRoot: source });
       assert.equal((await fs.lstat(runtimeRoot)).isSymbolicLink(), false);
-      assert.equal(JSON.parse(await fs.readFile(codexManifest, "utf8")).name, "ycm-harness");
+      await assert.rejects(fs.stat(retired));
       assert.equal(await fs.readFile(sentinel, "utf8"), "outside");
       const runtimeCli = path.join(installed, "runtime", "dist", "cli", "index.js");
       assert.match(await fs.readFile(runtimeCli, "utf8"), /fixture/);
@@ -108,10 +106,8 @@ test("install --client routes documented selectors and rejects invalid combinati
       assert.ok(opencodeConfig.plugin.includes(opencodePluginSpec(repoRoot)));
 
       await buildProgram(project).parseAsync(["install", "--client", "all", "--force"], { from: "user" });
-      assert.match(
-        await fs.readFile(path.join(home, ".codex", "config.toml"), "utf8"),
-        /marketplaces\.ycm-harness[\s\S]*source_type = "git"[\s\S]*johnyuencm\/ycm-harness\.git/,
-      );
+      await fs.stat(path.join(home, ".codex", "marketplaces", "ycm-harness", "plugins", "ycm-harness", "runtime", "dist", "cli", "index.js"));
+      assert.match(await fs.readFile(path.join(home, ".codex", "config.toml"), "utf8"), /marketplaces\.ycm-harness-local/);
 
       await assert.rejects(
         buildProgram(project).parseAsync(["install", "--client", "codex"], { from: "user" }),

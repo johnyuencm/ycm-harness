@@ -7,6 +7,15 @@ import { createRequire } from "node:module";
 import type { CliContext } from "./context.js";
 import { ensureDir, fileExists } from "../state/io.js";
 import { PLUGIN_NAME } from "../branding.js";
+import {
+  cursorGithubPluginRoot,
+  cursorLocalInstallRoot,
+  listPinnedClaudePluginRoots,
+  listPinnedCursorPluginRoots,
+  resolveClaudeGithubRepo,
+  resolvePluginProjectRoot,
+  syncCursorGithubClone,
+} from "./cursor-github-plugin.js";
 
 export type AuditStatus = "ok" | "missing" | "stale" | "n/a";
 
@@ -51,7 +60,7 @@ export interface ClientSyncOptions {
   codex?: boolean;
   opencode?: boolean;
   claude?: boolean;
-  /** Prefer GitHub marketplace (johnyuen/harness) over local checkout for Claude. */
+  /** Prefer GitHub marketplace (autoUpdate) over local checkout for Claude. */
   claudeGit?: boolean;
   /** Git ref (branch/tag) when using Claude GitHub marketplace. Defaults to master. */
   claudeRef?: string;
@@ -202,13 +211,12 @@ function claudeSettingsPath(): string {
 
 export function claudeMarketplaceSource(
   sourceRoot: string,
-  opts?: { useGit?: boolean; ref?: string },
+  opts?: { useGit?: boolean; ref?: string; githubRepo?: string },
 ): string {
   if (opts?.useGit) {
+    const repo = opts.githubRepo ?? CLAUDE_GITHUB_REPO;
     const ref = (opts.ref ?? CLAUDE_DEFAULT_REF).trim();
-    return ref && ref !== CLAUDE_DEFAULT_REF
-      ? `${CLAUDE_GITHUB_REPO}#${ref}`
-      : CLAUDE_GITHUB_REPO;
+    return ref && ref !== CLAUDE_DEFAULT_REF ? `${repo}#${ref}` : repo;
   }
   return path.resolve(sourceRoot);
 }
@@ -1069,6 +1077,40 @@ async function auditPluginProjection(sourceRoot: string, destRoot: string): Prom
   return items;
 }
 
+async function auditPinnedCursorPlugins(pluginRoot: string): Promise<AuditItem[]> {
+  const items: AuditItem[] = [];
+  const sourceRule = path.join(pluginRoot, "rules", "ycm-harness.mdc");
+  const sourceSkill = path.join(
+    pluginRoot,
+    "skills",
+    "ycm-harness-work",
+    "SKILL.md",
+  );
+  const dests = uniquePaths([
+    cursorLocalInstallRoot(),
+    ...(await listPinnedCursorPluginRoots()),
+    ...(await listPinnedClaudePluginRoots()),
+  ]);
+  for (const dest of dests) {
+    items.push(
+      await auditFile(sourceRule, path.join(dest, "rules", "ycm-harness.mdc")),
+    );
+    items.push(
+      await auditFile(
+        sourceSkill,
+        path.join(dest, "skills", "ycm-harness-work", "SKILL.md"),
+      ),
+    );
+    for (const retired of ["spec_reviewer.md", "uiux.md", "combined_reviewer.md"]) {
+      const retiredPath = path.join(dest, "agents", retired);
+      if (await fileExists(retiredPath)) {
+        items.push({ path: retiredPath, status: "stale" });
+      }
+    }
+  }
+  return items;
+}
+
 function codexInstallRoot(): string {
   return path.join(codexHome(), "marketplaces", PLUGIN_NAME);
 }
@@ -1083,6 +1125,182 @@ function codexInstalledPluginRoot(): string {
 
 function cursorInstallRoot(): string {
   return path.join(cursorHome(), "plugins", PLUGIN_NAME);
+}
+
+function uniquePaths(paths: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const candidate of paths) {
+    const key = path.resolve(candidate);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(candidate);
+  }
+  return out;
+}
+
+const RETIRED_PLUGIN_AGENTS = [
+  "spec_reviewer.md",
+  "uiux.md",
+  "combined_reviewer.md",
+] as const;
+
+export async function listCursorPluginDestinations(): Promise<string[]> {
+  return uniquePaths([
+    cursorInstallRoot(),
+    cursorLocalInstallRoot(),
+    ...(await listPinnedCursorPluginRoots()),
+  ]);
+}
+
+export async function listManagedPluginDestinations(): Promise<string[]> {
+  return uniquePaths([
+    ...(await listCursorPluginDestinations()),
+    ...(await listPinnedClaudePluginRoots()),
+  ]);
+}
+
+async function hostManagedPluginDestSet(): Promise<Set<string>> {
+  return new Set(
+    [
+      ...(await listPinnedCursorPluginRoots()),
+      ...(await listPinnedClaudePluginRoots()),
+    ].map((dir) => path.resolve(dir)),
+  );
+}
+
+async function pruneRetiredPluginAgents(dest: string): Promise<void> {
+  for (const retired of RETIRED_PLUGIN_AGENTS) {
+    const retiredPath = path.join(dest, "agents", retired);
+    if (await fileExists(retiredPath)) {
+      await fs.rm(retiredPath, { force: true });
+    }
+  }
+}
+
+function cursorDestLabel(dest: string): string {
+  if (path.resolve(dest) === path.resolve(cursorLocalInstallRoot())) {
+    return "cursor local plugin";
+  }
+  if (path.resolve(dest) === path.resolve(cursorInstallRoot())) {
+    return "cursor plugin";
+  }
+  const normalized = dest.replace(/\\/g, "/");
+  if (normalized.includes("/.claude/")) {
+    return `claude pinned plugin (${path.basename(path.dirname(dest))}/${path.basename(dest)})`;
+  }
+  return `cursor pinned plugin (${path.basename(path.dirname(dest))}/${path.basename(dest)})`;
+}
+
+async function installHostManagedPluginDest(
+  pluginSource: string,
+  dest: string,
+  force: boolean,
+): Promise<string> {
+  const label = cursorDestLabel(dest);
+  const report = renderTreeReport(
+    label,
+    await copyTreeManaged(pluginSource, dest, force),
+  );
+  await pruneRetiredPluginAgents(dest);
+  return report;
+}
+
+async function installCursorPluginDestinations(
+  sourceRoot: string,
+  force: boolean,
+): Promise<string[]> {
+  const reports: string[] = [];
+  const pinned = await hostManagedPluginDestSet();
+  const pluginSource = path.join(sourceRoot, "plugin");
+  for (const dest of await listCursorPluginDestinations()) {
+    if (pinned.has(path.resolve(dest))) {
+      reports.push(await installHostManagedPluginDest(pluginSource, dest, force));
+      continue;
+    }
+    const label = cursorDestLabel(dest);
+    reports.push(
+      renderTreeReport(
+        label,
+        await installPluginProjection(sourceRoot, dest, force),
+      ),
+    );
+    reports.push(...(await reportPluginSkillPrunes(label, dest, force)));
+  }
+  return reports;
+}
+
+async function installClaudePluginDestinations(
+  sourceRoot: string,
+  force: boolean,
+): Promise<string[]> {
+  const pluginSource = path.join(sourceRoot, "plugin");
+  const reports: string[] = [];
+  for (const dest of await listPinnedClaudePluginRoots()) {
+    reports.push(await installHostManagedPluginDest(pluginSource, dest, force));
+  }
+  return reports;
+}
+
+export async function refreshCursorPluginAssets(
+  sourceRoot: string,
+  force = true,
+): Promise<string[]> {
+  const nested = path.join(sourceRoot, "plugin");
+  const pluginSource = (await fileExists(nested)) ? nested : sourceRoot;
+  const reports: string[] = [];
+  for (const dest of await listManagedPluginDestinations()) {
+    const totals = await copyTreeManaged(pluginSource, dest, force);
+    // Do not pruneRetiredFiles here: unmanaged dests also hold runtime/ from
+    // installPluginProjection. Plugin-only expected sets would delete the CLI.
+    await pruneRetiredPluginAgents(dest);
+    reports.push(renderTreeReport(cursorDestLabel(dest), totals));
+  }
+  return reports;
+}
+
+export async function refreshCursorPluginsFromGithub(opts: {
+  sourceRoot: string;
+  force?: boolean;
+  timeoutMs?: number;
+}): Promise<string[]> {
+  if (
+    process.env.NODE_TEST_CONTEXT &&
+    process.env.YCM_HARNESS_GITHUB_PLUGIN !== "1"
+  ) {
+    return ["cursor github refresh: skipped (test isolation)"];
+  }
+  const cloned = await syncCursorGithubClone({
+    sourceRoot: opts.sourceRoot,
+    timeoutMs: opts.timeoutMs,
+  });
+  const reports = [...cloned.reports];
+  const clonePlugin = cloned.root
+    ? await cursorGithubPluginRoot(cloned.root)
+    : undefined;
+  let projectRoot: string | undefined;
+  if (clonePlugin) {
+    projectRoot =
+      path.basename(clonePlugin) === "plugin" ? cloned.root! : clonePlugin;
+  } else if (process.env.YCM_HARNESS_SKIP_GITHUB_PLUGIN === "1") {
+    reports.push("cursor github refresh: skipped dest copy (local overlay)");
+    return reports;
+  } else {
+    projectRoot = await resolvePluginProjectRoot(opts.sourceRoot);
+    if (projectRoot) {
+      reports.push(
+        "cursor github refresh: clone unavailable; using checkout plugin",
+      );
+    }
+  }
+  if (!projectRoot) {
+    reports.push("cursor github refresh: skipped dest copy (no plugin source)");
+    return reports;
+  }
+  reports.push(
+    ...(await refreshCursorPluginAssets(projectRoot, opts.force ?? true)),
+  );
+  return reports;
 }
 
 function codexConfigPath(): string {
@@ -1368,7 +1586,7 @@ async function ensureClaudeAutoUpdate(
   useGit: boolean,
 ): Promise<string> {
   if (!useGit) {
-    return "claude autoUpdate: skipped (local marketplace ??use sync --claude to refresh)";
+    return "claude autoUpdate: skipped (local marketplace; omit --claude-local for git autoUpdate)";
   }
   const settingsPath = claudeSettingsPath();
   await ensureDir(path.dirname(settingsPath));
@@ -1452,9 +1670,13 @@ async function syncClaudeMarketplace(
   }
 
   const useGit = !!opts.useGit;
+  const githubRepo = useGit
+    ? await resolveClaudeGithubRepo(sourceRoot)
+    : undefined;
   const marketplaceSource = claudeMarketplaceSource(sourceRoot, {
     useGit,
     ref: opts.ref,
+    githubRepo,
   });
 
   try {
@@ -1611,18 +1833,9 @@ export async function runInstallScopes(
       );
     }
 
+    reports.push(...(await installCursorPluginDestinations(sourceRoot, force)));
     reports.push(
-      renderTreeReport(
-        "cursor plugin",
-        await installPluginProjection(sourceRoot, cursorInstallRoot(), force),
-      ),
-    );
-    reports.push(
-      ...(await reportPluginSkillPrunes(
-        "cursor plugin",
-        cursorInstallRoot(),
-        force,
-      )),
+      ...(await syncCursorGithubClone({ sourceRoot })).reports,
     );
   }
 
@@ -1679,19 +1892,8 @@ export async function runClientSync(
   const reports: string[] = [];
 
   if (opts.cursor) {
-    reports.push(
-      renderTreeReport(
-        "cursor plugin",
-        await installPluginProjection(sourceRoot, cursorInstallRoot(), force),
-      ),
-    );
-    reports.push(
-      ...(await reportPluginSkillPrunes(
-        "cursor plugin",
-        cursorInstallRoot(),
-        force,
-      )),
-    );
+    reports.push(...(await installCursorPluginDestinations(sourceRoot, force)));
+    reports.push(...(await syncCursorGithubClone({ sourceRoot })).reports);
     reports.push(
       renderTreeReport(
         "cursor user skills",
@@ -1791,6 +1993,7 @@ export async function runClientSync(
   }
 
   if (opts.claude) {
+    reports.push(...(await installClaudePluginDestinations(sourceRoot, force)));
     reports.push(
       ...(await syncClaudeMarketplace(sourceRoot, {
         useGit: !!opts.claudeGit,
@@ -1889,6 +2092,7 @@ export async function auditInstall(
     ],
     cursor_plugin: [
       ...(await auditPluginProjection(root, cursorInstallRoot())),
+      ...(await auditPinnedCursorPlugins(pluginRoot)),
       ...(await Promise.all(
         LEGACY_WORK_SKILL_DIRS.map(async (legacyDir) => {
           const legacyPath = path.join(

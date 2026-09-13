@@ -125,6 +125,24 @@ test("CLAUDE_PLUGIN_ROOT forces the native SessionStart envelope even without so
   }
 });
 
+test("PLUGIN_ROOT under .codex forces the native SessionStart envelope", async () => {
+  const root = await tempProject("ch-hook-codex-plugin-root-");
+  try {
+    const result = runHook(
+      JSON.stringify({ hook_event_name: "SessionStart", cwd: root }),
+      root,
+      {
+        ...process.env,
+        PLUGIN_ROOT: path.join(root, ".codex", "plugins", "ycm-harness"),
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assertNativeSessionStartJson(result.stdout);
+  } finally {
+    await cleanup(root);
+  }
+});
+
 test("session-start wrapper enforces the stdin byte boundary without trusting dropped input", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ch-session-forward-"));
   try {
@@ -133,6 +151,10 @@ test("session-start wrapper enforces the stdin byte boundary without trusting dr
     await fs.mkdir(scripts, { recursive: true });
     await fs.mkdir(dist, { recursive: true });
     await fs.copyFile(hookScript, path.join(scripts, "session-start-hook.mjs"));
+    await fs.copyFile(
+      path.join(repoRoot, "plugin", "scripts", "harness-cli-path.mjs"),
+      path.join(scripts, "harness-cli-path.mjs"),
+    );
     await fs.writeFile(path.join(dist, "index.js"), `
       let raw = "";
       process.stdin.setEncoding("utf8");

@@ -11,7 +11,9 @@ import {
   runInstallScopes,
   repairLegacyAgentDirs,
   packageRoot,
+  homeDir,
 } from "../install-kit.js";
+import { fileExists } from "../../state/io.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -83,7 +85,10 @@ export function registerDoctor(
         repairReports.push(
           ...(await runClientSync({
             cursor: true,
+            codex: await fileExists(path.join(homeDir(), ".codex")),
             opencode: audit.opencode_config.status !== "n/a",
+            claude: await fileExists(path.join(homeDir(), ".claude")),
+            claudeGit: true,
             force: true,
             sourceRoot,
           })),

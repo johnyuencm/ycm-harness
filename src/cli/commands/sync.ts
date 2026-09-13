@@ -18,12 +18,17 @@ export function registerSync(program: Command, ctx: CliContext, out: CliOutput):
     .option("--claude", "Sync Claude Code marketplace + plugin only", false)
     .option(
       "--claude-git",
-      "For Claude: register johnyuencm/ycm-harness GitHub marketplace (auto-update from git) instead of local checkout",
+      "For Claude: register the GitHub marketplace with autoUpdate (default whenever Claude is synced)",
+      false,
+    )
+    .option(
+      "--claude-local",
+      "For Claude: register this checkout as a local marketplace (no git autoUpdate)",
       false,
     )
     .option(
       "--claude-ref <ref>",
-      "Git branch/tag for --claude-git (default: master)",
+      "Git branch/tag for Claude GitHub marketplace (default: master)",
       "master",
     )
     .option("--all", "Sync all clients regardless of detection", false)
@@ -39,6 +44,7 @@ export function registerSync(program: Command, ctx: CliContext, out: CliOutput):
       opencode?: boolean;
       claude?: boolean;
       claudeGit?: boolean;
+      claudeLocal?: boolean;
       claudeRef?: string;
       all?: boolean;
       refreshCodexCache?: boolean;
@@ -65,7 +71,7 @@ export function registerSync(program: Command, ctx: CliContext, out: CliOutput):
         codex,
         opencode,
         claude,
-        claudeGit: !!opts.claudeGit,
+        claudeGit: !opts.claudeLocal && (opts.claudeGit || claude),
         claudeRef: opts.claudeRef,
         force: true,
         refreshCodexCache: !!opts.refreshCodexCache || !!codex,
@@ -81,13 +87,13 @@ export function registerSync(program: Command, ctx: CliContext, out: CliOutput):
       for (const line of reports) out.out(line);
       out.out("");
       out.out("Next: start a new Codex/Cursor/OpenCode/Claude Code session so it reloads the refreshed plugin skills.");
-      if (claude && opts.claudeGit) {
+      if (claude && opts.claudeLocal) {
         out.out(
-          `Claude auto-update tracks git ref '${opts.claudeRef ?? "master"}' on johnyuencm/ycm-harness — push there, then /plugin marketplace update harness (or wait for autoUpdate).`,
+          "Claude is on a local marketplace. For git auto-update: ycm-harness sync --claude",
         );
       } else if (claude) {
         out.out(
-          "Claude is on a local marketplace. For git auto-update: ycm-harness sync --claude --claude-git [--claude-ref master]",
+          `Claude auto-update tracks git ref '${opts.claudeRef ?? "master"}' — push there, then /plugin marketplace update harness (or wait for autoUpdate).`,
         );
       }
     });

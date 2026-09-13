@@ -2,10 +2,11 @@
 // Session-start adapter for Cursor, Claude Code, and Codex.
 // The core CLI owns state; this adapter normalizes the host envelope.
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { findHarnessCli } from "./harness-cli-path.mjs";
 
 const FALLBACK_CONTEXT =
   "ycm-harness is configured but the CLI is not available. Install it (npm i -g ycm-harness) or run 'ycm-harness init' inside this project.";
@@ -61,9 +62,7 @@ function extractAdditionalContext(stdout) {
 function tryHarness(cwd, stdin) {
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const runtimeDir = path.resolve(scriptDir, "..", "runtime");
-  const runtimeCli = path.join(runtimeDir, "dist", "cli", "index.js");
-  const sourceCli = path.resolve(scriptDir, "..", "..", "dist", "cli", "index.js");
-  const cli = [runtimeCli, sourceCli].find((candidate) => existsSync(candidate));
+  const cli = findHarnessCli(scriptDir);
   if (!cli) {
     // Broken installed projection (runtime tree present, CLI missing) is actionable.
     // Source checkout without a build, or isolated empty HOME, stays silent.
@@ -84,8 +83,47 @@ function tryHarness(cwd, stdin) {
   };
 }
 
+function isCursorSessionStart() {
+  if (process.env.CLAUDE_PLUGIN_ROOT || process.env.CLAUDE_ENV_FILE) return false;
+  const pluginRoot = process.env.PLUGIN_ROOT;
+  if (typeof pluginRoot === "string" && /(?:^|[\\/])\.codex[\\/]/i.test(pluginRoot)) {
+    return false;
+  }
+  return true;
+}
+
+function refreshCursorGithubPlugin(cwd) {
+  if (!isCursorSessionStart()) return;
+  if (
+    process.env.NODE_TEST_CONTEXT &&
+    process.env.YCM_HARNESS_GITHUB_PLUGIN !== "1"
+  ) {
+    return;
+  }
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const refreshScript = path.join(scriptDir, "github-refresh.mjs");
+  if (!existsSync(refreshScript)) return;
+  // Cursor already loaded this session's rules; refresh is for the next chat.
+  // Spawn the sibling script so SHA-pinned marketplace copies (no runtime/) still refresh.
+  try {
+    const child = spawn(process.execPath, [refreshScript, "--timeout-ms", "8000"], {
+      cwd,
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+      shell: false,
+    });
+    child.unref();
+  } catch {
+    // GitHub plugin refresh is fail-open.
+  }
+}
+
 function usesNativeSessionStartEnvelope(hookInput) {
   if (process.env.CLAUDE_PLUGIN_ROOT || process.env.CLAUDE_ENV_FILE) return true;
+  const pluginRoot = process.env.PLUGIN_ROOT;
+  // Codex plugin hooks set PLUGIN_ROOT under ~/.codex; Cursor does not.
+  if (typeof pluginRoot === "string" && /(?:^|[\\/])\.codex[\\/]/i.test(pluginRoot)) return true;
   if (!hookInput || typeof hookInput !== "object" || Array.isArray(hookInput)) return false;
   const event = hookInput.hook_event_name ?? hookInput.hookEventName;
   return event === "SessionStart" && typeof hookInput.source === "string";
@@ -109,6 +147,11 @@ let hookInput = null;
 try {
   const read = readStdin();
   hookInput = parseHookInput(read.stdin);
+  try {
+    refreshCursorGithubPlugin(process.cwd());
+  } catch {
+    // GitHub plugin refresh is fail-open.
+  }
   const harness = tryHarness(process.cwd(), hookInput ? read.stdin : "");
   // absent CLI in source / unbuilt tree → silent; broken install or failed CLI → warn.
   const context =

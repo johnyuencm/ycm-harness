@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import type { CliContext } from "../context.js";
 import type { CliOutput } from "../output.js";
+import { refreshCursorPluginsFromGithub, packageRoot } from "../install-kit.js";
 import { handlePostToolUse } from "../../autonomy/deeds.js";
 import { buildScoutStartupContext, scoutObligationEnabled } from "../../autonomy/scout.js";
 import { buildHookOutput, buildSessionDigest, type NudgeDigest } from "../../hooks/session-start.js";
@@ -62,6 +63,24 @@ export function registerHook(program: Command, ctx: CliContext, out: CliOutput):
         ? undefined
         : await buildScoutStartupContext(startupPayload);
       out.json(buildHookOutput(digest, scoutContext));
+    });
+
+  hook
+    .command("github-refresh")
+    .description("Fetch GitHub HEAD and refresh Cursor plugin dests (fail-open)")
+    .option("--timeout-ms <ms>", "Git fetch timeout", "8000")
+    .action(async (opts: { timeoutMs?: string }) => {
+      try {
+        const timeoutMs = Number(opts.timeoutMs ?? "8000");
+        const reports = await refreshCursorPluginsFromGithub({
+          sourceRoot: packageRoot(),
+          force: true,
+          timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 8000,
+        });
+        out.json({ status: "ok", reports });
+      } catch {
+        out.json({ status: "ignored" });
+      }
     });
 
   hook
