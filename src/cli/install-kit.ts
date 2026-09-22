@@ -93,6 +93,7 @@ const HARNESS_SKILL_DIRS = [
   "merge-branches-to-master",
   "create-skill",
   "migrate-multica-to-github-projects",
+  "integrating-google-adsense",
 ] as const;
 
 /** Dest skill dir name ??plugin/skills source dir (when they differ). */

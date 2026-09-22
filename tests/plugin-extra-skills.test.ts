@@ -13,6 +13,7 @@ const EXTRA_SKILLS = [
   "merge-branches-to-master",
   "create-skill",
   "migrate-multica-to-github-projects",
+  "integrating-google-adsense",
 ] as const;
 
 test("extra plugin skills ship with SKILL.md and Codex openai.yaml", async () => {

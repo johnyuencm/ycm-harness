@@ -231,6 +231,7 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       "llm-wiki",
       "merge-branches-to-master",
       "create-skill",
+      "integrating-google-adsense",
     ]) {
       const ownedSkill = path.join(
         project,

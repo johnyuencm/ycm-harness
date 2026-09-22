@@ -523,6 +523,7 @@ The `plugin/` folder is a ready-to-install Cursor plugin layout:
 - `plugin/skills/summarizing-goal-achievement/SKILL.md` — finish closing report: achieved / what now / phase purpose+status / how much / how well (invoked from `ycm-harness-work` after finish bookkeeping).
 - `plugin/skills/setup-autonomy-p1-p7/SKILL.md` — new-instance Phase 1–7 bootstrap: carry-forward vs local configure.
 - `plugin/skills/run-technical-design-discussion/` — evidence-grounded technical architecture discussion (`SKILL.md` + `driver.mjs`); standalone packet/validate/smoke workflow that does not enter harness phase state.
+- `plugin/skills/integrating-google-adsense/SKILL.md` — connect a public website to Google AdSense (loader, account meta, ads.txt, CSP, manual units).
 - `plugin/rules/ycm-harness.mdc` — thin rule pointing agents at the harness CLI.
 - `plugin/rules/git-commits.mdc` — default commit+push after implementation (worktree and irreversible-op exceptions).
 

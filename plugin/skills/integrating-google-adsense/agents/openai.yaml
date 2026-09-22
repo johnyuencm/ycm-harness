@@ -1,0 +1,4 @@
+interface:
+  display_name: "Integrate Google AdSense"
+  short_description: "Connect a public site to AdSense"
+  default_prompt: "Use $integrating-google-adsense to connect this site: publisher script, google-adsense-account meta, ads.txt, CSP, and manual display units."
