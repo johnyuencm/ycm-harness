@@ -9,15 +9,37 @@ Parent protocol: `10-DISPATCH.md`. Re-verify on alias error per
 Claude Code / proxy session (`/model`, Agent tool). Do not treat this table as
 operator-specific machine config.
 
-Dispatch via Agent / Task. Prefer an explicit **model ID + effort** over a bare
-alias when effort differs from the session default.
+## Dispatch by agent type, not by model ID
 
-| Tier          | Example preferred pick              | Example alt pick                  | Notes                          |
-| ------------- | ----------------------------------- | --------------------------------- | ------------------------------ |
-| FAST          | `haiku` (or your flash-tier ID)     | your low-cost coding ID           | explore / mechanical           |
-| MID (default) | `sonnet` (or your mid-tier ID)      | your implementer ID + effort      | implementer + verification     |
-| HIGH          | `opus` (or your high-tier ID)       | same family + higher effort       | escalations                    |
-| MAX           | your strongest available ID + max   | alternate frontier ID + max       | taste / adversarial            |
+The Agent tool's `model` parameter is an enum (`sonnet`, `opus`, `haiku`,
+`fable`); any other value fails with `InputValidationError`. There is no
+`effort` parameter. Model and effort are settable **only** in an agent
+definition's frontmatter:
+
+```markdown
+---
+name: implementer-mid
+description: MID implementation worker.
+tools: Read, Glob, Grep, Edit, Write, Bash
+model: your-mid-tier-model-id
+effort: max
+---
+```
+
+So a dispatch names a **`subagent_type`**; model and effort ride along from the
+definition. Put the files in `~/.claude/agents/` (or a directory passed to
+`claude --agents`). They load **once at launch** — a new or edited definition
+needs a Claude Code restart, or the dispatch fails `Agent type 'x' not found`.
+
+A rung with no agent definition behind it is a missing file, not a blocked
+dispatch: report which definition is missing and use the next rung.
+
+| Tier          | Example agent type   | Example model / effort               | Notes                      |
+| ------------- | -------------------- | ------------------------------------ | -------------------------- |
+| FAST          | `explorer-fast`      | your flash-tier ID, `high`, read-only | explore / mechanical      |
+| MID (default) | `implementer-mid`    | your mid-tier ID, `max`               | implementer + verification |
+| HIGH          | `implementer-high`   | your high-tier ID, `high`/`xhigh`     | escalations                |
+| MAX           | `implementer-max`    | your strongest ID, `max`              | taste / adversarial        |
 
 If you use a proxy that remaps Claude aliases, document those remaps in your
 **private** operator overlay / local `LESSONS.md`, not in this public template.

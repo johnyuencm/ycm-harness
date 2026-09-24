@@ -44,6 +44,8 @@ Tiers are **harness-agnostic**. When dispatching, name **tier + concrete model/a
 | HIGH          | hard debugging, architecture, escalations, second opinions                 |
 | MAX           | taste / adversarial review of critical work; twice-escalated failures only |
 
+**How the pick reaches the worker differs per harness.** Cursor encodes effort in the slug (`-high` / `-xhigh` / `-max`); Codex passes it with the dispatch; Claude Code carries model and effort **only** in an agent definition's frontmatter, so a dispatch there names a `subagent_type` (its Agent tool takes a 4-value `model` enum and no `effort` at all). A Claude Code rung with no agent definition is a missing file, not a blocked dispatch — name the missing definition and use the next rung.
+
 **Default pick policy (all harnesses):** implementer → MID; escalation → HIGH (prefer a different model family than the failed worker); MAX only after the §5 budget is spent or for taste-critical review.
 
 **Concrete IDs — read exactly one file for this session's harness (do not open the others):**
