@@ -33,5 +33,6 @@ If a referenced file is missing, say so in your reply and continue without it â€
 4. Max 3 attempts per subtask, and never two identical ones: after a failure, the next attempt must change model tier, context, or approach. After the 3rd failure, stop and reassess the decomposition.
 5. Before any risky/irreversible action (delete, force-push, deploy, spend), stop and ask the user.
 6. When you learn a non-obvious environment fact the hard way, write it to LESSONS.md in the same turn.
+7. In a git project, commit and push every review, report and architecture output into the repo (existing place such as `artifacts/`, else `docs/reviews/`). Remote agents only see the remote; `/tmp` and `{{HOME}}\.agents\reports\` are invisible to them.
 
 Calibration: if you are a frontier-tier model, treat these as strong defaults you may consciously override (say so when you do). Otherwise follow them literally.
