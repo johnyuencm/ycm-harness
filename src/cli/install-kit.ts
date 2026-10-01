@@ -168,11 +168,11 @@ const LEGACY_WORK_SKILL_DIRS = [
 const LEGACY_AGENT_DIRS = ["cursor-harness"] as const;
 const CODEX_MARKETPLACE_NAME = "ycm-harness-local";
 const CODEX_PLUGIN_KEY = `${PLUGIN_NAME}@${CODEX_MARKETPLACE_NAME}`;
-const OPENCODE_PLUGIN_GIT_REMOTE = `${PLUGIN_NAME}@git+https://github.com/johnyuen/harness.git`;
+const OPENCODE_PLUGIN_GIT_REMOTE = `${PLUGIN_NAME}@git+https://github.com/johnyuencm/ycm-harness.git`;
 /** Claude Code marketplace name (must match `.claude-plugin/marketplace.json`). */
 const CLAUDE_MARKETPLACE_NAME = "harness";
 const CLAUDE_PLUGIN_KEY = `${PLUGIN_NAME}@${CLAUDE_MARKETPLACE_NAME}`;
-const CLAUDE_GITHUB_REPO = "johnyuen/harness";
+const CLAUDE_GITHUB_REPO = "johnyuencm/ycm-harness";
 const CLAUDE_DEFAULT_REF = "master";
 const RUNTIME_DEPENDENCIES = ["commander", "zod"] as const;
 
@@ -1404,11 +1404,29 @@ async function ensureCodexConfig(pluginRoot: string): Promise<string[]> {
     `plugins."${CODEX_PLUGIN_KEY}"`,
     pluginEnabledBlock(),
   );
+  const reports: string[] = [];
   if (next !== original) {
     await fs.writeFile(configPath, next, "utf8");
-    return [`codex config: updated ${configPath}`];
+    reports.push(`codex config: updated ${configPath}`);
+  } else {
+    reports.push(`codex config: already up to date (${configPath})`);
   }
-  return [`codex config: already up to date (${configPath})`];
+  const warning = codexSourceHomeWarning(pluginRoot, homeDir());
+  if (warning) reports.push(warning);
+  return reports;
+}
+
+/**
+ * Warn when the local marketplace `source` path cannot be reached by a native
+ * Windows Codex process. A WSL-run CLI pointed at a Windows home writes a
+ * `/mnt/...` or WSL-style path that Windows Codex cannot read (finding 3).
+ * Returns undefined when the two live on the same side of the WSL boundary.
+ */
+export function codexSourceHomeWarning(pluginRoot: string, home: string): string | undefined {
+  const windowsHome = /^[A-Za-z]:[\\/]/.test(home) || home.startsWith("\\\\");
+  const posixUnderMount = pluginRoot.startsWith("/mnt/") || pluginRoot.startsWith("\\\\wsl");
+  if (!windowsHome || !posixUnderMount) return undefined;
+  return `codex config: warning - marketplace source '${pluginRoot}' is a WSL path but the Codex home '${home}' is a Windows home; native Codex may not resolve it`;
 }
 
 async function runCodexPluginCommand(args: string[]): Promise<void> {

@@ -67,15 +67,15 @@ test("claudeMarketplaceSource picks local path or GitHub ref", () => {
   assert.equal(claudeMarketplaceSource(root), path.resolve(root));
   assert.equal(
     claudeMarketplaceSource(root, { useGit: true }),
-    "johnyuen/harness",
+    "johnyuencm/ycm-harness",
   );
   assert.equal(
     claudeMarketplaceSource(root, { useGit: true, ref: "master" }),
-    "johnyuen/harness",
+    "johnyuencm/ycm-harness",
   );
   assert.equal(
     claudeMarketplaceSource(root, { useGit: true, ref: "harness/lean-0.3" }),
-    "johnyuen/harness#harness/lean-0.3",
+    "johnyuencm/ycm-harness#harness/lean-0.3",
   );
   assert.equal(
     claudeMarketplaceSource(root, {
