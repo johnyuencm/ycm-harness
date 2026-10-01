@@ -69,7 +69,7 @@ const RecordSchema = z.object({
 });
 const PluginMarkerSchema = z.object({
   name: z.literal("ycm-harness"), displayName: z.string(), description: z.string(),
-  version: z.string(), license: z.string(), skills: z.literal("./skills/"), hooks: z.literal("./hooks/hooks-cursor.json"),
+  version: z.string(), license: z.string(), skills: z.literal("./skills/"), agents: z.literal("./agents").optional(), hooks: z.literal("./hooks/hooks-cursor.json"),
 }).strict();
 
 export interface TrustedPmActorOriginReadback {

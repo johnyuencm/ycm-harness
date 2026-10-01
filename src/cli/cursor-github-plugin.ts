@@ -5,7 +5,7 @@ import path from "node:path";
 import { PLUGIN_NAME } from "../branding.js";
 import { fileExists } from "../state/io.js";
 
-const DEFAULT_GITHUB_REPO = "johnyuen/harness";
+const DEFAULT_GITHUB_REPO = "johnyuencm/ycm-harness";
 const DEFAULT_REF = "master";
 const FETCH_TIMEOUT_MS = 8_000;
 

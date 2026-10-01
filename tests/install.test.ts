@@ -8,6 +8,7 @@ import { tempProject, cleanup } from "./helpers.js";
 import { createContext } from "../src/cli/context.js";
 import { consoleOutput } from "../src/cli/output.js";
 import { registerInstall } from "../src/cli/commands/install.js";
+import { codexMarketplaceBlock, upsertTomlSection, wslPathToWindows } from "../src/cli/install-kit.js";
 
 async function readIfPresent(file: string): Promise<string | null> {
   try {
@@ -504,4 +505,70 @@ test("install --project --force prunes retired combined_reviewer agent", async (
     await cleanup(project);
     await cleanup(home);
   }
+});
+
+test("codex marketplace block uses the Windows source path under WSL for sync and audit alike", () => {
+  const saved = process.env.WSL_DISTRO_NAME;
+  process.env.WSL_DISTRO_NAME = "Ubuntu";
+  try {
+    const block = codexMarketplaceBlock(
+      "/mnt/c/Users/x/.codex/marketplaces/ycm-harness",
+      "/mnt/c/Users/x/.codex/config.toml",
+    );
+    assert.match(block, /source = 'C:\\Users\\x\\\.codex\\marketplaces\\ycm-harness'/);
+    assert.doesNotMatch(block, /\/mnt\//);
+    const linuxHome = codexMarketplaceBlock(
+      "/home/x/.codex/marketplaces/ycm-harness",
+      "/home/x/.codex/config.toml",
+    );
+    assert.match(linuxHome, /\/home\/x\/\.codex\/marketplaces\/ycm-harness/);
+  } finally {
+    if (saved === undefined) delete process.env.WSL_DISTRO_NAME;
+    else process.env.WSL_DISTRO_NAME = saved;
+  }
+});
+
+test("wslPathToWindows maps /mnt drives to Windows paths", () => {
+  assert.equal(
+    wslPathToWindows("/mnt/c/Users/user/.codex/marketplaces/ycm-harness"),
+    "C:\\Users\\user\\.codex\\marketplaces\\ycm-harness",
+  );
+  assert.equal(wslPathToWindows("/mnt/d/projects/ycm"), "D:\\projects\\ycm");
+  assert.equal(wslPathToWindows("/mnt/c"), "C:\\");
+  assert.equal(wslPathToWindows("/home/user/.codex/x"), undefined);
+  assert.equal(wslPathToWindows("C:\\Users\\user"), undefined);
+});
+test("upsertTomlSection replaces a section whose header has a trailing comment", () => {
+  const raw = '[marketplaces.ycm-harness] # mine\nsource = "old"\n\n[other]\nx = 1\n';
+  const out = upsertTomlSection(raw, "marketplaces.ycm-harness", '[marketplaces.ycm-harness]\nsource = "new"\n');
+  assert.equal(out.match(/^\[marketplaces\.ycm-harness\]/gm)?.length, 1);
+  assert.match(out, /source = "new"/);
+  assert.doesNotMatch(out, /source = "old"/);
+  assert.match(out, /\[other\]\nx = 1\n/);
+});
+
+test("upsertTomlSection keeps foreign text byte-for-byte and is idempotent", () => {
+  const foreign = [
+    "[marketplaces.other]",
+    'source_type = "git"',
+    'source = "https://example.com/x"',
+    "",
+    '[plugins."other@other"]',
+    "enabled = true",
+    "",
+    "[model]",
+    'name = "user-choice"',
+    "",
+  ].join("\n");
+  const block = "[marketplaces.ycm-harness-local]\nsource_type = \"local\"\nsource = '/x'\n";
+  const once = upsertTomlSection(foreign, "marketplaces.ycm-harness-local", block);
+  // The foreign text is a contiguous prefix, unchanged byte-for-byte.
+  assert.equal(once.slice(0, foreign.length), foreign);
+  // Re-upserting the same section does not duplicate or reorder it.
+  const twice = upsertTomlSection(once, "marketplaces.ycm-harness-local", block);
+  assert.equal(twice, once);
+  assert.equal((twice.match(/\[marketplaces\.ycm-harness-local\]/g) ?? []).length, 1);
+  // A file with no trailing newline still gets a separated block.
+  const noNewline = upsertTomlSection('[model]\nname = "x"', "marketplaces.ycm-harness-local", block);
+  assert.equal(noNewline, '[model]\nname = "x"\n\n' + block);
 });

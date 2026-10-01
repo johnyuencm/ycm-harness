@@ -1,4 +1,5 @@
 ﻿import { promises as fs } from "node:fs";
+import fsSync from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -168,11 +169,11 @@ const LEGACY_WORK_SKILL_DIRS = [
 const LEGACY_AGENT_DIRS = ["cursor-harness"] as const;
 const CODEX_MARKETPLACE_NAME = "ycm-harness-local";
 const CODEX_PLUGIN_KEY = `${PLUGIN_NAME}@${CODEX_MARKETPLACE_NAME}`;
-const OPENCODE_PLUGIN_GIT_REMOTE = `${PLUGIN_NAME}@git+https://github.com/johnyuen/harness.git`;
+const OPENCODE_PLUGIN_GIT_REMOTE = `${PLUGIN_NAME}@git+https://github.com/johnyuencm/ycm-harness.git`;
 /** Claude Code marketplace name (must match `.claude-plugin/marketplace.json`). */
 const CLAUDE_MARKETPLACE_NAME = "harness";
 const CLAUDE_PLUGIN_KEY = `${PLUGIN_NAME}@${CLAUDE_MARKETPLACE_NAME}`;
-const CLAUDE_GITHUB_REPO = "johnyuen/harness";
+const CLAUDE_GITHUB_REPO = "johnyuencm/ycm-harness";
 const CLAUDE_DEFAULT_REF = "master";
 const RUNTIME_DEPENDENCIES = ["commander", "zod"] as const;
 
@@ -1359,11 +1360,13 @@ async function readTextIfExists(file: string): Promise<string | undefined> {
   }
 }
 
-function upsertTomlSection(raw: string, header: string, block: string): string {
+export function upsertTomlSection(raw: string, header: string, block: string): string {
   const normalized = raw.replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
   const headerLine = `[${header}]`;
-  const start = lines.findIndex((line) => line.trim() === headerLine);
+  // A header may carry a trailing comment (`[a.b] # note`); match it, or the
+  // section is appended a second time and config.toml becomes invalid TOML.
+  const start = lines.findIndex((line) => line.replace(/\s+#.*$/, "").trim() === headerLine);
 
   if (start >= 0) {
     let end = lines.length;
@@ -1394,21 +1397,65 @@ async function ensureCodexConfig(pluginRoot: string): Promise<string[]> {
   const configPath = codexConfigPath();
   await ensureDir(path.dirname(configPath));
   const original = (await readTextIfExists(configPath)) ?? "";
+  const source = codexConfigSource(pluginRoot, configPath);
   const withMarketplace = upsertTomlSection(
     original,
     `marketplaces.${CODEX_MARKETPLACE_NAME}`,
-    marketplaceBlock(pluginRoot),
+    codexMarketplaceBlock(pluginRoot, configPath),
   );
   const next = upsertTomlSection(
     withMarketplace,
     `plugins."${CODEX_PLUGIN_KEY}"`,
     pluginEnabledBlock(),
   );
+  const reports: string[] = [];
   if (next !== original) {
     await fs.writeFile(configPath, next, "utf8");
-    return [`codex config: updated ${configPath}`];
+    reports.push(`codex config: updated ${configPath}`);
+  } else {
+    reports.push(`codex config: already up to date (${configPath})`);
   }
-  return [`codex config: already up to date (${configPath})`];
+  if (source !== pluginRoot) {
+    reports.push(
+      `codex config: source rewritten to the Windows path ${source} for a native Codex home`,
+    );
+  }
+  return reports;
+}
+
+/**
+ * Pick the marketplace `source` path a native Codex process will read. When the
+ * CLI runs under WSL and the Codex home that receives config.toml is a Windows
+ * home under `/mnt/<drive>/`, the WSL path is unreachable from Windows, so write
+ * the equivalent `C:\...` path instead (finding 3).
+ */
+/** The marketplace block sync writes and doctor audits; both must agree on `source`. */
+export function codexMarketplaceBlock(pluginRoot: string, configPath: string): string {
+  return marketplaceBlock(codexConfigSource(pluginRoot, configPath));
+}
+
+export function codexConfigSource(pluginRoot: string, configPath: string): string {
+  if (!isWsl()) return pluginRoot;
+  if (!/^\/mnt\/[A-Za-z]\//.test(configPath)) return pluginRoot;
+  return wslPathToWindows(pluginRoot) ?? pluginRoot;
+}
+
+function isWsl(): boolean {
+  if (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP) return true;
+  if (process.platform !== "linux") return false;
+  try {
+    return fsSync.readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft");
+  } catch {
+    return false;
+  }
+}
+
+/** Pure `/mnt/<drive>/...` -> `X:\...` mapping; returns undefined when not under /mnt. */
+export function wslPathToWindows(posixPath: string): string | undefined {
+  const match = /^\/mnt\/([A-Za-z])(\/.*)?$/.exec(posixPath);
+  if (!match) return undefined;
+  const rest = (match[2] ?? "").replace(/\//g, "\\");
+  return `${match[1]!.toUpperCase()}:${rest || "\\"}`;
 }
 
 async function runCodexPluginCommand(args: string[]): Promise<void> {
@@ -1758,7 +1805,7 @@ async function auditCodexConfig(): Promise<{
   }
 
   const pluginRoot = codexInstallRoot();
-  const marketplaceOk = raw.includes(marketplaceBlock(pluginRoot).trim());
+  const marketplaceOk = raw.includes(codexMarketplaceBlock(pluginRoot, configPath).trim());
   const pluginOk = raw.includes(pluginEnabledBlock().trim());
   return {
     marketplace: { path: configPath, status: marketplaceOk ? "ok" : "stale" },

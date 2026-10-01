@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { findHarnessCli, userHome } from "./harness-cli-path.mjs";
 
 const PLUGIN_NAME = "ycm-harness";
-const DEFAULT_REPO = "johnyuen/harness";
+const DEFAULT_REPO = "johnyuencm/ycm-harness";
 const RETIRED_AGENTS = ["spec_reviewer.md", "uiux.md", "combined_reviewer.md"];
 
 function allowNetwork() {

@@ -6,12 +6,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/johnyuen/harness.git"
+    "url": "git+https://github.com/johnyuencm/ycm-harness.git"
   },
   "bugs": {
-    "url": "https://github.com/johnyuen/harness/issues"
+    "url": "https://github.com/johnyuencm/ycm-harness/issues"
   },
-  "homepage": "https://github.com/johnyuen/harness#readme",
+  "homepage": "https://github.com/johnyuencm/ycm-harness#readme",
   "engines": {
     "node": ">=20"
   },

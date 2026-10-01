@@ -135,11 +135,54 @@ test("sync defaults to detected Cursor and Codex clients", async () => {
       );
       assert.match(await fs.readFile(codexPlugin, "utf8"), /"name": "ycm-harness"/);
       const configText = await fs.readFile(codexConfig, "utf8");
+      // Separator-agnostic: the written path is POSIX on Linux/macOS and
+      // backslash-separated on Windows.
       assert.equal(
-        (configText.match(/source = '.*marketplaces\\ycm-harness'/g) ?? [])
+        (configText.match(/source = '.*marketplaces[\\/]ycm-harness'/g) ?? [])
           .length,
         1,
       );
+    } finally {
+      if (priorCodexPath === undefined) delete process.env.CODEX_CLI_PATH;
+      else process.env.CODEX_CLI_PATH = priorCodexPath;
+      await cleanup(cwd);
+    }
+  });
+});
+
+test("sync --codex preserves foreign config.toml sections byte-for-byte", async () => {
+  // Regression for the reported WSL rewrite incident: ensureCodexConfig must
+  // splice only its two owned sections and leave every foreign line intact.
+  await withTempUserHome(async (home) => {
+    const cwd = await tempProject("ch-sync-codex-foreign-");
+    const priorCodexPath = process.env.CODEX_CLI_PATH;
+    try {
+      await fs.mkdir(path.join(home, ".codex"), { recursive: true });
+      const codexConfig = path.join(home, ".codex", "config.toml");
+      const foreign = [
+        "[marketplaces.other]",
+        'source_type = "git"',
+        'source = "https://example.com/x"',
+        "",
+        '[plugins."other@other"]',
+        "enabled = true",
+        "",
+        "[model]",
+        'name = "user-choice"',
+        "",
+      ].join("\n");
+      await fs.writeFile(codexConfig, foreign, "utf8");
+      process.env.CODEX_CLI_PATH = await writeCodexShim(cwd);
+      await runSync(cwd, ["--codex"]);
+
+      const written = await fs.readFile(codexConfig, "utf8");
+      const harnessStart = written.indexOf("[marketplaces.ycm-harness-local]");
+      assert.ok(harnessStart > 0, "harness marketplace section must be present");
+      // Byte-for-byte: everything outside the harness-owned sections is the
+      // original foreign text plus the single separating newline.
+      assert.equal(written.slice(0, harnessStart), `${foreign}\n`);
+      assert.match(written, /\[marketplaces\.ycm-harness-local\]/);
+      assert.match(written, /\[plugins\."ycm-harness@ycm-harness-local"\]/);
     } finally {
       if (priorCodexPath === undefined) delete process.env.CODEX_CLI_PATH;
       else process.env.CODEX_CLI_PATH = priorCodexPath;

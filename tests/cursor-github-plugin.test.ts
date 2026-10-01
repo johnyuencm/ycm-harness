@@ -17,6 +17,9 @@ import {
   listCursorPluginDestinations,
 } from "../src/cli/install-kit.js";
 import { withTempUserHome } from "./helpers.js";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("parseGithubOwnerRepo accepts ssh, https, and owner/repo", () => {
   assert.equal(
@@ -28,18 +31,32 @@ test("parseGithubOwnerRepo accepts ssh, https, and owner/repo", () => {
     "johnyuencm/ycm-harness",
   );
   assert.equal(
-    parseGithubOwnerRepo("git+https://github.com/johnyuen/harness.git"),
-    "johnyuen/harness",
+    parseGithubOwnerRepo("git+https://github.com/johnyuencm/ycm-harness.git"),
+    "johnyuencm/ycm-harness",
   );
-  assert.equal(parseGithubOwnerRepo("johnyuen/harness"), "johnyuen/harness");
+  assert.equal(parseGithubOwnerRepo("johnyuencm/ycm-harness"), "johnyuencm/ycm-harness");
   assert.equal(
-    githubCloneUrl("johnyuen/harness"),
-    "https://github.com/johnyuen/harness.git",
+    githubCloneUrl("johnyuencm/ycm-harness"),
+    "https://github.com/johnyuencm/ycm-harness.git",
   );
   assert.equal(
     githubCloneUrl("--upload-pack=evil"),
-    "https://github.com/johnyuen/harness.git",
+    "https://github.com/johnyuencm/ycm-harness.git",
   );
+});
+
+test("the default GitHub repo is the canonical public repo", async () => {
+  // Pins the default so a dead name cannot ship again (finding 1).
+  const canonical = "johnyuencm/ycm-harness";
+  assert.equal(githubCloneUrl(canonical), `https://github.com/${canonical}.git`);
+  assert.equal(parseGithubOwnerRepo(`https://github.com/${canonical}.git`), canonical);
+  const sourceRoot = path.join(repoRoot, "plugin", "scripts", "github-refresh.mjs");
+  const refresh = await fs.readFile(sourceRoot, "utf8");
+  assert.match(refresh, new RegExp(`const DEFAULT_REPO = "${canonical.replace("/", "\\/")}";`));
+  const pkg = JSON.parse(await fs.readFile(path.join(repoRoot, "package.json"), "utf8")) as {
+    repository?: { url?: string };
+  };
+  assert.equal(pkg.repository?.url, `git+https://github.com/${canonical}.git`);
 });
 
 test("listPinnedCursorPluginRoots finds SHA-pinned ycm-harness cache copies", async () => {

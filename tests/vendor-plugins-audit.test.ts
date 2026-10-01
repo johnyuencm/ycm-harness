@@ -8,6 +8,7 @@ import {
   auditMattPocockSkills,
   auditPonytail,
   auditRalphLoop,
+  homeDir,
   resolvePonytailRoot,
 } from "../src/cli/install-kit.js";
 
@@ -63,7 +64,7 @@ test("auditPonytail accepts Cursor rules fallback", async () => {
 });
 
 test("doctor vendor audits cover all four recommended plugins on this machine", async () => {
-  const home = os.homedir();
+  const home = homeDir();
   const audits = {
     mattpocock: await auditMattPocockSkills(home),
     ralph: await auditRalphLoop(home),
