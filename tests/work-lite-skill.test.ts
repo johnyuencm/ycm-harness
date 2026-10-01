@@ -39,6 +39,8 @@ test("ycm-harness-work-lite finish-architecture triggers external mattpocock ski
   assert.match(doc, /Do \*\*not\*\* ask/);
   assert.match(doc, /not bundled/);
   assert.match(doc, /Attach the skill/);
+  assert.match(doc, /commit and push it with the run/);
+  assert.doesNotMatch(doc, /Write the HTML report under `%TEMP%/);
   assert.doesNotMatch(
     doc,
     /Do \*\*not\*\* block completion on the optional grilling loop/,
