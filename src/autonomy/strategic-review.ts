@@ -352,6 +352,7 @@ const StrategicReviewPluginMarkerSchema = z.object({
   version: z.string().min(1).max(64),
   license: z.string().min(1).max(64),
   skills: z.literal("./skills/"),
+  agents: z.literal("./agents").optional(),
   hooks: z.literal("./hooks/hooks-cursor.json"),
 }).strict();
 
