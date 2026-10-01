@@ -1399,7 +1399,7 @@ async function ensureCodexConfig(pluginRoot: string): Promise<string[]> {
   const withMarketplace = upsertTomlSection(
     original,
     `marketplaces.${CODEX_MARKETPLACE_NAME}`,
-    marketplaceBlock(source),
+    codexMarketplaceBlock(pluginRoot, configPath),
   );
   const next = upsertTomlSection(
     withMarketplace,
@@ -1427,6 +1427,11 @@ async function ensureCodexConfig(pluginRoot: string): Promise<string[]> {
  * home under `/mnt/<drive>/`, the WSL path is unreachable from Windows, so write
  * the equivalent `C:\...` path instead (finding 3).
  */
+/** The marketplace block sync writes and doctor audits; both must agree on `source`. */
+export function codexMarketplaceBlock(pluginRoot: string, configPath: string): string {
+  return marketplaceBlock(codexConfigSource(pluginRoot, configPath));
+}
+
 export function codexConfigSource(pluginRoot: string, configPath: string): string {
   if (!isWsl()) return pluginRoot;
   if (!/^\/mnt\/[A-Za-z]\//.test(configPath)) return pluginRoot;
@@ -1798,7 +1803,7 @@ async function auditCodexConfig(): Promise<{
   }
 
   const pluginRoot = codexInstallRoot();
-  const marketplaceOk = raw.includes(marketplaceBlock(pluginRoot).trim());
+  const marketplaceOk = raw.includes(codexMarketplaceBlock(pluginRoot, configPath).trim());
   const pluginOk = raw.includes(pluginEnabledBlock().trim());
   return {
     marketplace: { path: configPath, status: marketplaceOk ? "ok" : "stale" },

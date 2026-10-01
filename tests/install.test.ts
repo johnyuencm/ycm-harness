@@ -8,7 +8,7 @@ import { tempProject, cleanup } from "./helpers.js";
 import { createContext } from "../src/cli/context.js";
 import { consoleOutput } from "../src/cli/output.js";
 import { registerInstall } from "../src/cli/commands/install.js";
-import { upsertTomlSection, wslPathToWindows } from "../src/cli/install-kit.js";
+import { codexMarketplaceBlock, upsertTomlSection, wslPathToWindows } from "../src/cli/install-kit.js";
 
 async function readIfPresent(file: string): Promise<string | null> {
   try {
@@ -504,6 +504,27 @@ test("install --project --force prunes retired combined_reviewer agent", async (
   } finally {
     await cleanup(project);
     await cleanup(home);
+  }
+});
+
+test("codex marketplace block uses the Windows source path under WSL for sync and audit alike", () => {
+  const saved = process.env.WSL_DISTRO_NAME;
+  process.env.WSL_DISTRO_NAME = "Ubuntu";
+  try {
+    const block = codexMarketplaceBlock(
+      "/mnt/c/Users/x/.codex/marketplaces/ycm-harness",
+      "/mnt/c/Users/x/.codex/config.toml",
+    );
+    assert.match(block, /source = 'C:\\Users\\x\\\.codex\\marketplaces\\ycm-harness'/);
+    assert.doesNotMatch(block, /\/mnt\//);
+    const linuxHome = codexMarketplaceBlock(
+      "/home/x/.codex/marketplaces/ycm-harness",
+      "/home/x/.codex/config.toml",
+    );
+    assert.match(linuxHome, /\/home\/x\/\.codex\/marketplaces\/ycm-harness/);
+  } finally {
+    if (saved === undefined) delete process.env.WSL_DISTRO_NAME;
+    else process.env.WSL_DISTRO_NAME = saved;
   }
 });
 
