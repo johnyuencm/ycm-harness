@@ -176,12 +176,11 @@ test("sync --codex preserves foreign config.toml sections byte-for-byte", async 
       await runSync(cwd, ["--codex"]);
 
       const written = await fs.readFile(codexConfig, "utf8");
-      for (const line of foreign.trimEnd().split("\n")) {
-        assert.ok(
-          written.includes(line),
-          `foreign config.toml line was lost: ${JSON.stringify(line)}`,
-        );
-      }
+      const harnessStart = written.indexOf("[marketplaces.ycm-harness-local]");
+      assert.ok(harnessStart > 0, "harness marketplace section must be present");
+      // Byte-for-byte: everything outside the harness-owned sections is the
+      // original foreign text plus the single separating newline.
+      assert.equal(written.slice(0, harnessStart), `${foreign}\n`);
       assert.match(written, /\[marketplaces\.ycm-harness-local\]/);
       assert.match(written, /\[plugins\."ycm-harness@ycm-harness-local"\]/);
     } finally {
