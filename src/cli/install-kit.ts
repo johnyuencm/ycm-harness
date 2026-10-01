@@ -1364,7 +1364,9 @@ export function upsertTomlSection(raw: string, header: string, block: string): s
   const normalized = raw.replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
   const headerLine = `[${header}]`;
-  const start = lines.findIndex((line) => line.trim() === headerLine);
+  // A header may carry a trailing comment (`[a.b] # note`); match it, or the
+  // section is appended a second time and config.toml becomes invalid TOML.
+  const start = lines.findIndex((line) => line.replace(/\s+#.*$/, "").trim() === headerLine);
 
   if (start >= 0) {
     let end = lines.length;

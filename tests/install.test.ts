@@ -538,6 +538,15 @@ test("wslPathToWindows maps /mnt drives to Windows paths", () => {
   assert.equal(wslPathToWindows("/home/user/.codex/x"), undefined);
   assert.equal(wslPathToWindows("C:\\Users\\user"), undefined);
 });
+test("upsertTomlSection replaces a section whose header has a trailing comment", () => {
+  const raw = '[marketplaces.ycm-harness] # mine\nsource = "old"\n\n[other]\nx = 1\n';
+  const out = upsertTomlSection(raw, "marketplaces.ycm-harness", '[marketplaces.ycm-harness]\nsource = "new"\n');
+  assert.equal(out.match(/^\[marketplaces\.ycm-harness\]/gm)?.length, 1);
+  assert.match(out, /source = "new"/);
+  assert.doesNotMatch(out, /source = "old"/);
+  assert.match(out, /\[other\]\nx = 1\n/);
+});
+
 test("upsertTomlSection keeps foreign text byte-for-byte and is idempotent", () => {
   const foreign = [
     "[marketplaces.other]",
