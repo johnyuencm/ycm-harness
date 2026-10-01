@@ -485,3 +485,41 @@ test("findHarnessCli keeps each client tree on its own runtime", async () => {
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test("a Claude cache hook finds the shared ~/.cursor CLI", async () => {
+  // Regression: the Codex fix also cut Claude off from the ~/.cursor projection.
+  // Claude cache installs ship no runtime/ of their own (install-kit.ts:1196), so
+  // the SessionStart hook must still reach the synced Cursor runtime, as at a411797.
+  const { findHarnessCli } = await import(
+    pathToFileURL(path.join(repoRoot, "plugin", "scripts", "harness-cli-path.mjs")).href
+  ) as { findHarnessCli: (scriptDir: string) => string | undefined };
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ch-claude-cli-path-"));
+  const prior = {
+    home: process.env.YCM_HARNESS_HOME,
+    claudeRoot: process.env.CLAUDE_PLUGIN_ROOT,
+    claudeEnv: process.env.CLAUDE_ENV_FILE,
+    pluginRoot: process.env.PLUGIN_ROOT,
+  };
+  try {
+    const cursorCli = path.join(root, ".cursor", "plugins", "ycm-harness", "runtime", "dist", "cli", "index.js");
+    await fs.mkdir(path.dirname(cursorCli), { recursive: true });
+    await fs.writeFile(cursorCli, "");
+    const claudeRoot = path.join(root, ".claude", "plugins", "cache", "ycm-harness", "ycm-harness", "0.3.0");
+    const claudeScripts = path.join(claudeRoot, "scripts");
+    process.env.YCM_HARNESS_HOME = root;
+    process.env.CLAUDE_PLUGIN_ROOT = claudeRoot;
+    delete process.env.PLUGIN_ROOT;
+
+    assert.equal(
+      findHarnessCli(claudeScripts),
+      cursorCli,
+      "a Claude cache hook must reach the shared cursor runtime CLI",
+    );
+  } finally {
+    if (prior.home === undefined) delete process.env.YCM_HARNESS_HOME; else process.env.YCM_HARNESS_HOME = prior.home;
+    if (prior.claudeRoot === undefined) delete process.env.CLAUDE_PLUGIN_ROOT; else process.env.CLAUDE_PLUGIN_ROOT = prior.claudeRoot;
+    if (prior.claudeEnv === undefined) delete process.env.CLAUDE_ENV_FILE; else process.env.CLAUDE_ENV_FILE = prior.claudeEnv;
+    if (prior.pluginRoot === undefined) delete process.env.PLUGIN_ROOT; else process.env.PLUGIN_ROOT = prior.pluginRoot;
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});

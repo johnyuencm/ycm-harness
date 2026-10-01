@@ -23,10 +23,12 @@ export function findHarnessCli(scriptDir) {
     path.join(scriptDir, "..", "runtime", "dist", "cli", "index.js"),
     path.resolve(scriptDir, "..", "..", "dist", "cli", "index.js"),
   ];
-  // Only borrow the Cursor projection when the caller is the Cursor tree. A Codex
-  // hook must fail open (report "CLI is not available") rather than silently run
-  // another client's runtime, whose env contracts differ.
-  if (isCursorTree(scriptDir)) {
+  // Only borrow the Cursor projection when the caller is not the Codex tree. A
+  // Codex hook must fail open (report "CLI is not available") rather than
+  // silently run another client's runtime, whose env contracts differ. Cursor
+  // and Claude both use the ~/.cursor projection: Claude cache installs ship no
+  // runtime/ of their own.
+  if (!isCodexTree(scriptDir)) {
     candidates.push(
       path.join(home, ".cursor", "plugins", "ycm-harness", "runtime", "dist", "cli", "index.js"),
       path.join(
@@ -47,9 +49,8 @@ export function findHarnessCli(scriptDir) {
     .find((candidate) => existsSync(candidate));
 }
 
-function isCursorTree(scriptDir) {
+function isCodexTree(scriptDir) {
   const pluginRoot = process.env.PLUGIN_ROOT;
-  if (typeof pluginRoot === "string" && /(?:^|[\\/])\.codex[\\/]/i.test(pluginRoot)) return false;
-  if (process.env.CLAUDE_PLUGIN_ROOT || process.env.CLAUDE_ENV_FILE) return false;
-  return !/(?:^|[\\/])\.codex[\\/]/i.test(scriptDir);
+  if (typeof pluginRoot === "string" && /(?:^|[\\/])\.codex[\\/]/i.test(pluginRoot)) return true;
+  return /(?:^|[\\/])\.codex[\\/]/i.test(scriptDir);
 }
