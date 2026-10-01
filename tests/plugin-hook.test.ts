@@ -455,3 +455,33 @@ test("production PostToolUse hook scripts fail open when bundled CLI dispatch br
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+
+test("findHarnessCli keeps each client tree on its own runtime", async () => {
+  // Regression: the resolver used to fall back to ~/.cursor for any caller, so a
+  // Codex hook with its own CLI missing silently ran the Cursor runtime instead
+  // of failing open with the CLI-unavailable notice.
+  const { findHarnessCli } = await import(
+    pathToFileURL(path.join(repoRoot, "plugin", "scripts", "harness-cli-path.mjs")).href
+  ) as { findHarnessCli: (scriptDir: string) => string | undefined };
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ch-cli-path-"));
+  const prior = { home: process.env.YCM_HARNESS_HOME, root: process.env.PLUGIN_ROOT };
+  try {
+    const cursorCli = path.join(root, ".cursor", "plugins", "ycm-harness", "runtime", "dist", "cli", "index.js");
+    await fs.mkdir(path.dirname(cursorCli), { recursive: true });
+    await fs.writeFile(cursorCli, "");
+    const codexDir = path.join(root, ".codex", "plugins", "cache", "ycm-harness", "ycm-harness", "0.3.0", "scripts");
+    const cursorDir = path.join(root, ".cursor", "plugins", "ycm-harness", "scripts");
+    process.env.YCM_HARNESS_HOME = root;
+
+    delete process.env.PLUGIN_ROOT;
+    assert.equal(findHarnessCli(codexDir), undefined, "codex tree must not borrow the cursor CLI");
+    process.env.PLUGIN_ROOT = path.join(root, ".codex", "plugins", "cache", "ycm-harness", "ycm-harness", "0.3.0");
+    assert.equal(findHarnessCli(codexDir), undefined, "PLUGIN_ROOT under .codex must not borrow the cursor CLI");
+    assert.equal(findHarnessCli(cursorDir), cursorCli, "cursor tree may use the cursor projection");
+  } finally {
+    if (prior.home === undefined) delete process.env.YCM_HARNESS_HOME; else process.env.YCM_HARNESS_HOME = prior.home;
+    if (prior.root === undefined) delete process.env.PLUGIN_ROOT; else process.env.PLUGIN_ROOT = prior.root;
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});

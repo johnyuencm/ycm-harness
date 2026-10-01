@@ -22,18 +22,34 @@ export function findHarnessCli(scriptDir) {
     process.env.YCM_HARNESS_CLI,
     path.join(scriptDir, "..", "runtime", "dist", "cli", "index.js"),
     path.resolve(scriptDir, "..", "..", "dist", "cli", "index.js"),
-    path.join(home, ".cursor", "plugins", "ycm-harness", "runtime", "dist", "cli", "index.js"),
-    path.join(
-      home,
-      ".cursor",
-      "plugins",
-      "local",
-      "ycm-harness",
-      "runtime",
-      "dist",
-      "cli",
-      "index.js",
-    ),
-  ].filter((candidate) => typeof candidate === "string" && candidate.length > 0);
-  return candidates.find((candidate) => existsSync(candidate));
+  ];
+  // Only borrow the Cursor projection when the caller is the Cursor tree. A Codex
+  // hook must fail open (report "CLI is not available") rather than silently run
+  // another client's runtime, whose env contracts differ.
+  if (isCursorTree(scriptDir)) {
+    candidates.push(
+      path.join(home, ".cursor", "plugins", "ycm-harness", "runtime", "dist", "cli", "index.js"),
+      path.join(
+        home,
+        ".cursor",
+        "plugins",
+        "local",
+        "ycm-harness",
+        "runtime",
+        "dist",
+        "cli",
+        "index.js",
+      ),
+    );
+  }
+  return candidates
+    .filter((candidate) => typeof candidate === "string" && candidate.length > 0)
+    .find((candidate) => existsSync(candidate));
+}
+
+function isCursorTree(scriptDir) {
+  const pluginRoot = process.env.PLUGIN_ROOT;
+  if (typeof pluginRoot === "string" && /(?:^|[\\/])\.codex[\\/]/i.test(pluginRoot)) return false;
+  if (process.env.CLAUDE_PLUGIN_ROOT || process.env.CLAUDE_ENV_FILE) return false;
+  return !/(?:^|[\\/])\.codex[\\/]/i.test(scriptDir);
 }
