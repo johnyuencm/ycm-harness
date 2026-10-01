@@ -1,4 +1,5 @@
 ﻿import { promises as fs } from "node:fs";
+import fsSync from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1359,7 +1360,7 @@ async function readTextIfExists(file: string): Promise<string | undefined> {
   }
 }
 
-function upsertTomlSection(raw: string, header: string, block: string): string {
+export function upsertTomlSection(raw: string, header: string, block: string): string {
   const normalized = raw.replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
   const headerLine = `[${header}]`;
@@ -1394,10 +1395,11 @@ async function ensureCodexConfig(pluginRoot: string): Promise<string[]> {
   const configPath = codexConfigPath();
   await ensureDir(path.dirname(configPath));
   const original = (await readTextIfExists(configPath)) ?? "";
+  const source = codexConfigSource(pluginRoot, configPath);
   const withMarketplace = upsertTomlSection(
     original,
     `marketplaces.${CODEX_MARKETPLACE_NAME}`,
-    marketplaceBlock(pluginRoot),
+    marketplaceBlock(source),
   );
   const next = upsertTomlSection(
     withMarketplace,
@@ -1411,22 +1413,42 @@ async function ensureCodexConfig(pluginRoot: string): Promise<string[]> {
   } else {
     reports.push(`codex config: already up to date (${configPath})`);
   }
-  const warning = codexSourceHomeWarning(pluginRoot, homeDir());
-  if (warning) reports.push(warning);
+  if (source !== pluginRoot) {
+    reports.push(
+      `codex config: source rewritten to the Windows path ${source} for a native Codex home`,
+    );
+  }
   return reports;
 }
 
 /**
- * Warn when the local marketplace `source` path cannot be reached by a native
- * Windows Codex process. A WSL-run CLI pointed at a Windows home writes a
- * `/mnt/...` or WSL-style path that Windows Codex cannot read (finding 3).
- * Returns undefined when the two live on the same side of the WSL boundary.
+ * Pick the marketplace `source` path a native Codex process will read. When the
+ * CLI runs under WSL and the Codex home that receives config.toml is a Windows
+ * home under `/mnt/<drive>/`, the WSL path is unreachable from Windows, so write
+ * the equivalent `C:\...` path instead (finding 3).
  */
-export function codexSourceHomeWarning(pluginRoot: string, home: string): string | undefined {
-  const windowsHome = /^[A-Za-z]:[\\/]/.test(home) || home.startsWith("\\\\");
-  const posixUnderMount = pluginRoot.startsWith("/mnt/") || pluginRoot.startsWith("\\\\wsl");
-  if (!windowsHome || !posixUnderMount) return undefined;
-  return `codex config: warning - marketplace source '${pluginRoot}' is a WSL path but the Codex home '${home}' is a Windows home; native Codex may not resolve it`;
+export function codexConfigSource(pluginRoot: string, configPath: string): string {
+  if (!isWsl()) return pluginRoot;
+  if (!/^\/mnt\/[A-Za-z]\//.test(configPath)) return pluginRoot;
+  return wslPathToWindows(pluginRoot) ?? pluginRoot;
+}
+
+function isWsl(): boolean {
+  if (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP) return true;
+  if (process.platform !== "linux") return false;
+  try {
+    return fsSync.readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft");
+  } catch {
+    return false;
+  }
+}
+
+/** Pure `/mnt/<drive>/...` -> `X:\...` mapping; returns undefined when not under /mnt. */
+export function wslPathToWindows(posixPath: string): string | undefined {
+  const match = /^\/mnt\/([A-Za-z])(\/.*)?$/.exec(posixPath);
+  if (!match) return undefined;
+  const rest = (match[2] ?? "").replace(/\//g, "\\");
+  return `${match[1]!.toUpperCase()}:${rest || "\\"}`;
 }
 
 async function runCodexPluginCommand(args: string[]): Promise<void> {

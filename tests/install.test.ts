@@ -8,7 +8,7 @@ import { tempProject, cleanup } from "./helpers.js";
 import { createContext } from "../src/cli/context.js";
 import { consoleOutput } from "../src/cli/output.js";
 import { registerInstall } from "../src/cli/commands/install.js";
-import { codexSourceHomeWarning } from "../src/cli/install-kit.js";
+import { upsertTomlSection, wslPathToWindows } from "../src/cli/install-kit.js";
 
 async function readIfPresent(file: string): Promise<string | null> {
   try {
@@ -507,18 +507,38 @@ test("install --project --force prunes retired combined_reviewer agent", async (
   }
 });
 
-test("codexSourceHomeWarning flags a WSL source against a Windows Codex home", () => {
-  assert.match(
-    codexSourceHomeWarning("/mnt/c/Users/user/.codex/marketplaces/ycm-harness", "C:\\Users\\user") ?? "",
-    /WSL path but the Codex home 'C:\\Users\\user' is a Windows home/,
-  );
-  assert.equal(codexSourceHomeWarning("/mnt/c/Users/user/.codex/x", "/home/user"), undefined);
+test("wslPathToWindows maps /mnt drives to Windows paths", () => {
   assert.equal(
-    codexSourceHomeWarning("C:\\Users\\user\\.codex\\x", "C:\\Users\\user"),
-    undefined,
+    wslPathToWindows("/mnt/c/Users/user/.codex/marketplaces/ycm-harness"),
+    "C:\\Users\\user\\.codex\\marketplaces\\ycm-harness",
   );
-  assert.equal(
-    codexSourceHomeWarning("/home/user/.codex/x", "C:\\Users\\user"),
-    undefined,
-  );
+  assert.equal(wslPathToWindows("/mnt/d/projects/ycm"), "D:\\projects\\ycm");
+  assert.equal(wslPathToWindows("/mnt/c"), "C:\\");
+  assert.equal(wslPathToWindows("/home/user/.codex/x"), undefined);
+  assert.equal(wslPathToWindows("C:\\Users\\user"), undefined);
+});
+test("upsertTomlSection keeps foreign text byte-for-byte and is idempotent", () => {
+  const foreign = [
+    "[marketplaces.other]",
+    'source_type = "git"',
+    'source = "https://example.com/x"',
+    "",
+    '[plugins."other@other"]',
+    "enabled = true",
+    "",
+    "[model]",
+    'name = "user-choice"',
+    "",
+  ].join("\n");
+  const block = "[marketplaces.ycm-harness-local]\nsource_type = \"local\"\nsource = '/x'\n";
+  const once = upsertTomlSection(foreign, "marketplaces.ycm-harness-local", block);
+  // The foreign text is a contiguous prefix, unchanged byte-for-byte.
+  assert.equal(once.slice(0, foreign.length), foreign);
+  // Re-upserting the same section does not duplicate or reorder it.
+  const twice = upsertTomlSection(once, "marketplaces.ycm-harness-local", block);
+  assert.equal(twice, once);
+  assert.equal((twice.match(/\[marketplaces\.ycm-harness-local\]/g) ?? []).length, 1);
+  // A file with no trailing newline still gets a separated block.
+  const noNewline = upsertTomlSection('[model]\nname = "x"', "marketplaces.ycm-harness-local", block);
+  assert.equal(noNewline, '[model]\nname = "x"\n\n' + block);
 });
