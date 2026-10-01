@@ -8,6 +8,7 @@ import { tempProject, cleanup } from "./helpers.js";
 import { createContext } from "../src/cli/context.js";
 import { consoleOutput } from "../src/cli/output.js";
 import { registerInstall } from "../src/cli/commands/install.js";
+import { codexSourceHomeWarning } from "../src/cli/install-kit.js";
 
 async function readIfPresent(file: string): Promise<string | null> {
   try {
@@ -504,4 +505,20 @@ test("install --project --force prunes retired combined_reviewer agent", async (
     await cleanup(project);
     await cleanup(home);
   }
+});
+
+test("codexSourceHomeWarning flags a WSL source against a Windows Codex home", () => {
+  assert.match(
+    codexSourceHomeWarning("/mnt/c/Users/user/.codex/marketplaces/ycm-harness", "C:\\Users\\user") ?? "",
+    /WSL path but the Codex home 'C:\\Users\\user' is a Windows home/,
+  );
+  assert.equal(codexSourceHomeWarning("/mnt/c/Users/user/.codex/x", "/home/user"), undefined);
+  assert.equal(
+    codexSourceHomeWarning("C:\\Users\\user\\.codex\\x", "C:\\Users\\user"),
+    undefined,
+  );
+  assert.equal(
+    codexSourceHomeWarning("/home/user/.codex/x", "C:\\Users\\user"),
+    undefined,
+  );
 });
