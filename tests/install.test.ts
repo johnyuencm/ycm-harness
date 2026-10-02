@@ -544,7 +544,10 @@ test("upsertTomlSection replaces a section whose header has a trailing comment",
   assert.equal(out.match(/^\[marketplaces\.ycm-harness\]/gm)?.length, 1);
   assert.match(out, /source = "new"/);
   assert.doesNotMatch(out, /source = "old"/);
-  assert.match(out, /\[other\]\nx = 1\n/);
+  // Exact output: the blank line before the foreign section survives the first
+  // upsert, so a second upsert is a no-op.
+  assert.equal(out, '[marketplaces.ycm-harness]\nsource = "new"\n\n[other]\nx = 1\n');
+  assert.equal(upsertTomlSection(out, "marketplaces.ycm-harness", '[marketplaces.ycm-harness]\nsource = "new"\n'), out);
 });
 
 test("upsertTomlSection keeps foreign text byte-for-byte and is idempotent", () => {

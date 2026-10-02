@@ -49,7 +49,7 @@ If scope grows mid-run: **stay in lite**. Tighten verify and review. Do not swit
 ## Procedure
 
 ```text
-dispatch implementer → real verify → two-phase review → fix-loop → commit/push → finish-architecture (implement every candidate) → re-verify → commit/push → llm-wiki run record → report
+dispatch implementer → real verify → two-phase review → fix-loop → commit/push → finish-architecture (implement every spec-backed candidate) → re-verify → commit/push → llm-wiki run record → report
 ```
 
 ### 1. Dispatch implementer
@@ -117,7 +117,7 @@ Max **3** rounds. If still failing: report blocked with remaining findings — *
 
 ### 6. Architecture pass
 
-Run **`finish-architecture.md`** (`improve-codebase-architecture` from mattpocock-skills). Scope to this run's diff; write/open the HTML report. Then implement **every** candidate in the report (Strong, Worth exploring, Speculative) via one implementer — do **not** ask which to explore, do **not** wait on the grilling loop. Re-verify, commit/push, and carry implemented candidates plus the **Top recommendation** into the report below.
+Run **`finish-architecture.md`** (`improve-codebase-architecture` from mattpocock-skills). Scope to this run's diff; write/open the HTML report. Then implement **every** spec-backed candidate in the report (Strong or Worth exploring, serving this run's Goal/Spec) via one implementer — do **not** ask which to explore, do **not** wait on the grilling loop. Every other candidate (Speculative-only, or outside the Goal/Spec) stays a review recommendation named under **Leftovers**, pending a ticket or owner decision. Re-verify, commit/push, and carry implemented candidates plus the **Top recommendation** into the report below.
 
 ### 7. llm-wiki run record
 
@@ -154,6 +154,6 @@ Claim done only when **all** hold:
 - [ ] Real verify command(s) passed (evidence: command + exit)
 - [ ] Fresh review panel returned PASS (or only deferred low noise explicitly named)
 - [ ] Git working tree clean; commits pushed when the environment expects push
-- [ ] **`finish-architecture.md`** ran: HTML report path noted; **every** candidate implemented (or named leftover); re-verify passed; Top recommendation in user report
+- [ ] **`finish-architecture.md`** ran: HTML report path noted; **every** spec-backed candidate implemented (or named leftover); review recommendations under Leftovers; re-verify passed; Top recommendation in user report
 - [ ] **`$llm-wiki` run record** upserted (page id + log entry); path noted in user report
 - [ ] No harness state / rituals / issue-tracker side effects beyond the required wiki run record

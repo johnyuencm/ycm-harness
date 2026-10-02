@@ -1371,12 +1371,15 @@ export function upsertTomlSection(raw: string, header: string, block: string): s
         break;
       }
     }
-    const nextLines = [
+    // Keep the blank lines that separated the old section from the next one, and
+    // leave foreign text as written, so the first sync is already idempotent.
+    while (end > start + 1 && lines[end - 1]?.trim() === "") end -= 1;
+    const next = [
       ...lines.slice(0, start),
       ...block.trimEnd().split("\n"),
       ...lines.slice(end),
-    ];
-    return `${nextLines.join("\n").replace(/\n{3,}/g, "\n\n")}\n`;
+    ].join("\n");
+    return next.endsWith("\n") ? next : `${next}\n`;
   }
 
   const suffix =

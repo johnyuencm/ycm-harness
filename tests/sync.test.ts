@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
@@ -189,6 +190,63 @@ test("sync --codex preserves foreign config.toml sections byte-for-byte", async 
       await cleanup(cwd);
     }
   });
+});
+
+// WSL + Windows Codex home, through the real sync writer and doctor audit. A
+// private tmpfs over /mnt in a user+mount namespace stands in for /mnt/<drive>,
+// so the real /mnt is never written. Skips where unprivileged namespaces are
+// unavailable (macOS, Windows, locked-down Linux); the codexMarketplaceBlock
+// helper test in install.test.ts still covers the mapping there.
+test("sync --codex under WSL writes the Windows source that doctor audits as ok", (t) => {
+  const repoRoot = packageRoot();
+  const probe = spawnSync("unshare", ["-rm", "true"]);
+  if (process.platform !== "linux" || probe.status !== 0 || repoRoot.startsWith("/mnt/")) {
+    t.skip("needs Linux user+mount namespaces and a repo outside /mnt");
+    return;
+  }
+  const home = "/mnt/z/home";
+  const child = `
+    import { promises as fs } from "node:fs";
+    const kit = await import(${JSON.stringify(path.join(repoRoot, "src", "cli", "install-kit.ts"))});
+    const config = "${home}/.codex/config.toml";
+    await fs.writeFile(config, '[model]\\nname = "x"\\n\\n[marketplaces.ycm-harness-local] # mine\\nsource = "old"\\n\\n[other]\\nx = 1\\n');
+    await kit.runClientSync({ codex: true, force: true });
+    const first = await fs.readFile(config, "utf8");
+    await kit.runClientSync({ codex: true, force: true });
+    const second = await fs.readFile(config, "utf8");
+    const { audit } = await kit.auditInstall("/mnt/z");
+    process.stdout.write(JSON.stringify({ first, second, status: audit.codex_marketplace.status }));
+  `;
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    HOME: home,
+    YCM_HARNESS_HOME: home,
+    WSL_DISTRO_NAME: "Ubuntu",
+    CODEX_CLI_PATH: path.join(repoRoot, "missing-codex-cli-for-test"),
+  };
+  const run = spawnSync(
+    "unshare",
+    [
+      "-rm", "sh", "-c",
+      'mount -t tmpfs ycm-scratch /mnt && mkdir -p "$1/.codex" && exec "$0" --import tsx/esm --input-type=module -e "$2"',
+      process.execPath, home, child,
+    ],
+    { cwd: repoRoot, env, encoding: "utf8" },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  const { first, second, status } = JSON.parse(run.stdout) as {
+    first: string;
+    second: string;
+    status: string;
+  };
+  assert.match(first, /^source = 'Z:\\home\\\.codex\\marketplaces\\ycm-harness'$/m);
+  assert.doesNotMatch(first, /\/mnt\//);
+  assert.doesNotMatch(first, /source = "old"/);
+  assert.equal(first.match(/^\[marketplaces\.ycm-harness-local\]/gm)?.length, 1);
+  assert.match(first, /^\[model\]\nname = "x"\n\n\[marketplaces\.ycm-harness-local\]\n/);
+  assert.match(first, /\n\n\[other\]\nx = 1\n\n\[plugins\."ycm-harness@ycm-harness-local"\]\nenabled = true\n$/);
+  assert.equal(second, first, "a second sync must not rewrite the config");
+  assert.equal(status, "ok", "doctor must audit the same source that sync wrote");
 });
 
 test("sync --cursor updates only Cursor assets", async () => {
