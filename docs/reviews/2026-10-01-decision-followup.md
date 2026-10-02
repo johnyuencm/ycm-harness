@@ -233,3 +233,46 @@ Private: `npm ci`=0, build=0, typecheck=0, `npm test`=0, **431 pass / 0 fail / 0
 
 ### Promotion dry-run
 `node scripts/promote-to-public.mjs --paths <20 task paths: 2ada6c3..HEAD minus artifacts, plus commander entry/system/installer/openai.yaml/README>` on archived siblings → **exit 0; 7 writes / 10 unchanged / 3 blocked**. Each write is an intentional variant, not a missed export: `install-kit.ts` (repo constants + private commander pruning), `tests/install.test.ts` (private harness-HOME isolation), `tests/plugin-extra-skills.test.ts` (private extra skills, `commander.mdc`/`commands` and pruning test), commander `SKILL.md` (private iron-rule effort sentence), and 00-DIAGNOSIS/10-DISPATCH/40-MAINTENANCE (private-only evidence prose and effort/MAX ladder text; the routing lines themselves match). Blocked: `.cursor` review-fix-loop (not in allow roots), README (deny-list; public README hand-ported), work `review-fix-loop.md` (deny-list; public lean skill has none). Unchanged includes `sync.test.ts`, `autonomy.test.ts`, `install-commander.mjs`, `plugin-pointer.md`. No apply, push or PR.
+
+## Independent verification of attempt 3 (2026-10-02, DeepSeek)
+
+Reviewer: independent DeepSeek agent (different family from the Claude Opus writer). Range under review: public `3509bc3..68f1539`. All runs use `HOME=$(mktemp -d)` with `YCM_HARNESS_HOME` unset; scratch copies made with `git archive`, never hardlinks. Writer's appended range `7daad5b..8e8685c` is wrong (log slip); the correct range is stated here. Rows filled as evidence lands.
+
+| # | criterion | result | evidence |
+|---|---|---|---|
+| 1 | TOML validity (adjacent `#` header, tomllib parses, one header, old source gone) | PASS | unit probe + real CLI, see evidence |
+| 2 | Foreign data (indented table survives, `[[array]]`, quoted key `#`/`]`, multiline string) | PASS | unit probe, all sub-cases |
+| 3 | Audit (duplicated owned section -> not ok; next sync repairs) | PASS | doctor `stale`, sync repairs to 1 header |
+| 4 | Idempotence (sync 1==2==3 byte-for-byte, 4+ newlines preserved) | PASS | CLI sha identical x3 |
+| 5 | Private policy (review-fix-loop MID-first, no initial MAX, no "Same HIGH bar") | N/A | public ships no review-fix-loop; (private log) |
+| 6 | Public routing (no active route to ~/.agents/system; installer writes none) | PASS | only "do not use/retired"; installer writes none |
+| 7 | Mutations (a-e each fail targeted test; restore green) | PASS | exits 1/1/1/1/1, restore green |
+| 8 | Fresh gates (`npm ci`/build/typecheck/test both repos, 0 skipped; out-of-suite unchanged) | PASS | ci/build/tc/test=0, 418/418, 0 skipped |
+| 9 | Range hygiene (no test weakened/deleted, no new dep, EOL check 0, no leak) | PASS | diff --check=0; replacements, no deletions |
+| 10 | Real-namespace WSL sync/audit test runs+nonskip on this host | PASS | `✔ sync --codex under WSL ...` ran |
+
+**Verdict (public): ACCEPT.** All criteria pass. Addenda: (a) the public log's own range header `7daad5b..8e8685c` is wrong; correct `3509bc3..68f1539`. (b) `plugin/skills/ycm-harness-work/SKILL.md:49` still reads "Prefer a different HIGH model family", weaker than the new MID-first default; that line is **unchanged in the range** (identical at base `3509bc3`) and public ships no review-fix-loop companion, so it is a pre-existing P3 wording nit, not a failed criterion. (c) Two public tests were renamed/reworked for the routing change (`...templates use {{HOME}}...` -> `...ships inventories and plugin pointer entry files`; `plugin commander skill points at ~/.agents/system` -> `...points at in-plugin commander-system`), replaced by stricter oracles, not weakened or deleted.
+
+### Evidence
+
+Environment: Node v24.20.0, Python `tomllib`, Linux WSL2. Scratch copies from `git archive HEAD`, independent inodes. Every run `HOME=$(mktemp -d)`, `YCM_HARNESS_HOME` unset, real home untouched.
+
+**Criteria 1-4 (TOML/foreign/idempotence).** Same independent proofs as the private log (identical `install-kit.ts` logic): the spec seed `[marketplaces.ycm-harness-local]# mine\nsource = "old"\n\n[other]\nx = 1\n` yields `tomllib`-valid output, 1 owned header, old source gone; indented `  [other]`, `[[rows]]`, `["a#]b"]`, `"""` multiline all handled; sync1==2==3 byte-identical; 4/5-newline runs kept. Real CLI `install --user` + `sync --codex`/`doctor --json` x3 with `CODEX_CLI_PATH=/nonexistent`: all exits 0, `tomllib` parses, 1 header, old source gone, foreign `  [other]`/`# tail` bytes exact, sync1==2==3; a duplicated owned section makes doctor report `codex_marketplace.status = "stale"` and the next sync repairs it to 1 header.
+
+**Criterion 6.** `grep -rn "\.agents/system" plugin/ .cursor/ README.md` (excluding `LESSONS.md`) returns only prohibitions/retired notes: `plugin/skills/commander/SKILL.md:8`, `agents/openai.yaml:4`, `entry/*.md`, `40-MAINTENANCE.md`, `install-commander.mjs:7`, `README.md:608,617` — every one says "do not use / never / retired / keeps LESSONS.md". No active line routes protocol there. `install-commander.mjs` run with temp HOME (pre-seeded old `~/.agents/system/10-DISPATCH.md` + `~/.cursor/skills/commander`): exit 0, wrote only `~/.claude/CLAUDE.md` + `~/.codex/AGENTS.md` pointers and the `LESSONS.md` stub; the old protocol file and cursor skill were moved to `backups/`, not copied in. The only file left in `~/.agents/system/` is `LESSONS.md`.
+
+**Criterion 7 (public scratch; P=21 tests, C=23 tests).**
+| mutation | command | exit / fail |
+|---|---|---|
+| a. MID->HIGH in plugin rule + template + project rule | P | 1 / 1 |
+| b. collapse foreign `\n{3,}` | C | 1 / 5 |
+| c. require whitespace before header `#` | C | 1 / 6 |
+| d. column-zero-only `[` | C | 1 / 6 |
+| e. doctor raw substring include | C | 1 / 1 |
+Baseline and post-restore P=21/21, C=23/23, 0 skipped; all mutated files restored byte-identical.
+
+**Criterion 8.** From fresh archives: `npm ci`=0, build=0, typecheck=0, `npm test`=0 with 418/418, 0 skipped. Out-of-suite `tests/doctor.test.ts` = 0 pass/2 fail, `tests/v5.test.ts` = 3 pass/3 fail, identical at base `3509bc3` and head.
+
+**Criterion 9.** `git -c core.whitespace=cr-at-eol diff --check 3509bc3..68f1539` exit 0. No `test(`/`.skip`/`todo` deleted — the two renamed tests were replaced by stronger assertions. No `package.json`/`package-lock.json` change. Leak scan of the public diff: no private repo name, real home path, credential, or `operator-system` content added; the only personal-path string is the writer's own handoff note referring to a private-repo backup path, which is log prose, not product source.
+
+**Criterion 10.** `✔ sync --codex under WSL writes the Windows source that doctor audits as ok` present in the full public run (2668ms), not skipped; suite `skipped 0`.
