@@ -198,3 +198,38 @@ node scripts/promote-to-public.mjs --paths .cursor/rules/ycm-harness.mdc,.cursor
 **Exit 0: 5 writes / 4 unchanged / 17 blocked**. Reasons exactly **12 Cursor not-in-allow-roots + 5 deny-listed work companions**. All five write diffs read: install-kit distribution constants/private commander pruning; install-test HOME isolation; lite architecture report location; public work SKILL Opus-class descriptor; private report-location test assertions. Four same paths: lite SKILL, work github-tickets, autonomy test, sync test. Counts/intentional variants reproduce, but the canonical plugin-router requirement remains missing outside this 26-path set. No blanket apply or sensitive export was performed.
 
 **Independent verdict: REJECT (public).** The previous speculative-rule and direct WSL-audit issues were repaired and independently demonstrated. Remaining gates are active canonical commander pointers, valid-TOML/foreign-table handling, and mutation-sensitive HIGH/foreign-spacing coverage. Verification-only existing-log append; no source fix, deployment, real-home sync, promotion apply, push or PR action.
+
+## Attempt 3 (Claude Opus, 2026-10-02)
+
+Handoff: two earlier attempt-3 workers on GPT models stopped on transport, not on a code verdict. gpt-6-astra hit HTTP 429 quota partway through and left uncommitted edits in 7 private files (backup `/home/user/review-wt/private-harness-astra-partial-2026-10-02.patch`). A gpt-6.1-sol worker was stopped before it edited anything because GPT quota was exhausted. This worker read the Astra partial, kept its bounded header lexer, MID-first review-fix-loop text and tests after independent checks, then added tomllib-backed assertions, a stronger routing oracle and the public port. The reviewer's 2026-10-02 rejection was the spec. Earlier sections are unchanged.
+
+Commits: private `e9ea4c8..5e5c39c` (2ada6c3 base); public `7daad5b..8e8685c` (3509bc3 base).
+
+### Fixes
+- **TOML validity and foreign data (P1):** `tomlTableHeader` + `tomlSections` in `src/cli/install-kit.ts` form a bounded lexer, not a value parser. It recognizes headers with optional indentation, adjacent or spaced `#` comments, dotted/bare/basic/literal keys (with escapes) and `[[arrays]]`. It tracks basic, literal and multiline strings plus inline-array/table depth, so header lookalikes in data are ignored. A `#` or `]` inside a quoted key is key text. Sync splices by byte offset: foreign bytes, CRLF and 4+ newline runs are preserved, and duplicate owned tables collapse into one. A malformed header or unclosed value throws, leaving config unchanged, instead of being guessed at.
+- **Audit (P1):** doctor's `tomlSectionMatches` uses the same sections. A duplicated, malformed or string-embedded owned section is `stale`, never `ok`.
+- **Policy (private):** `review-fix-loop.md:38` (plugin + `.cursor` mirror): ordinary review seats are MID-first, HIGH only for hard debugging/architecture/second opinions/escalation, never initial MAX. Independence and the three named seats are kept. Public ships no review-fix-loop companion.
+- **Public routing:** commander SKILL, openai.yaml, entry templates (`claude-CLAUDE.md`, `codex-agents-block.md`, `cursor-user-rule.txt`, retired `cursor-commander-SKILL.md`, new `plugin-pointer.md`), 10-DISPATCH inventory table and report path, 00/30/40 protocol routing lines, and README now resolve protocol to the plugin's `commander-system/system/`. `~/.agents/system/LESSONS.md` stays only as the machine journal. `install-commander.mjs` is the private migrate script: it copies no protocol, writes pointers, and retires stale copies into backups. It was tested only in temp HOMEs. Public keeps its intended difference: the commander skill is still copied to user skill dirs (no plugin-native pruning). The SKILL.md in both repos therefore says to use the installed plugin's `commander-system/system/` when the skill is a copy.
+
+### Failing-first (new tests on the base source)
+Private, the 4 touched suites at 2ada6c3 source: 7 fail / 40 pass (review fix-loop MID-first, the reviewer repro test, 4 upsert fixtures, doctor-duplicate). Public at 3509bc3 source: 11 fail / 35 pass (the same TOML/doctor tests plus 5 commander-routing/installer tests).
+
+### Mutations (scratch `git archive` copies; P = autonomy+work-lite, C = install+sync; restored byte-for-byte, then re-passed)
+| mutation | private | public |
+|---|---|---|
+| MID→HIGH consistently in plugin rule + template + project rule | P exit 1, 1 fail | P exit 1, 1 fail |
+| collapse foreign `\n{3,}` to `\n\n` | C exit 1, 5 fail | C exit 1, 5 fail |
+| require whitespace before header `#` (adjacent-comment fix off) | C exit 1, 6 fail | C exit 1, 6 fail |
+| column-zero-only `[` (indented-boundary fix off) | C exit 1, 6 fail | C exit 1, 6 fail |
+| doctor back to raw substring include | C exit 1, 1 fail | C exit 1, 1 fail |
+| SKILL/openai.yaml/cursor-user-rule/10-DISPATCH routed back to ~/.agents/system | — | plugin-extra-skills exit 1 (1/1/1/2 fail) |
+| restored | P 21/21, C 23/23 | P 21/21, C 23/23, routing 6/6 |
+
+### Fresh gates (`git archive HEAD`, temp HOME, `YCM_HARNESS_HOME` unset)
+Private: `npm ci`=0, build=0, typecheck=0, `npm test`=0, **431 pass / 0 fail / 0 skipped**. Public: 0/0/0/0, **418 pass / 0 fail / 0 skipped**. Both runs passed the real-namespace WSL sync/audit test. `tests/doctor.test.ts` and `tests/v5.test.ts` stay out of suite and pre-existing; they are not claimed.
+
+### Clean-install reproduction (each repo, fresh temp HOME, nonexistent Codex CLI)
+`install --user`, then `sync --codex` + `doctor --json` ×3, seeded with (a) the adjacent `]# mine` owned header and (b) `] # mine` followed by an indented `  [other2]` table. Both seeds also have a 5-newline prefix run, 4-newline foreign runs and an indented `  [other]`. Every run exits 0, every output parses with `tomllib`, there is one owned header and no old source, prefix and foreign bytes are exact, sync 1 == 2 == 3, and doctor reports `codex_marketplace=ok`. Appending a duplicate owned section makes doctor report **stale**; the next sync repairs it to one header, valid TOML.
+
+### Promotion dry-run
+`node scripts/promote-to-public.mjs --paths <20 task paths: 2ada6c3..HEAD minus artifacts, plus commander entry/system/installer/openai.yaml/README>` on archived siblings → **exit 0; 7 writes / 10 unchanged / 3 blocked**. Each write is an intentional variant, not a missed export: `install-kit.ts` (repo constants + private commander pruning), `tests/install.test.ts` (private harness-HOME isolation), `tests/plugin-extra-skills.test.ts` (private extra skills, `commander.mdc`/`commands` and pruning test), commander `SKILL.md` (private iron-rule effort sentence), and 00-DIAGNOSIS/10-DISPATCH/40-MAINTENANCE (private-only evidence prose and effort/MAX ladder text; the routing lines themselves match). Blocked: `.cursor` review-fix-loop (not in allow roots), README (deny-list; public README hand-ported), work `review-fix-loop.md` (deny-list; public lean skill has none). Unchanged includes `sync.test.ts`, `autonomy.test.ts`, `install-commander.mjs`, `plugin-pointer.md`. No apply, push or PR.
