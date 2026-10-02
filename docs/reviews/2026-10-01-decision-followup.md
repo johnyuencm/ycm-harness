@@ -136,3 +136,65 @@ audit uses raw block → 1 FAIL; blank-line fix removed → 2 FAIL. `upsertTomlS
 ### Fresh promotion dry-run
 From private @ `bf0508f`: `node scripts/promote-to-public.mjs --paths <26 task files>` → 5 writes / 4 unchanged / 17 blocked, exit 0 (all writes are intentional variants; see private log).
 The stale earlier counts (7/1/0 author, 8/4/0 reviewer) were for different path sets and are superseded by this record.
+
+## Final independent acceptance — GPT Sol, 2026-10-02
+
+Independent of the Claude Opus writer. Reviewed `3d2a09f..54c07d5ee2580648b4e5eed2a0cd25aa7085e227` and full base `74eab73..54c07d5`, approved plan §5, worker contract, and the previous REJECT/rework records. Earlier DeepSeek/Luna API failures are transport failures, not code rejections. All evidence below was rerun, not accepted from the author log.
+
+### Acceptance criteria
+
+| criterion | result | independent evidence |
+|---|---|---|
+| 1. Consistent active policy, canonical plugin pointers, no private leak | FAIL | Spec-backed Goal/Spec architecture candidates are correctly used by plugin work/lite and Cursor lite entrypoints; updated rule is MID-first/no MAX default. However commander skill, its agent prompt, entry templates, guide inventory routes and README still actively direct protocol to machine-local `.agents/system`, not only LESSONS/retired notes. These were explicitly required to be plugin-canonical; the author's out-of-scope label cannot waive the current criterion. Added source/instruction lines contain no new private operations, private repo name, unsupported CONTEXT.md links, credential patterns or emails. |
+| 2. Shared port, intentional distribution variants, resolver cleanup | PASS | Shared resolver helper, real WSL test and strengthened TOML assertions are present and agree with private. Private V2/archive, commander-pruning, HOME-isolation and extra test-list protections remain intact in source. Defaults intentionally remain public-distribution defaults. No dead resolver/type caller remains; native launcher spawn remains. |
+| 3. Real WSL/audit plus all valid TOML/foreign spacing | FAIL | WSL test ran here without skip; independent namespace real-CLI three-run Windows-source/audit/TOML reproduction passes. Standard spaced-comment and multiple-blank-line cases preserve foreign text and are immediately idempotent. Valid adjacent-comment headers still duplicate, and valid indented foreign sections are erased. |
+| 4. Fresh clean gates and repeated isolated installs | PASS | Independent git archives, independent inodes, temporary HOME, harness override unset, no real homes/secrets. npm ci/build/typecheck/full npm test all exit 0: 407 pass / 0 fail / 0 skipped. Three fresh-home install/sync/doctor reproductions pass. Out-of-suite doctor/V5 failures occur at base too, not claimed fixed. |
+| 5. Mutation sensitivity and full-range hygiene | FAIL | Required WSL rewrite, raw audit helper, trailing-comment, first-sync separator and speculative-entrypoint mutations fail targeted tests. Aligned HIGH defaults and foreign blank-run collapse survive. No existing oracle/dependency/test gate removed; touched CRLF retained; CR-at-EOL diff check exits 0. |
+| 6. Exact promotion mapping and complete approved shared fields | PASS counts / FAIL convergence | Independent 26-path dry-run gives 5 writes / 4 same / 17 blocked, exit 0, with exactly 12 Cursor outside-allowlist paths and 5 deny-listed companions. Five differences are intentional variants, but the active public commander-pointer policy remains an unported approved shared field, not one of them. No apply was run. |
+
+### Fresh executable gates
+
+Node v24.20.0, npm 11.19.0, Python 3.14.4, Linux WSL2. Source was extracted with `git archive 54c07d5`; baseline with `git archive 74eab73`. Verification ran in fresh temporary HOME with `YCM_HARNESS_HOME` absent and restricted tool PATH. Mutation copies use independent source and dependency inodes, never hardlinks. No real `/mnt` writes or user-home installs.
+
+- `npm ci`; `npm run build`; `npm run typecheck`; `npm test` — **0 / 0 / 0 / 0**, **407/407**, **0 skipped**. The new `sync --codex under WSL writes the Windows source that doctor audits as ok` explicitly passed on this Linux host.
+- Three additional fresh HOME reproductions, each with `node dist/cli/index.js install --user` once and then `node dist/cli/index.js sync --codex` + `node dist/cli/index.js doctor --json` three times: all **21 exits 0**, all **9 codex_marketplace audits ok**. Seed contains `[model]`, owned `] # mine`/old source, `[other]`, four-newline foreign runs and a foreign tail comment. Independent `tomllib.loads` validates every output; one owned header, old source gone, foreign prefix/suffix exact, sync 1 == sync 2 == sync 3. Stable per-home SHA-256: `cffcaca372acf24ef366672b2cb2f95f47c0027e76a2a9da8c7360d9cbd6afd3`, `e4724a79a5ee1ee8dc34d064bee58bd6288709ae919cc9e2fbf310d3c6006bf1`, `4cf80a25b05894d4e2e5644e0a7bafe61da6451118815c6d83c063b74282e34a` (HOME paths intentionally differ).
+- Additional real CLI run under `unshare -rm`, private tmpfs mounted over `/mnt`, namespace HOME `/mnt/z/home`, `WSL_DISTRO_NAME=Ubuntu`, harness override unset and native Codex path nonexistent: sync/doctor three times = **6 exits 0**, Windows source `Z:\home\.codex\marketplaces\ycm-harness`, valid TOML, one header, **3 audits ok**, all three config byte sequences identical. SHA-256 `05155f47e9d5e0b9a2623c486ba3da259793d963f50937e71746bfc9d9abf55c`, matching the independent private namespace output.
+- Out-of-suite `node --test --import tsx/esm tests/doctor.test.ts`: **exit 1, 0 pass / 2 fail** at base and head (Windows-shaped `C:\tmp` fixture on Linux). `node --test --import tsx/esm tests/v5.test.ts`: **exit 1, 3 pass / 3 fail** at base and head, same legacy V2/V3-schema cases. Both are outside npm test and neither is claimed repaired.
+
+### Remaining blocking findings
+
+1. **P2 active obsolete protocol:** `plugin/skills/commander/SKILL.md:8,12-15` routes to `~/.agents/system/`; `plugin/skills/commander/agents/openai.yaml:4` explicitly prompts reading its local 10-DISPATCH. `plugin/commander-system/entry/{claude-CLAUDE.md,cursor-commander-SKILL.md,cursor-user-rule.txt,codex-agents-block.md}` and `system/10-DISPATCH.md:55-57` do the same. `plugin/scripts/install-commander.mjs:96-106` actually installs these machine copies/pointers; `README.md:518,608,620` presents them as current protocol, including editing/copying machine files back. These are neither LESSONS-only references nor retired notes. Product source remained read-only in this review.
+2. **P1 invalid TOML / false-green audit:** valid seed `[marketplaces.ycm-harness-local]# mine\nsource = "old"\n\n[other]\nx = 1\n` produces two owned headers, retains old source, and fails `tomllib.loads`; all three sync and doctor commands still exit 0 and doctor reports marketplace ok. `src/cli/install-kit.ts:1364` requires whitespace before `#`, which TOML does not require. Reproduced at `74eab73` too: this is an unmet valid-config acceptance case, not a claimed new regression.
+3. **P1 foreign-table deletion:** valid owned `] # mine` followed by `  [other]\nx = 1\n` loses the foreign table on the first sync. `src/cli/install-kit.ts:1369` only detects column-zero section headers. This deletion also reproduces at `74eab73`; preserving it is still explicitly required by acceptance. The standard first-sync blank-line fix does work.
+4. **P2 oracle gaps:** synchronized HIGH-default rules and foreign blank-run collapse remain green; a one-rule HIGH mutation fails only on mirror/template parity, not the forbidden policy itself.
+
+### Independently executed scratch mutations
+
+Policy **P**: `node --test --test-reporter=tap --import tsx/esm tests/autonomy.test.ts tests/work-lite-skill.test.ts` (19 tests).
+Code **C**: `node --test --test-reporter=tap --import tsx/esm tests/install.test.ts tests/sync.test.ts` (17 tests).
+
+| mutation | command | exit / failed tests |
+|---|---|---|
+| Plugin rule entrypoint MID→HIGH alone | P | 1 / 1, template parity only |
+| MID→HIGH in plugin rule + template + project rule together | P | **0 / 0, survives** (19 pass) |
+| Work SKILL restores `then implement every candidate` | P | 1 / 2 |
+| Cursor lite SKILL restores `Strong, Worth exploring, Speculative` | P | 1 / 1 |
+| WSL config rewrite returns raw pluginRoot | C | 1 / 2, including actual WSL test |
+| Doctor audit uses raw marketplaceBlock | C | 1 / 1, actual WSL/audit test |
+| Trailing-comment header recognition removed | C | 1 / 2 |
+| First-sync separator preservation removed | C | 1 / 2 |
+| Foreign `\n{3,}` collapsed to `\n\n`, no other change | C | **0 / 0, survives** (17 pass) |
+
+Each mutation restored exact original bytes in `finally`. Combined P+C after restoration: **exit 0, 36/36 pass, 0 skipped**; every tracked mutation-copy file matches its original archive copy. Full-range `git -c core.whitespace=cr-at-eol diff --check 74eab73..54c07d5` exits **0**. No dependency, package-lock, existing test-list, skip gate, or formatting sweep changed in the reviewed range.
+
+### Fresh exact 26-path dry-run
+
+Run from an unmodified independent upstream source archive against the public sibling archive at `54c07d5`:
+
+```bash
+node scripts/promote-to-public.mjs --paths .cursor/rules/ycm-harness.mdc,.cursor/skills/commander/SKILL.md,.cursor/skills/commander/agents/openai.yaml,.cursor/skills/ycm-harness-work-lite/SKILL.md,.cursor/skills/ycm-harness-work-lite/finish-architecture.md,.cursor/skills/ycm-harness/SKILL.md,.cursor/skills/ycm-harness/autonomy.md,.cursor/skills/ycm-harness/commander-dispatch.md,.cursor/skills/ycm-harness/finish-architecture.md,.cursor/skills/ycm-harness/finish.md,.cursor/skills/ycm-harness/github-tickets.md,.cursor/skills/ycm-harness/orchestrator-checklist.md,plugin/skills/ycm-harness-work-lite/SKILL.md,plugin/skills/ycm-harness-work-lite/finish-architecture.md,plugin/skills/ycm-harness-work/SKILL.md,plugin/skills/ycm-harness-work/autonomy.md,plugin/skills/ycm-harness-work/commander-dispatch.md,plugin/skills/ycm-harness-work/finish-architecture.md,plugin/skills/ycm-harness-work/finish.md,plugin/skills/ycm-harness-work/github-tickets.md,plugin/skills/ycm-harness-work/orchestrator-checklist.md,src/cli/install-kit.ts,tests/autonomy.test.ts,tests/install.test.ts,tests/sync.test.ts,tests/work-lite-skill.test.ts
+```
+
+**Exit 0: 5 writes / 4 unchanged / 17 blocked**. Reasons exactly **12 Cursor not-in-allow-roots + 5 deny-listed work companions**. All five write diffs read: install-kit distribution constants/private commander pruning; install-test HOME isolation; lite architecture report location; public work SKILL Opus-class descriptor; private report-location test assertions. Four same paths: lite SKILL, work github-tickets, autonomy test, sync test. Counts/intentional variants reproduce, but the canonical plugin-router requirement remains missing outside this 26-path set. No blanket apply or sensitive export was performed.
+
+**Independent verdict: REJECT (public).** The previous speculative-rule and direct WSL-audit issues were repaired and independently demonstrated. Remaining gates are active canonical commander pointers, valid-TOML/foreign-table handling, and mutation-sensitive HIGH/foreign-spacing coverage. Verification-only existing-log append; no source fix, deployment, real-home sync, promotion apply, push or PR action.
