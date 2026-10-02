@@ -52,9 +52,9 @@ Tiers are **harness-agnostic**. When dispatching, name **tier + concrete model/a
 
 | Harness                  | Read on demand                                         |
 | ------------------------ | ------------------------------------------------------ |
-| Cursor                   | `{{HOME}}\.agents\system\11-INVENTORY-cursor.md` |
-| Claude Code (`cex` only) | `{{HOME}}\.agents\system\11-INVENTORY-claude.md` |
-| Codex                    | `{{HOME}}\.agents\system\11-INVENTORY-codex.md`  |
+| Cursor                   | `11-INVENTORY-cursor.md` (same folder as this file) |
+| Claude Code (`cex` only) | `11-INVENTORY-claude.md` (same folder as this file) |
+| Codex                    | `11-INVENTORY-codex.md` (same folder as this file)  |
 
 ## §3 The dispatch three-piece set (mandatory in every subagent prompt)
 
@@ -69,7 +69,7 @@ A dispatch missing any piece produces garbage you'll pay to re-do. Fill-in templ
 ## §4 Report contract (paste into every dispatch, worker-side rules)
 
 - Return AT MOST 15 lines: verdict first line, then bullets — each conclusion with `file:line` or a command+exit code as evidence.
-- Anything longer (full analysis, logs, diffs, scraped content) goes to a file. Reviews, reports and architecture output about a git project go into that repo (its existing place such as `artifacts/`, else `docs/reviews/`) and are committed and pushed, because remote agents only see the remote. Only work with no git project goes to `{{HOME}}\.agents\reports\YYYY-MM-DD-<topic>.md`. Return the path.
+- Anything longer (full analysis, logs, diffs, scraped content) goes to a file. Reviews, reports and architecture output about a git project go into that repo (its existing place such as `artifacts/`, else `docs/reviews/`) and are committed and pushed, because remote agents only see the remote. Only work with no git project goes to `~/.agents/reports/YYYY-MM-DD-<topic>.md`. Return the path.
 - Never paste more than 30 consecutive lines of file content into the reply.
 - If blocked or the task is ambiguous: STOP, report the blocker in one line, return. Do not improvise scope.
 - Report failures as failures ("could not verify X" / "found no match"), never dressed as partial success.

@@ -70,11 +70,6 @@ export interface ClientSyncOptions {
   refreshCodexCache?: boolean;
 }
 
-interface ResolvedSource {
-  root: string;
-  cleanup?: () => Promise<void>;
-}
-
 /** Harness-owned skills copied to user/project/opencode skill roots. */
 const HARNESS_SKILL_DIRS = [
   "ycm-harness",
@@ -1360,37 +1355,115 @@ async function readTextIfExists(file: string): Promise<string | undefined> {
   }
 }
 
-export function upsertTomlSection(raw: string, header: string, block: string): string {
-  const normalized = raw.replace(/\r\n/g, "\n");
-  const lines = normalized.split("\n");
-  const headerLine = `[${header}]`;
-  // A header may carry a trailing comment (`[a.b] # note`); match it, or the
-  // section is appended a second time and config.toml becomes invalid TOML.
-  const start = lines.findIndex((line) => line.replace(/\s+#.*$/, "").trim() === headerLine);
+// Only table boundaries and string/container state, not a TOML value parser.
+// Keeping offsets lets sync splice owned tables without reformatting foreign data.
+function tomlTableHeader(line: string): { key: string; array: boolean } | undefined {
+  const token = String.raw`(?:[A-Za-z0-9_-]+|"(?:[^"\\\r\n]|\\.)*"|'[^'\r\n]*')`;
+  const match = new RegExp(`^[ \\t]*(\\[\\[?)[ \\t]*(${token}(?:[ \\t]*\\.[ \\t]*${token})*)[ \\t]*(\\]\\]?)[ \\t]*(?:#.*)?$`).exec(line);
+  if (!match || match[1]!.length !== match[3]!.length) return undefined;
+  const keys = match[2]!.match(new RegExp(token, "g"))!.map((key) => {
+    if (key.startsWith("'")) return key.slice(1, -1);
+    if (!key.startsWith('"')) return key;
+    const escapes: Record<string, string> = { b: "\b", t: "\t", n: "\n", f: "\f", r: "\r", '"': '"', "\\": "\\" };
+    return key.slice(1, -1).replace(/\\(u[\da-fA-F]{4}|U[\da-fA-F]{8}|.)/g, (_, escape: string) => {
+      if (escape in escapes) return escapes[escape]!;
+      if (/^[uU][\da-fA-F]+$/.test(escape)) {
+        const code = Number.parseInt(escape.slice(1), 16);
+        if (code <= 0x10ffff && (code < 0xd800 || code > 0xdfff)) return String.fromCodePoint(code);
+      }
+      throw new Error("Invalid TOML table key escape");
+    });
+  });
+  return { key: JSON.stringify(keys), array: match[1] === "[[" };
+}
 
-  if (start >= 0) {
-    let end = lines.length;
-    for (let i = start + 1; i < lines.length; i += 1) {
-      if (lines[i]?.startsWith("[") === true) {
-        end = i;
+function tomlSections(raw: string): { key: string; array: boolean; start: number; end: number }[] {
+  const sections: { key: string; array: boolean; start: number; end: number }[] = [];
+  let quote = "";
+  let depth = 0;
+  let offset = 0;
+  let trivia: number | undefined;
+  for (const fullLine of raw.match(/[^\n]*(?:\n|$)/g) ?? []) {
+    if (!fullLine) continue;
+    const line = fullLine.replace(/\r?\n$/, "");
+    if (!quote && depth === 0) {
+      if (/^[ \t]*(?:#.*)?$/.test(line)) {
+        trivia ??= offset;
+        offset += fullLine.length;
+        continue;
+      }
+      if (/^[ \t]*\[/.test(line)) {
+        const header = tomlTableHeader(line);
+        if (!header) throw new Error("Malformed TOML table header; config left unchanged");
+        const previous = sections.at(-1);
+        if (previous) previous.end = trivia ?? offset;
+        sections.push({ ...header, start: offset, end: raw.length });
+        trivia = undefined;
+        offset += fullLine.length;
+        continue;
+      }
+      trivia = undefined;
+    }
+    for (let i = 0; i < line.length; i += 1) {
+      const ch = line[i]!;
+      if (quote) {
+        if (quote[0] === '"' && ch === "\\") { i += 1; continue; }
+        if (line.startsWith(quote, i)) {
+          let end = i + quote.length;
+          // Four/five quotes close a multiline string with one/two quote data characters.
+          if (quote.length === 3) while (line[end] === quote[0]) end += 1;
+          i = end - 1;
+          quote = "";
+        }
+      } else if (ch === "#") {
         break;
+      } else if (ch === '"' || ch === "'") {
+        quote = line.startsWith(ch.repeat(3), i) ? ch.repeat(3) : ch;
+        i += quote.length - 1;
+      } else if (ch === "[" || ch === "{") {
+        depth += 1;
+      } else if (ch === "]" || ch === "}") {
+        depth -= 1;
       }
     }
-    const nextLines = [
-      ...lines.slice(0, start),
-      ...block.trimEnd().split("\n"),
-      ...lines.slice(end),
-    ];
-    return `${nextLines.join("\n").replace(/\n{3,}/g, "\n\n")}\n`;
+    if (quote.length === 1 || depth < 0) throw new Error("Malformed TOML value; config left unchanged");
+    offset += fullLine.length;
   }
+  if (quote || depth) throw new Error("Unclosed TOML value; config left unchanged");
+  const last = sections.at(-1);
+  if (last) last.end = trivia ?? raw.length;
+  return sections;
+}
 
-  const suffix =
-    normalized.length > 0 && !normalized.endsWith("\n")
-      ? "\n\n"
-      : normalized.length > 0
-        ? "\n"
-        : "";
-  return `${normalized}${suffix}${block}`;
+export function upsertTomlSection(raw: string, header: string, block: string): string {
+  const key = tomlTableHeader(`[${header}]`)!.key;
+  const owned = tomlSections(raw).filter((section) => section.key === key);
+  const eol = raw.includes("\r\n") ? "\r\n" : "\n";
+  const replacement = block.trimEnd().replace(/\r?\n/g, eol) + eol;
+  if (owned.length === 0) {
+    const suffix = raw.length === 0 ? "" : raw.endsWith("\n") ? eol : eol + eol;
+    return raw + suffix + replacement;
+  }
+  // Replace the first owned table and remove any duplicate, preserving all gaps.
+  let next = "";
+  let from = 0;
+  for (const [index, section] of owned.entries()) {
+    next += raw.slice(from, section.start) + (index === 0 ? replacement : "");
+    from = section.end;
+  }
+  return next + raw.slice(from);
+}
+
+function tomlSectionMatches(raw: string, header: string, block: string): boolean {
+  try {
+    const key = tomlTableHeader(`[${header}]`)!.key;
+    const owned = tomlSections(raw).filter((section) => section.key === key);
+    if (owned.length !== 1 || owned[0]!.array) return false;
+    const section = owned[0]!;
+    return raw.slice(section.start, section.end).replace(/\r\n/g, "\n").trim() === block.trim();
+  } catch {
+    return false;
+  }
 }
 
 async function ensureCodexConfig(pluginRoot: string): Promise<string[]> {
@@ -1805,39 +1878,11 @@ async function auditCodexConfig(): Promise<{
   }
 
   const pluginRoot = codexInstallRoot();
-  const marketplaceOk = raw.includes(codexMarketplaceBlock(pluginRoot, configPath).trim());
-  const pluginOk = raw.includes(pluginEnabledBlock().trim());
+  const marketplaceOk = tomlSectionMatches(raw, `marketplaces.${CODEX_MARKETPLACE_NAME}`, codexMarketplaceBlock(pluginRoot, configPath));
+  const pluginOk = tomlSectionMatches(raw, `plugins."${CODEX_PLUGIN_KEY}"`, pluginEnabledBlock());
   return {
     marketplace: { path: configPath, status: marketplaceOk ? "ok" : "stale" },
     plugin: { path: configPath, status: pluginOk ? "ok" : "stale" },
-  };
-}
-
-export async function resolveSourceRoot(
-  sourceRoot?: string,
-  ref?: string,
-): Promise<ResolvedSource> {
-  if (!sourceRoot) return { root: packageRoot() };
-  const candidate = path.resolve(sourceRoot);
-  if (await fileExists(candidate)) return { root: candidate };
-
-  const tempRoot = await fs.mkdtemp(
-    path.join(os.tmpdir(), "ycm-harness-sync-"),
-  );
-  const args = ["clone", "--depth", "1"];
-  if (ref) args.push("--branch", ref);
-  args.push(sourceRoot, tempRoot);
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn("git", args, { stdio: "ignore" });
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`git clone failed for ${sourceRoot}`));
-    });
-  });
-  return {
-    root: tempRoot,
-    cleanup: () => fs.rm(tempRoot, { recursive: true, force: true }),
   };
 }
 

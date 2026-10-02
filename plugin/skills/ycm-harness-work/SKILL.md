@@ -11,9 +11,10 @@ replace reading the code, making a focused change, or running the project's
 real checks. Do not walk retired phase/ritual SOPs. Do not invent extra
 reviewers beyond the named panel or a review JSON file.
 
-Enter after `ycm-harness-design` or when resuming an existing goal. Use the
-strongest available model for implementation **and** for the independent
-review panel.
+Enter after `ycm-harness-design` or when resuming an existing goal. Pick
+implementer and review-panel **model + effort** from commander `10-DISPATCH.md`
+§2 and this session's `11-INVENTORY-*.md`. Pass both on every Agent call; do
+not inherit the session model. Do not start those roles on MAX.
 
 ## Start or resume
 
@@ -107,9 +108,12 @@ When every ticket is done or cancelled, follow `finish.md` then
 `finish-architecture.md` when those siblings exist. Always run the
 architecture pass even if the sibling is missing: invoke
 `improve-codebase-architecture` (mattpocock-skills), write the HTML report,
-then implement every candidate in the report. Do **not** ask which to
-explore. Do **not** wait on the grilling loop. Skip only ADR-contradicting or
-unauthorized destructive work (name those leftovers). Re-verify and commit,
+then implement every spec-backed candidate (Strong or Worth exploring, serving
+the goal's Goal/Spec). Do **not** ask which to explore. Do **not** wait on the
+grilling loop. Every other candidate (Speculative-only, or outside the
+Goal/Spec) stays a review recommendation, filed as a follow-up pending a ticket
+or owner decision. Skip only ADR-contradicting or unauthorized destructive work
+(name those leftovers). Re-verify and commit,
 then:
 
 ```bash
@@ -144,7 +148,7 @@ Skip any file that is missing (public install ships `SKILL.md` +
 - `commands.md` — live 0.3 CLI
 - `github-tickets.md` — GitHub mirror
 - `anti-stop.md` — do not stop after execute
-- `finish.md` / `finish-architecture.md` — close-out; implement every architecture candidate
+- `finish.md` / `finish-architecture.md` — close-out; implement every spec-backed architecture candidate
 
 ## Boundaries
 

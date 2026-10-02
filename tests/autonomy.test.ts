@@ -47,7 +47,7 @@ const REQUIRED_SKILL_PHRASES = [
   "review-fix-loop.md",
   "orchestrator-checklist.md",
   "improve-codebase-architecture",
-  "every candidate",
+  "every spec-backed candidate",
 ];
 
 const REQUIRED_DESIGN_SKILL_PHRASES = [
@@ -72,7 +72,7 @@ const REQUIRED_RULE_PHRASES = [
   "GitHub",
   "wiki durable",
   "ycm-harness review",
-  "strongest available model",
+  "strongest suitable model",
 ];
 
 const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
@@ -129,7 +129,8 @@ const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
   "finish-architecture.md": [
     "improve-codebase-architecture",
     "Top recommendation",
-    "every candidate",
+    "every spec-backed candidate",
+    "review recommendation",
     "Do **not** ask",
   ],
 };
@@ -318,12 +319,69 @@ test("install-kit prunes leftover cursor-harness agent dirs", async () => {
   assert.match(doctor, /repairLegacyAgentDirs/);
 });
 
-test("commander-dispatch defaults implementer and reviewer to strongest HIGH", async () => {
+test("commander-dispatch starts implementer and reviewer on MID, never MAX", async () => {
   const content = await readIfPresent(
     path.join(workSkillDir, "commander-dispatch.md"),
   );
   if (content === null) return;
-  assert.match(content, /strongest available model/);
-  assert.doesNotMatch(content, /MID \(default\)/);
-  assert.match(content, /HIGH \(default for implementer \+ review panel\)/);
+  // 10-DISPATCH.md §2: implementer -> MID, HIGH by escalation or for
+  // architecture/hard debugging, MAX is the final boss.
+  assert.match(content, /strongest suitable model/);
+  assert.match(content, /MID-first/);
+  assert.match(content, /MID \(default for implementer \+ review panel\)/);
+  assert.match(content, /Never start those roles on MAX/);
+  assert.doesNotMatch(content, /strongest available model/);
+  assert.doesNotMatch(content, /HIGH \(default/);
+  assert.doesNotMatch(content, /Same HIGH bar/);
+});
+
+test("architecture pass implements only spec-backed candidates in every active entrypoint", async () => {
+  const dirs = [
+    path.join(root, "plugin", "skills", "ycm-harness-work"),
+    path.join(root, "plugin", "skills", "ycm-harness-work-lite"),
+    path.join(root, ".cursor", "skills", "ycm-harness"),
+    path.join(root, ".cursor", "skills", "ycm-harness-work-lite"),
+  ];
+  let checked = 0;
+  for (const dir of dirs) {
+    const names = await fs.readdir(dir).catch(() => [] as string[]);
+    for (const name of names.filter((n) => n.endsWith(".md"))) {
+      const content = await fs.readFile(path.join(dir, name), "utf8");
+      const rel = path.relative(root, path.join(dir, name));
+      checked += 1;
+      assert.doesNotMatch(content, /implement\s+\**every\**\s+(architecture\s+)?candidate/i, rel);
+      assert.doesNotMatch(content, /Worth exploring,?\s+(and\s+)?Speculative/, rel);
+      if (name === "finish-architecture.md") {
+        assert.match(content, /every spec-backed candidate/, rel);
+        assert.match(content, /Goal\/Spec/, rel);
+        assert.match(content, /review recommendation/, rel);
+      }
+    }
+  }
+  assert.ok(checked >= 3, `expected the work and lite skill files, checked ${checked}`);
+});
+
+
+test("every rule entrypoint actually defaults ordinary roles to MID", async () => {
+  for (const file of [projectRule, templateRule, path.join(root, '.cursor', 'rules', 'ycm-harness.mdc')]) {
+    const content = await fs.readFile(file, 'utf8');
+    assert.match(content, /start MID and escalate to HIGH on a real failure/, file);
+    assert.match(content, /do not default those roles to a MAX-class model/, file);
+    assert.doesNotMatch(content, /start HIGH|Same HIGH bar|strongest available model/, file);
+  }
+});
+
+test("review fix-loop keeps independent named seats with MID-first ordinary dispatch", async () => {
+  for (const dir of [workSkillDir, path.join(root, '.cursor', 'skills', 'ycm-harness')]) {
+    const file = path.join(dir, 'review-fix-loop.md');
+    const content = await readIfPresent(file);
+    if (content === null) continue; // The public distribution omits this companion.
+    assert.match(content, /MID-first/, file);
+    assert.match(content, /HIGH only for hard debugging, architecture, second opinions, or escalation/, file);
+    assert.match(content, /Never start .* on MAX/, file);
+    assert.doesNotMatch(content, /different HIGH model family|Same HIGH bar/, file);
+    for (const role of ['tech_lead', 'project_manager', 'user_advocate']) assert.ok(content.includes(role), file);
+    assert.match(content, /no reviewer is an author\/implementer/, file);
+    assert.match(content, /One FAIL fails the panel/, file);
+  }
 });

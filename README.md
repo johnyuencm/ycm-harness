@@ -515,7 +515,7 @@ The `plugin/` folder is a ready-to-install Cursor plugin layout:
 - `plugin/skills/ycm-harness-work/SKILL.md` — work execution skill (`name: ycm-harness-work`).
 - `plugin/skills/hard-problem-solving/SKILL.md` — evidence-first RCA for review fix-loop (`$hard-problem-solving`).
 - `plugin/skills/llm-wiki/SKILL.md` — Karpathy compounding-wiki pattern: ingest, query, lint (`$llm-wiki`); pairs with `ycm-harness wiki` CLI.
-- `plugin/skills/commander/SKILL.md` — pointer into `~/.agents/system/` commander protocol (`$commander`).
+- `plugin/skills/commander/SKILL.md` — commander protocol router into this plugin's `commander-system/system/` (`$commander` / `/commander`).
 - `plugin/skills/building-ios-ipa-sideloadly/SKILL.md` — Windows → GitHub → Sideloadly IPA path.
 - `plugin/skills/deploying-to-mumu-emulator/SKILL.md` — MuMu Player Android/ADB deploy path.
 - `plugin/skills/plan-and-advance/SKILL.md` — plan first, mandatory self-grill (Decisions + Edge cases), advance the idea, then implement without interviewing.
@@ -603,21 +603,20 @@ Open work:
 - **Native per-message hooks.** Replace the polled `session tick` with a Cursor-native hook event once `userMessage` (or equivalent) is exposed.
 - **Wiki conflict resolution.** When `wiki promote` updates an existing user-wiki page, surface a structured diff and let the agent merge instead of overwrite.
 
-## Commander system (portable cross-harness operating contract)
+## Commander system (plugin-sourced operating contract)
 
-`plugin/commander-system/` carries a machine-global "commander" operating contract for weaker models: delegation thresholds, verified model tiers, escalation ladder, done/retry/ask checklists, dispatch templates, and a maintenance protocol. It installs OUTSIDE any repo, to `~/.agents/system/`, and wires entry pointers for Cursor (user skill), Claude Code (`~/.claude/CLAUDE.md`), and Codex (`~/.codex/AGENTS.md` block). The harness skill's `commander-dispatch.md` references it during execute.
+`plugin/commander-system/` is the **only** golden source for the commander protocol. It ships inside the ycm-harness plugin (`skills/commander` routes into `commander-system/system/`) and updates when that plugin updates. Do not copy protocol files to `~/.agents/system/`.
 
-Install on a new machine (no build needed, plain Node >= 20):
+On a machine that still has local protocol copies or old CLAUDE.md / AGENTS.md routers:
 
 ```bash
 git clone <this repo> && cd ycm-harness
 npm run commander:install          # or: node plugin/scripts/install-commander.mjs
-npm run commander:overlay -- --force   # personal LESSONS / DIAGNOSIS / LETTER / inventories
 ```
 
-Flags: `--dry-run` (show actions), `--force` (overwrite drifted system files after backup; `LESSONS.md` is never overwritten by install). The portable templates come from this checkout's `plugin/commander-system/`; personal allowlisted files come from `operator-system/` via `commander:overlay`. The script is idempotent — rerunning reports `ok` per file. One manual step remains and is printed at the end: adding the Cursor user rule (Cursor Settings -> Rules -> User Rules).
+That migrate script rewrites entry pointers, retires local `~/.agents/system/` protocol files (keeps `LESSONS.md`), and removes the duplicate `~/.cursor/skills/commander` user skill. `LESSONS.md` remains a machine journal only. One manual step is printed at the end: replace the Cursor user rule with the plugin pointer.
 
-Templates use `{{HOME}}` placeholders (Windows-first paths; POSIX best-effort). To pull improvements made on a machine back into the repo, copy the live `~/.agents/system/` files over `plugin/commander-system/system/` and re-replace the home prefix with `{{HOME}}`.
+Refresh client copies from this checkout with `ycm-harness sync` (Cursor/Codex local marketplace + pinned caches). Claude GitHub marketplace autoUpdate tracks `master`. Do not run `sync` on a dirty git checkout of this plugin — GitHub clone refresh can reset uncommitted work.
 
 ## License
 

@@ -19,7 +19,8 @@ test("ycm-harness-work-lite ships with procedure and forbid list", async () => {
   assert.match(skill, /two-phase/);
   assert.match(skill, /finish-architecture\.md/);
   assert.match(skill, /improve-codebase-architecture/);
-  assert.match(skill, /every candidate/);
+  assert.match(skill, /every\** spec-backed candidate/);
+  assert.match(skill, /review recommendation/);
   assert.match(skill, /Done bar/);
   assert.doesNotMatch(skill, /phase start validate/);
   assert.doesNotMatch(skill, /ycm-harness ritual record/);
@@ -35,7 +36,8 @@ test("ycm-harness-work-lite finish-architecture triggers external mattpocock ski
   );
   assert.match(doc, /improve-codebase-architecture/);
   assert.match(doc, /Top recommendation/);
-  assert.match(doc, /every candidate/);
+  assert.match(doc, /every spec-backed candidate/);
+  assert.match(doc, /Goal\/Spec/);
   assert.match(doc, /Do \*\*not\*\* ask/);
   assert.match(doc, /not bundled/);
   assert.match(doc, /Attach the skill/);

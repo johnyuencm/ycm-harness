@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
@@ -189,6 +190,63 @@ test("sync --codex preserves foreign config.toml sections byte-for-byte", async 
       await cleanup(cwd);
     }
   });
+});
+
+// WSL + Windows Codex home, through the real sync writer and doctor audit. A
+// private tmpfs over /mnt in a user+mount namespace stands in for /mnt/<drive>,
+// so the real /mnt is never written. Skips where unprivileged namespaces are
+// unavailable (macOS, Windows, locked-down Linux); the codexMarketplaceBlock
+// helper test in install.test.ts still covers the mapping there.
+test("sync --codex under WSL writes the Windows source that doctor audits as ok", (t) => {
+  const repoRoot = packageRoot();
+  const probe = spawnSync("unshare", ["-rm", "true"]);
+  if (process.platform !== "linux" || probe.status !== 0 || repoRoot.startsWith("/mnt/")) {
+    t.skip("needs Linux user+mount namespaces and a repo outside /mnt");
+    return;
+  }
+  const home = "/mnt/z/home";
+  const child = `
+    import { promises as fs } from "node:fs";
+    const kit = await import(${JSON.stringify(path.join(repoRoot, "src", "cli", "install-kit.ts"))});
+    const config = "${home}/.codex/config.toml";
+    await fs.writeFile(config, '[model]\\nname = "x"\\n\\n[marketplaces.ycm-harness-local] # mine\\nsource = "old"\\n\\n[other]\\nx = 1\\n');
+    await kit.runClientSync({ codex: true, force: true });
+    const first = await fs.readFile(config, "utf8");
+    await kit.runClientSync({ codex: true, force: true });
+    const second = await fs.readFile(config, "utf8");
+    const { audit } = await kit.auditInstall("/mnt/z");
+    process.stdout.write(JSON.stringify({ first, second, status: audit.codex_marketplace.status }));
+  `;
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    HOME: home,
+    YCM_HARNESS_HOME: home,
+    WSL_DISTRO_NAME: "Ubuntu",
+    CODEX_CLI_PATH: path.join(repoRoot, "missing-codex-cli-for-test"),
+  };
+  const run = spawnSync(
+    "unshare",
+    [
+      "-rm", "sh", "-c",
+      'mount -t tmpfs ycm-scratch /mnt && mkdir -p "$1/.codex" && exec "$0" --import tsx/esm --input-type=module -e "$2"',
+      process.execPath, home, child,
+    ],
+    { cwd: repoRoot, env, encoding: "utf8" },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  const { first, second, status } = JSON.parse(run.stdout) as {
+    first: string;
+    second: string;
+    status: string;
+  };
+  assert.match(first, /^source = 'Z:\\home\\\.codex\\marketplaces\\ycm-harness'$/m);
+  assert.doesNotMatch(first, /\/mnt\//);
+  assert.doesNotMatch(first, /source = "old"/);
+  assert.equal(first.match(/^\[marketplaces\.ycm-harness-local\]/gm)?.length, 1);
+  assert.match(first, /^\[model\]\nname = "x"\n\n\[marketplaces\.ycm-harness-local\]\n/);
+  assert.match(first, /\n\n\[other\]\nx = 1\n\n\[plugins\."ycm-harness@ycm-harness-local"\]\nenabled = true\n$/);
+  assert.equal(second, first, "a second sync must not rewrite the config");
+  assert.equal(status, "ok", "doctor must audit the same source that sync wrote");
 });
 
 test("sync --cursor updates only Cursor assets", async () => {
@@ -443,6 +501,60 @@ test("sync --codex refreshes Codex cache through official remove/add commands", 
     } finally {
       if (priorCodexPath === undefined) delete process.env.CODEX_CLI_PATH;
       else process.env.CODEX_CLI_PATH = priorCodexPath;
+      await cleanup(cwd);
+    }
+  });
+});
+
+
+test("doctor rejects duplicate, malformed and string-only owned sections before sync", async () => {
+  await withTempUserHome(async (home) => {
+    const cwd = await tempProject('ch-codex-audit-');
+    const prior = process.env.CODEX_CLI_PATH;
+    try {
+      process.env.CODEX_CLI_PATH = await writeCodexShim(cwd);
+      await fs.mkdir(path.join(home, '.codex'), { recursive: true });
+      await runSync(cwd, ['--codex']);
+      const config = path.join(home, '.codex', 'config.toml');
+      const canonical = await fs.readFile(config, 'utf8');
+      const { auditInstall } = await import('../src/cli/install-kit.js');
+      for (const duplicate of [
+        '[marketplaces.ycm-harness-local]# duplicate\nsource = "old"\n',
+        '  ["marketplaces"."ycm-harness-local"]# duplicate\nsource = "old"\n',
+        '[marketplaces.ycm-harness-local] trailing garbage\nsource = "old"\n',
+        '[plugins."ycm-harness@ycm-harness-local"]# duplicate\nenabled = false\n',
+      ]) {
+        await fs.writeFile(config, duplicate + canonical);
+        const { audit } = await auditInstall(cwd);
+        assert.notEqual(duplicate.startsWith('[plugins.') ? audit.codex_plugin_enabled.status : audit.codex_marketplace.status, 'ok', duplicate);
+      }
+      await fs.writeFile(config, 'example = """\n' + canonical + '"""\n');
+      const { audit } = await auditInstall(cwd);
+      assert.notEqual(audit.codex_marketplace.status, 'ok');
+      assert.notEqual(audit.codex_plugin_enabled.status, 'ok');
+      const prefix = '[model]\nname = "x"\n\n\n\n# before owned\n';
+      const foreign = '\n\n\n\n# foreign\n  [["other#]rows"]]\nx = 1\n\n\n\n# tail\n';
+      const plugin = '[plugins."ycm-harness@ycm-harness-local"]# old\nenabled = false\n';
+      await fs.writeFile(config, prefix + '[marketplaces.ycm-harness-local]# mine\nsource = "old"\n' + foreign + plugin);
+      let first: string | undefined;
+      for (let n = 0; n < 3; n++) {
+        await runSync(cwd, ['--codex']);
+        const written = await fs.readFile(config, 'utf8');
+        assert.ok(written.startsWith(prefix));
+        assert.ok(written.includes(foreign));
+        assert.equal(written.match(/^\[marketplaces\.ycm-harness-local\]/gm)?.length, 1);
+        assert.doesNotMatch(written, /source = "old"/);
+        const parsed = spawnSync('python3', ['-c', 'import sys, tomllib; tomllib.loads(sys.stdin.read())'], { input: written, encoding: 'utf8' });
+        if (!parsed.error && !/No module named 'tomllib'/.test(parsed.stderr)) assert.equal(parsed.status, 0, parsed.stderr);
+        if (first !== undefined) assert.equal(written, first);
+        first = written;
+        const { audit } = await auditInstall(cwd);
+        assert.equal(audit.codex_marketplace.status, 'ok');
+        assert.equal(audit.codex_plugin_enabled.status, 'ok');
+      }
+    } finally {
+      if (prior === undefined) delete process.env.CODEX_CLI_PATH;
+      else process.env.CODEX_CLI_PATH = prior;
       await cleanup(cwd);
     }
   });

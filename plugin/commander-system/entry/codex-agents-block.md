@@ -1,7 +1,13 @@
-<!-- COMMANDER-SYSTEM:START (manual block - keep when regenerating; see {{HOME}}\.agents\system\40-MAINTENANCE.md) -->
+<!-- COMMANDER-SYSTEM:START (plugin-sourced; protocol is not copied here) -->
 
-## Cross-harness commander system
+## Commander (ycm-harness plugin)
 
-A global operating contract lives in `{{HOME}}\.agents\system\` (`20-JUDGMENT.md` = done/retry/ask decisions, `30-TEMPLATES.md` = dispatch prompt templates, `LESSONS.md` = environment facts). When ycm-harness SOP is active, follow that SOP for workflow and use these files only for model-tier choice and verification discipline. Adopt from the system: every child-agent prompt carries the three-piece set (goal+context / acceptance criteria / report format); child reports ≤15 lines with file:line evidence, long artifacts to `{{HOME}}\.agents\reports\` only when no git project is involved — in a git project, commit and push every review, report and architecture output into the repo (existing place such as `artifacts/`, else `docs/reviews/`) because remote agents only see the remote; max 3 attempts per subtask then stop and change approach; and for DELEGATED substantive work, acceptance comes from a fresh-context reviewer or an actual run — never the implementing agent's own claim (solo work you did yourself is verified by real execution evidence). When you learn a durable environment fact the hard way, append it to `{{HOME}}\.agents\system\LESSONS.md` in the same turn.
+Protocol lives in the enabled **ycm-harness** plugin and updates when that plugin updates. Do not use `~/.agents/system/` as protocol.
+
+1. Read and follow the plugin skill **commander** (`/commander` or `$commander`).
+2. Guides are `commander-system/system/` inside that plugin (next to `skills/`). Start with `10-DISPATCH.md` when delegating.
+3. Machine journal only: append durable environment facts to `~/.agents/system/LESSONS.md`. Long artifacts go to `~/.agents/reports/` only when no git project is involved.
+4. If ycm-harness SOP is active, follow that SOP; use commander files only for model-tier choice and verification discipline.
+5. In a git project, commit and push every review, report and architecture output (code and architecture reviews, review rounds, verification records, HTML reports, wiki run records) into the repo, using its existing place (e.g. `artifacts/`), else `docs/reviews/`. Remote agents only see the remote; `/tmp` and `~/.agents/reports/` are invisible to them. Link committed paths, never `/tmp`.
 
 <!-- COMMANDER-SYSTEM:END -->
