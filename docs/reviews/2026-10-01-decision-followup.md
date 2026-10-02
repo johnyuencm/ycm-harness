@@ -107,3 +107,32 @@ run used a fresh `HOME=$(mktemp -d)` with `YCM_HARNESS_HOME` unset. The real hom
 
 **Verdict (public): REJECT.** Code, tests and gates are fine. Export the remaining speculative-rule hunks to the lite/work SKILL.md
 and the `.cursor` lite copies, then re-run `npm test`.
+
+## Rework after the independent REJECT (attempt 2, 2026-10-01)
+
+Export commit `6904a75` (range `3d2a09f..6904a75`), from private `b3d223e` + `bf0508f`. Applied as task-scoped hunks, not `--apply` or whole-file copies. Earlier sections are unchanged.
+
+### Finding 1 (P1): speculative auto-implementation, every active entrypoint
+The root rule is in `plugin/skills/ycm-harness-work-lite/finish-architecture.md`: implement **spec-backed** candidates (Strong or Worth exploring **and** serving
+the Goal/Spec). Everything else stays a review recommendation pending a ticket or owner decision, and the mandatory follow-up is kept. Propagated to
+`plugin/skills/ycm-harness-work-lite/SKILL.md` (flow line, step 6, done bar), `plugin/skills/ycm-harness-work/SKILL.md` (architecture pass and context list),
+`plugin/skills/ycm-harness-work/github-tickets.md` (files follow-ups for every non-implemented candidate), and `.cursor/skills/ycm-harness-work-lite/{SKILL,finish-architecture}.md`.
+New test `architecture pass implements only spec-backed candidates in every active entrypoint` (also in private).
+Mutations caught: work SKILL old text → 2 FAIL; lite SKILL with Speculative → 1 FAIL; `.cursor` lite mirror → 1 FAIL.
+### Policy alignment with the private source (intentional, mapped)
+- `plugin/rules/ycm-harness.mdc`, `templates/cursor-rule.mdc`, `.cursor/rules/ycm-harness.mdc`: "strongest suitable" + MID-first, no MAX default. These now match
+  private byte for byte (EOL aside). The `autonomy.test.ts` rule phrase was updated to match, and the mutation back to "strongest available" → 2 FAIL.
+- The work `SKILL.md` tier pointer now names 10-DISPATCH §2 + `11-INVENTORY-*` instead of "strongest available model".
+- Not exported, by design: deny-listed work companions (`commander-dispatch.md`, `finish-architecture.md`, `finish.md`, `autonomy.md`, `orchestrator-checklist.md`),
+  which the public lean skill does not ship, plus private repo constants, commander pruning, and the env-isolation test lines.
+- Left out of scope: pre-existing `.cursor` drift in `autonomous-harness/SKILL.md` and `ycm-harness-design/SKILL.md`, and the public commander skill/README
+  `~/.agents/system` model (the public distribution still installs commander files there, and changing that is a different decision).
+### Finding 2 (P3) + TOML P3
+Same namespace-isolated WSL sync+audit test (`tests/sync.test.ts`, identical to private). Mutations caught: WSL rewrite disabled → 2 FAIL;
+audit uses raw block → 1 FAIL; blank-line fix removed → 2 FAIL. `upsertTomlSection` first sync is now idempotent, and the trailing-comment test asserts the exact output.
+### Fresh gates (`git archive 6904a75`, temp HOME, `YCM_HARNESS_HOME` unset)
+`npm ci`=0, build=0, typecheck=0, `npm test`=0 (407 pass / 0 fail / 0 skipped). `install --user`=0, `sync --codex` x3=0 (stable after the 1st), 1 header, old source removed,
+`doctor --json`=0, `codex_marketplace=ok`. Leak scan of the added lines: no emails, home paths, tokens, `operator-system` or private repo names.
+### Fresh promotion dry-run
+From private @ `bf0508f`: `node scripts/promote-to-public.mjs --paths <26 task files>` → 5 writes / 4 unchanged / 17 blocked, exit 0 (all writes are intentional variants; see private log).
+The stale earlier counts (7/1/0 author, 8/4/0 reviewer) were for different path sets and are superseded by this record.
