@@ -360,3 +360,28 @@ test("architecture pass implements only spec-backed candidates in every active e
   }
   assert.ok(checked >= 3, `expected the work and lite skill files, checked ${checked}`);
 });
+
+
+test("every rule entrypoint actually defaults ordinary roles to MID", async () => {
+  for (const file of [projectRule, templateRule, path.join(root, '.cursor', 'rules', 'ycm-harness.mdc')]) {
+    const content = await fs.readFile(file, 'utf8');
+    assert.match(content, /start MID and escalate to HIGH on a real failure/, file);
+    assert.match(content, /do not default those roles to a MAX-class model/, file);
+    assert.doesNotMatch(content, /start HIGH|Same HIGH bar|strongest available model/, file);
+  }
+});
+
+test("review fix-loop keeps independent named seats with MID-first ordinary dispatch", async () => {
+  for (const dir of [workSkillDir, path.join(root, '.cursor', 'skills', 'ycm-harness')]) {
+    const file = path.join(dir, 'review-fix-loop.md');
+    const content = await readIfPresent(file);
+    if (content === null) continue; // The public distribution omits this companion.
+    assert.match(content, /MID-first/, file);
+    assert.match(content, /HIGH only for hard debugging, architecture, second opinions, or escalation/, file);
+    assert.match(content, /Never start .* on MAX/, file);
+    assert.doesNotMatch(content, /different HIGH model family|Same HIGH bar/, file);
+    for (const role of ['tech_lead', 'project_manager', 'user_advocate']) assert.ok(content.includes(role), file);
+    assert.match(content, /no reviewer is an author\/implementer/, file);
+    assert.match(content, /One FAIL fails the panel/, file);
+  }
+});

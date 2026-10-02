@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { Command } from "commander";
 import { tempProject, cleanup } from "./helpers.js";
 import { createContext } from "../src/cli/context.js";
@@ -574,4 +575,101 @@ test("upsertTomlSection keeps foreign text byte-for-byte and is idempotent", () 
   // A file with no trailing newline still gets a separated block.
   const noNewline = upsertTomlSection('[model]\nname = "x"', "marketplaces.ycm-harness-local", block);
   assert.equal(noNewline, '[model]\nname = "x"\n\n' + block);
+});
+
+
+/** Parse with Python tomllib when available; exact-byte assertions apply either way. */
+function assertValidToml(text: string, label: string): void {
+  const result = spawnSync("python3", ["-c", "import sys, tomllib; tomllib.loads(sys.stdin.read())"], { input: text, encoding: "utf8" });
+  if (result.error || /No module named 'tomllib'/.test(result.stderr)) return;
+  assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+}
+
+test("upsertTomlSection fixes the reviewer's adjacent-comment and indented-table repros", () => {
+  const block = '[marketplaces.ycm-harness-local]\nsource = "new"\n';
+  const cases: [string, string][] = [
+    ['[marketplaces.ycm-harness-local]# mine\nsource = "old"\n\n[other]\nx = 1\n', block + '\n[other]\nx = 1\n'],
+    ['[marketplaces.ycm-harness-local] # mine\nsource = "old"\n  [other]\nx = 1\n', block + '  [other]\nx = 1\n'],
+  ];
+  for (const [input, expected] of cases) {
+    assertValidToml(input, "input");
+    const out = upsertTomlSection(input, "marketplaces.ycm-harness-local", block);
+    assert.equal(out, expected);
+    assertValidToml(out, "output");
+    assert.equal(upsertTomlSection(out, "marketplaces.ycm-harness-local", block), out);
+  }
+});
+test("upsertTomlSection recognizes adjacent comments and quoted owned keys", () => {
+  const block = '[marketplaces.ycm-harness-local]\nsource = "new"\n';
+  for (const header of [
+    '[marketplaces.ycm-harness-local]# mine',
+    '  [ marketplaces . "ycm-harness-local" ] # mine',
+    "\t['marketplaces'.'ycm-harness-local']# mine",
+    '[marketplaces."ycm-harness-\\u006cocal"]# mine',
+  ]) {
+    const tail = '\n\n\n\n# foreign separator\n  [other]\nx = 1\n# tail';
+    const input = header + '\nsource = "old"\n' + tail;
+    const out = upsertTomlSection(input, 'marketplaces.ycm-harness-local', block);
+    assert.equal(out, block + tail, header);
+    assertValidToml(input, header);
+    assertValidToml(out, header);
+    assert.equal(upsertTomlSection(out, 'marketplaces.ycm-harness-local', block), out);
+  }
+});
+
+test("upsertTomlSection preserves indented, array and quoted foreign tables exactly", () => {
+  const block = '[marketplaces.ycm-harness-local]\nsource = "new"\n';
+  for (const eol of ['\n', '\r\n']) {
+    for (const header of ['  [other]', '\t[[other]]# rows', '["other#]name"]# note', "['other]#name']", '["other\\\"#]name"]']) {
+      const prefix = '[model]\nname = "x"\n\n\n\n# before owned\n'.replaceAll('\n', eol);
+      const suffix = ('\n\n\n\n# foreign table\n' + header + '\nx = 1\n\n\n\n# tail\n').replaceAll('\n', eol);
+      const input = prefix + '[marketplaces.ycm-harness-local] # old\nsource = "old"\n'.replaceAll('\n', eol) + suffix;
+      const out = upsertTomlSection(input, 'marketplaces.ycm-harness-local', block);
+      assert.equal(out, prefix + block.replaceAll('\n', eol) + suffix, header);
+      assertValidToml(input, header);
+      assertValidToml(out, header);
+      assert.equal(upsertTomlSection(out, 'marketplaces.ycm-harness-local', block), out);
+    }
+  }
+});
+
+test("upsertTomlSection ignores header lookalikes in comments and multiline values", () => {
+  const header = 'marketplaces.ycm-harness-local';
+  const block = `[${header}]\nsource = "new"\n`;
+  const prefix = [
+    '# [marketplaces.ycm-harness-local]',
+    '[model]',
+    'basic = """',
+    '[marketplaces.ycm-harness-local]# string data',
+    '"""',
+    'literal = ' + "'".repeat(3),
+    '[marketplaces.ycm-harness-local]',
+    "'".repeat(3),
+    'arrays = [',
+    '  [1, 2], # nested array, not a table',
+    '  [3, 4],',
+    ']',
+    '["marketplaces.ycm-harness-local"]# different single key',
+    'x = 1', '', '', '', '',
+  ].join('\n');
+  const owned = `[${header}]# mine\nsource = """\n  [not-a-table]\n"""\n`;
+  const suffix = '\n# keep me\n  [["foreign#]rows"]]\nx = 1\n';
+  const out = upsertTomlSection(prefix + owned + suffix, header, block);
+  assert.equal(out, prefix + block + suffix);
+  assertValidToml(prefix + owned + suffix, 'input');
+  assertValidToml(out, 'output');
+  assert.equal(upsertTomlSection(out, header, block), out);
+});
+
+test("upsertTomlSection repairs duplicate owned tables without removing foreign bytes", () => {
+  const header = 'marketplaces.ycm-harness-local';
+  const block = `[${header}]\nsource = "new"\n`;
+  const between = '\n\n\n\n# foreign\n  [[rows]]\nx = 1\n\n\n\n';
+  const tail = '# tail\n';
+  const input = `[${header}]# old\nsource = "old"\n` + between +
+    '["marketplaces"."ycm-harness-local"] # duplicate\nsource = "old2"\n' + tail;
+  const out = upsertTomlSection(input, header, block);
+  assert.equal(out, block + between + tail);
+  assertValidToml(out, 'output');
+  assert.equal(upsertTomlSection(out, header, block), out);
 });
