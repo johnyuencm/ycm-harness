@@ -70,11 +70,6 @@ export interface ClientSyncOptions {
   refreshCodexCache?: boolean;
 }
 
-interface ResolvedSource {
-  root: string;
-  cleanup?: () => Promise<void>;
-}
-
 /** Harness-owned skills copied to user/project/opencode skill roots. */
 const HARNESS_SKILL_DIRS = [
   "ycm-harness",
@@ -1810,34 +1805,6 @@ async function auditCodexConfig(): Promise<{
   return {
     marketplace: { path: configPath, status: marketplaceOk ? "ok" : "stale" },
     plugin: { path: configPath, status: pluginOk ? "ok" : "stale" },
-  };
-}
-
-export async function resolveSourceRoot(
-  sourceRoot?: string,
-  ref?: string,
-): Promise<ResolvedSource> {
-  if (!sourceRoot) return { root: packageRoot() };
-  const candidate = path.resolve(sourceRoot);
-  if (await fileExists(candidate)) return { root: candidate };
-
-  const tempRoot = await fs.mkdtemp(
-    path.join(os.tmpdir(), "ycm-harness-sync-"),
-  );
-  const args = ["clone", "--depth", "1"];
-  if (ref) args.push("--branch", ref);
-  args.push(sourceRoot, tempRoot);
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn("git", args, { stdio: "ignore" });
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`git clone failed for ${sourceRoot}`));
-    });
-  });
-  return {
-    root: tempRoot,
-    cleanup: () => fs.rm(tempRoot, { recursive: true, force: true }),
   };
 }
 
