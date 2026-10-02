@@ -2,15 +2,16 @@
 
 Audience: any future session, any tier. The system degrades through careless
 edits faster than through non-use. Follow this file exactly when touching
-anything under `{{HOME}}\.agents\system\` or the entry files
-(`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, Cursor user rules,
-`~/.cursor/skills/commander/`).
+anything under this plugin's `commander-system/system/` (golden source: the
+ycm-harness repo). Do not edit retired local copies under `~/.agents/system/`
+except the machine journal `LESSONS.md`.
 
 ## §1 Change procedure (always, no exceptions)
 
 1. BACKUP: copy the current file to
-   `{{HOME}}\.agents\system\backups\<filename>.bak-YYYYMMDD`. Same-day backups
-   must not be overwritten — guard it:
+   `commander-system/system/backups/<filename>.bak-YYYYMMDD` in the ycm-harness
+   checkout (or rely on git). Never treat `~/.agents/system/` as the editable
+   original. Same-day backups must not be overwritten — guard it:
    `if (-not (Test-Path $bak)) { Copy-Item -LiteralPath $src -Destination $bak }`
    where `$bak` is the dated backup path and `$src` the file you're changing.
 2. EDIT with the smallest diff that achieves the change. New content of any
@@ -88,8 +89,9 @@ Check at every edit (any tier may flag; condensing itself needs user OK per §3)
   sanctioned Cursor-only mirror exists: the ycm-harness plugin's
   `commander-dispatch.md` — when **Cursor** slugs change, update
   `11-INVENTORY-cursor.md` first, then the mirror. Claude/Codex concrete IDs
-  have no second mirror. `~/.codex/AGENTS.md` is manually maintained; edit it
-  per this file when the Codex contract changes. Templates and judgment rules
+  have no second mirror. Entry files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`,
+  Cursor user rules) are thin pointers to this plugin — do not paste protocol
+  into them. Templates and judgment rules
   say FAST/MID/HIGH only — they must not invent model IDs.
 - Every cross-reference uses the `<file> §<n>` form and the target section
   exists.
@@ -97,15 +99,16 @@ Check at every edit (any tier may flag; condensing itself needs user OK per §3)
   200-line delegation trigger) are stated in `10-DISPATCH.md` and only
   referenced elsewhere.
 - Entry surfaces stay ≤45 lines each and contain pointers + iron rules only —
-  no procedures. "Entry surface" means: the whole of `~/.claude/CLAUDE.md`, the
-  whole commander SKILL.md, the user rule, and the COMMANDER-SYSTEM block
-  inside each AGENTS.md (the host file around the block doesn't count).
+  no procedures. "Entry surface" means: the commander SKILL.md in this plugin
+  and the COMMANDER-SYSTEM pointer block inside CLAUDE.md / AGENTS.md / the
+  Cursor user rule.
 
 ## §7 Monthly health check (or when things feel off)
 
 Run through this list; fix per §1–§3:
 
-1. Every file the entry files point to exists (`Test-Path` / `test -e` each).
+1. Protocol files exist in this plugin's `commander-system/system/` (not
+   `~/.agents/system/`).
 2. Model tables' "verified" dates in `11-INVENTORY-*.md` < 60 days old, or
    re-verify per `10-DISPATCH.md` §8.
 3. Duplicated skills/rules appeared again? Flag to user.

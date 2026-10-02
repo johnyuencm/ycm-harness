@@ -1,4 +1,4 @@
 interface:
   display_name: "Commander"
   short_description: "Global commander protocol for delegation-heavy work"
-  default_prompt: "Use $commander and read ~/.agents/system/10-DISPATCH.md before dispatching subagents."
+  default_prompt: "Use $commander. Protocol is this plugin's commander-system/system/ (start with 10-DISPATCH.md). Do not read ~/.agents/system/ for protocol."

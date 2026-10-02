@@ -1,7 +1,7 @@
 # 00-DIAGNOSIS — Why this system exists
 
-Every other file in `{{HOME}}\.agents\system\` exists to fix one of these three
-problems. When a rule elsewhere seems arbitrary, this file is the "why". Read
+Every other file in this plugin's `commander-system/system/` exists to fix one of
+these three problems. When a rule elsewhere seems arbitrary, this file is the "why". Read
 once; then use the routing in your entry file (CLAUDE.md / AGENTS.md /
 commander skill).
 
@@ -22,7 +22,7 @@ state.
 **Fix, now written down:** Hard numeric delegation thresholds and a subagent
 report contract → `10-DISPATCH.md` §1 and §4. The main thread receives
 conclusions and `file:line` references only; long artifacts go to
-`{{HOME}}\.agents\reports\`.
+`~/.agents/reports/`.
 
 ## Problem 2 — Instruction sprawl with contradictions (biggest focus loss)
 

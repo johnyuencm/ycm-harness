@@ -71,7 +71,8 @@ ACCEPTANCE:
 - Distinguish verified fact vs inference vs vendor marketing. Unresolved → "UNVERIFIED", not a guess.
 - Check version compatibility against OUR versions above.
 REPORT (max 15 lines): 1-line answer/recommendation; key facts w/ source URLs; version caveats; what remains UNVERIFIED.
-  Long notes → {{HOME}}\.agents\reports\YYYY-MM-DD-TOPIC.md; return the path.
+  Long notes → the repo (existing reviews dir, else docs/reviews/YYYY-MM-DD-TOPIC.md), committed and pushed;
+  ~/.agents/reports/ only when no git project is involved. Return the path.
 ```
 
 ## T5 — REVIEW / acceptance verification
@@ -95,4 +96,4 @@ REPORT (max 15 lines): per-criterion PASS/FAIL + one line of evidence each; then
 
 ## Placement note
 
-Repo-local artifacts (diffs, long analyses) → the repo's scratch/reports dir if one exists; cross-project artifacts → `{{HOME}}\.agents\reports\`. Date-prefix everything: `YYYY-MM-DD-topic.md`.
+Repo-local artifacts (reviews, long analyses, architecture reports) → committed and pushed into the repo: its existing place (e.g. `artifacts/`), else `docs/reviews/`. Remote agents only see the remote, so never leave them in `/tmp` or `~/.agents/reports/`. Cross-project artifacts with no git project → `~/.agents/reports/`. Date-prefix everything: `YYYY-MM-DD-topic.md`.
