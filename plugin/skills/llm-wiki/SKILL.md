@@ -90,6 +90,8 @@ directly or use the standalone backend's lint workflow.
 
 - One topic per page; slug-friendly filename.
 - Lead with a one-paragraph summary.
+- Write in ASD-STE100 Simplified Technical English: one idea per sentence, same word for same thing.
+- Pages about architecture, flow or state get a Mermaid diagram.
 - Use `[[page-name]]` wikilinks liberally.
 - Source pages link back to `raw/` paths.
 

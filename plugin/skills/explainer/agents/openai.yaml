@@ -1,0 +1,4 @@
+interface:
+  display_name: "Explainer"
+  short_description: "Explain with STE text, a diagram, an HTML page or a narrated video"
+  default_prompt: "Use $explainer to explain this topic in the clearest format."

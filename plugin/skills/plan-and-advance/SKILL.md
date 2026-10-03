@@ -58,6 +58,7 @@ Trivial one-liners still get a 2–4 line Plan that includes Decisions + Edge ca
 - Edge cases: Category → how handled; …
 - Improvements (missed / advanced):
 - Non-goals / won't expand:
+- Diagram: (Mermaid; only when the change touches 3+ components or a multi-step flow — else omit)
 - Then: implement now
 ```
 

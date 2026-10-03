@@ -37,6 +37,20 @@ implementer vs verifier run IDs.
 4. **How much we achieved** — counts (`7/8 tickets`), acceptance covered vs open — not “mostly”.
 5. **How well we achieved** — independent review panel PASS/FAIL, fresh verify evidence, named leftovers; no fake letter grades.
 
+Write the report in ASD-STE100 Simplified Technical English.
+
+## Visual report
+
+When the goal has 3+ tickets or changed the architecture, also make
+`artifacts/goal-report-<goal-id>.html` with the `explainer` skill. Contents, same evidence as above:
+
+- Verdict and the five sections above.
+- Ticket board: one card per ticket with status and verify run IDs.
+- Before/after diagram of the parts the goal changed.
+- Leftovers and blockers in a separate, visible box.
+
+Commit and push it, then put its path in **Achieved so far**. Make an explainer video only when the user asks.
+
 ## Rules / red flags
 
 - Unknown → say **unknown** + which command failed. Never hide blockers inside “achieved”.

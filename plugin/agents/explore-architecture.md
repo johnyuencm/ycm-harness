@@ -40,6 +40,11 @@ to the goal worktree, or repo root when there is no worktree). Structure:
 - Where state is written (DB, files, env, network).
 - Long-running processes, schedulers, hooks.
 
+## Diagrams
+- One Mermaid component diagram: real module names, arrows labeled
+  with what moves (call, data, event).
+- One Mermaid sequence or flowchart for the main path the goal touches.
+
 ## External dependencies
 - Notable libraries with version pins.
 - Native or platform-specific dependencies.
