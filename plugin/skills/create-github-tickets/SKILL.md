@@ -27,7 +27,7 @@ Do not publish a vague one-liner. Expand short notes into the template below. As
 
 1. **Dedupe** — `gh issue list --state open --search "<keywords>"` (then `--state all`). Prefer comment / reopen / relabel over a duplicate.
 2. **Labels** — `gh label list`. Use project triage labels if present; else `bug` / `enhancement`. Never invent a missing label mid-create.
-3. **Body** — write markdown to a file; create with `--body-file`. One issue per distinct request.
+3. **Body** — write markdown to a file; create with `--body-file`. One issue per distinct request. Write it in ASD-STE100 Simplified Technical English; add a Mermaid diagram when the issue is about a flow.
 4. **Create** — `gh issue create --title "..." --label "..." --body-file <path>`.
 5. **Board** — add to the project's GitHub Project when one exists.
 6. **Evidence** — attach screenshots/logs (see below).

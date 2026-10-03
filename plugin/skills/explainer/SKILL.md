@@ -53,17 +53,30 @@ Write in ASD-STE100 Simplified Technical English, about 80% strict:
 
 ## 4. Video
 
-Make a 3Blue1Brown-style explainer: animated visuals plus narration.
+Make a 3Blue1Brown-style explainer: animated visuals plus narration. The pipeline below was tested on Windows with no `ffmpeg` command and no LaTeX.
 
-1. Write a script in STE. Split it into scenes. Each scene has one idea, the narration text and the visuals.
-2. Animate each scene with Manim Community (`pip install manim`). Use Motion Canvas or HTML+CSS frames captured by Playwright if Manim is not available.
-3. Make the narration audio for each scene:
-   - If `ELEVENLABS_API_KEY` is set, use the ElevenLabs text-to-speech API.
-   - Else use a free local TTS: Kokoro or Piper. Use `edge-tts` only if network use is acceptable.
+1. Write a script in STE. Split it into lines. Each line has one idea, the narration text and the animations.
+2. Make a venv outside the repo and install Manim Community: `python -m venv vid` then `vid/Scripts/pip install manim` (`vid/bin/pip` on macOS and Linux). Manim muxes audio with PyAV, so you do not need the `ffmpeg` command.
+3. Copy `narrate.py` from this skill folder next to the scene file. Run `python narrate.py` once to check the voice. The voice order:
+   - ElevenLabs, if `ELEVENLABS_API_KEY` is set. `ELEVENLABS_VOICE_ID` changes the voice.
+   - Piper, if `piper` is on PATH and `PIPER_MODEL` is set. Free, local, better than the OS voice.
+   - The built-in OS voice (Windows SAPI, macOS `say`, Linux `espeak-ng`). Free, no install, robotic.
    - Never print or commit an API key.
-4. Match each scene length to its audio length. Make the animation wait (`self.wait(...)`) until the narration ends.
-5. Join the scenes and audio with `ffmpeg`. Output one MP4 at 1080p.
-6. Watch some frames before you report. Extract stills with `ffmpeg -ss <t> -frames:v 1` and read them. Fix overlaps and text that you cannot read.
-7. Report the MP4 path, the length and the tools that you used. Tell the user which steps failed or used a fallback.
+4. Write the scene. `say()` plays one narration line with its animations, then holds the frame until the line ends. Use `Text`, not `MathTex`, unless LaTeX is installed.
 
-Before a long render, tell the user the plan and the expected time. Render at low quality (`manim -ql`) first, then at final quality.
+   ```python
+   from manim import *
+   from narrate import say
+
+   class Explainer(Scene):
+       def construct(self):
+           title = Text("How the review panel works", font_size=44).to_edge(UP)
+           say(self, "This video shows how the harness reviews one ticket.", Write(title))
+   ```
+
+5. Render at low quality first: `manim -ql scene.py Explainer`. Audio is cached by text, so the next render does not make it again.
+6. Check frames before you report. Decode frames with PyAV (`av.open(mp4)`, `frame.to_image().save(...)`) and read the images. Fix overlaps, text off the screen and text that you cannot read. Then render again.
+7. Render the final video: `manim -qh scene.py Explainer` (1080p).
+8. Report the MP4 path, the length, the voice that you used and any fallback.
+
+Before a long render, tell the user the plan and the expected time.

@@ -95,6 +95,8 @@ Lead with the verdict. For `stage: "discussion"`, present items 1-10 and then st
 12. Verification mapped to success criteria
 13. Rollback or disable path
 
+Draw the current mechanism (item 3) and each option (item 7) as Mermaid diagrams in the same notation, so the differences are visible. For a consequential decision with two or more options, also make an HTML decision page with the `explainer` skill: verdict first, options side by side, trade-off table, diagrams. Write it outside the target repository and give its path or Artifact link. Write the response in ASD-STE100 Simplified Technical English.
+
 Scale this structure down for trivial questions, but retain a verdict, evidence, classification, and recommendation. Never continue past an unresolved user decision, bury uncertainty, or imply that a discussion-only plan was implemented.
 
 ## Mode and harness boundaries
