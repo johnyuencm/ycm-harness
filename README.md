@@ -507,10 +507,15 @@ ycm-harness session nudge --json                # {due, count, threshold:15}
 The `plugin/` folder is a ready-to-install Cursor plugin layout:
 
 - `plugin/.cursor-plugin/plugin.json` — plugin manifest.
-- `plugin/hooks/hooks-cursor.json` — registers Cursor `sessionStart`.
+- `plugin/hooks/hooks-cursor.json` — registers Cursor `sessionStart` and `stop`.
 - `plugin/hooks/hooks-codex.json` — registers Codex `SessionStart` and `Stop`. The `Stop` hook is a high-assurance safety net: it blocks only the host session that claimed the goal (or a session whose cwd is inside that goal's worktree), never every chat in the repo.
 - `plugin/scripts/session-start-hook.mjs` — runs `ycm-harness hook session-start` and emits `additional_context` for Cursor or Codex-native `hookSpecificOutput` when Codex invokes SessionStart.
-- `plugin/scripts/stop-hook.mjs` — runs `ycm-harness hook stop` and emits Codex Stop JSON.
+- `plugin/scripts/stop-hook.mjs` — the Stop hook for Claude Code, Codex and Cursor.
+  - It finds the CLI with `findHarnessCli` (the same resolver as SessionStart) and runs `ycm-harness hook stop`. It gives Cursor's `stop` payload the CLI's Stop shape. A harness block wins.
+  - If the CLI does not block, it runs a self-contained notes check. When the current turn wrote files or made a git or tracker write, it asks once whether all findings, decisions, deferrals, hand-offs and environment facts are recorded durably. Writes are file edits (`Edit`, `Write`, `StrReplace`, `apply_patch`, …), `git commit`/`push`/`merge`/`tag`, and `gh pr`/`gh issue` create, comment, edit, merge or close.
+  - It reads the host `transcript_path`: Claude and Cursor message JSONL, and the Codex rollout, where each task starts at `task_started`.
+  - Output is `decision: "block"` for Claude and Codex, and `followup_message` for Cursor.
+  - It skips a continued turn (`stop_hook_active`, or Cursor `loop_count > 0`) and `YCM_NOTES_CHECK=off`. It fails open without a readable transcript and always exits 0.
 - `plugin/skills/ycm-harness-design/SKILL.md` — design and planning skill.
 - `plugin/skills/ycm-harness-work/SKILL.md` — work execution skill (`name: ycm-harness-work`).
 - `plugin/skills/hard-problem-solving/SKILL.md` — evidence-first RCA for review fix-loop (`$hard-problem-solving`).
