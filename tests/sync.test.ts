@@ -310,6 +310,21 @@ test("sync --cursor updates only Cursor assets", async () => {
   });
 });
 
+test("sync --cursor installs globally and writes nothing into the current project", async () => {
+  await withTempUserHome(async (home) => {
+    const cwd = await tempProject("ch-sync-global-");
+    try {
+      await fs.mkdir(path.join(home, ".cursor"), { recursive: true });
+      await runSync(cwd, ["--cursor"]);
+      await fs.stat(path.join(home, ".cursor", "skills", "ycm-harness", "SKILL.md"));
+      await fs.stat(path.join(home, ".cursor", "agents", "ycm-harness", "tech_lead.md"));
+      await assert.rejects(fs.stat(path.join(cwd, ".cursor")), { code: "ENOENT" });
+    } finally {
+      await cleanup(cwd);
+    }
+  });
+});
+
 test("sync --codex updates Codex assets", async () => {
   await withTempUserHome(async (home) => {
     const cwd = await tempProject("ch-sync-source-");

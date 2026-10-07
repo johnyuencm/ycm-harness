@@ -61,6 +61,8 @@ ycm-harness doctor
 
 `install --client cursor|opencode|all [--force]` is the canonical client projection. `doctor` compares installed client files and OpenCode configuration against the canonical package sources.
 
+All installs are global (user-level); no command writes harness copies into the current project. `doctor` lists copies left by the removed per-project install as `project_leftovers`, and `doctor --repair` removes them.
+
 Generated client mirrors are outputs, not independent sources of truth. Client-specific hook envelopes may differ, but normalized SessionStart and Stop decisions must be equivalent.
 
 ## Canary gates

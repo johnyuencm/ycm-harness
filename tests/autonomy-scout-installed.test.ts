@@ -11,10 +11,8 @@ import {
   opencodePluginSpec,
   packageRoot,
   runClientSync,
-  runInstallScopes,
 } from "../src/cli/install-kit.js";
 import { SCOUT_BRIEF_HEADINGS, SCOUT_BRIEF_VERSION } from "../src/autonomy/scout-brief.js";
-import { createContext } from "../src/cli/context.js";
 import { HarnessStore } from "../src/state/store.js";
 import { cleanup, tempProject, withTempUserHome } from "./helpers.js";
 
@@ -110,17 +108,15 @@ function runNode(script: string, cwd: string, input?: unknown, env: NodeJS.Proce
   });
 }
 
-async function projectAllOnce(project: string, source: string): Promise<string[]> {
-  const reports = await runInstallScopes(createContext(project), { project: true, force: true, sourceRoot: source });
-  reports.push(...await runClientSync({
+async function projectAllOnce(source: string): Promise<string[]> {
+  return runClientSync({
     cursor: true,
     codex: true,
     opencode: true,
     force: true,
     sourceRoot: source,
     refreshCodexCache: true,
-  }));
-  return reports;
+  });
 }
 
 async function restoreTempTree(target: string, snapshot: string): Promise<void> {
@@ -164,17 +160,15 @@ test("installed Cursor/Codex SessionStart and OpenCode config/runtime projection
       const enabledHook = path.join(enabledRoot, "scripts", "session-start-hook.mjs");
       const codexConfig = path.join(codexHome, "config.toml");
       const openCodeConfigPath = path.join(openCodeHome, "opencode.json");
-      const projectRule = path.join(projectCursor, "rules", "ycm-harness.mdc");
       const priorHook = "// pre-phase-3 managed hook\n";
       const priorCodexConfig = "# pre-phase-3 managed Codex config\n";
       const priorOpenCodeConfig = `${JSON.stringify({ plugin: ["ycm-harness@file:/pre-phase-3"] }, null, 2)}\n`;
-      const priorProjectRule = "pre-phase-3 managed project rule\n";
       for (const dir of [
         path.dirname(cursorHook),
         path.dirname(codexHook),
         path.dirname(enabledHook),
         openCodeHome,
-        path.dirname(projectRule),
+        projectCursor,
       ]) await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(path.join(cursorHome, "unrelated.txt"), "keep-cursor", "utf8");
       await fs.writeFile(path.join(codexHome, "unrelated.txt"), "keep-codex", "utf8");
@@ -185,7 +179,6 @@ test("installed Cursor/Codex SessionStart and OpenCode config/runtime projection
       await fs.writeFile(enabledHook, priorHook, "utf8");
       await fs.writeFile(codexConfig, priorCodexConfig, "utf8");
       await fs.writeFile(openCodeConfigPath, priorOpenCodeConfig, "utf8");
-      await fs.writeFile(projectRule, priorProjectRule, "utf8");
       await fs.cp(home, homePreimage, { recursive: true });
       await fs.cp(projectCursor, projectPreimage, { recursive: true });
       const homePreimageHash = await treeHash(homePreimage);
@@ -194,11 +187,12 @@ test("installed Cursor/Codex SessionStart and OpenCode config/runtime projection
       process.env.CODEX_CLI_PATH = await writeCodexCacheShim(project);
       process.env.OPENCODE_CLI_PATH = await writeNoopShim(project, "opencode-shim");
       process.env.OPENCODE_CONFIG_DIR = openCodeHome;
-      const projectionReports = await projectAllOnce(project, source);
+      const projectionReports = await projectAllOnce(source);
       assert.ok(
         projectionReports.includes("codex plugin add: installed/enabled via Codex CLI"),
         projectionReports.join("\n"),
       );
+      assert.equal(await treeHash(projectCursor), projectPreimageHash, "the global projection must not write into the project");
       await fs.cp(home, homeProjection, { recursive: true });
       await fs.cp(projectCursor, projectProjection, { recursive: true });
 
@@ -342,7 +336,6 @@ test("installed Cursor/Codex SessionStart and OpenCode config/runtime projection
       assert.equal(await fs.readFile(enabledHook, "utf8"), priorHook);
       assert.equal(await fs.readFile(codexConfig, "utf8"), priorCodexConfig);
       assert.equal(await fs.readFile(openCodeConfigPath, "utf8"), priorOpenCodeConfig);
-      assert.equal(await fs.readFile(projectRule, "utf8"), priorProjectRule);
       assert.equal(await treeHash(evidence), evidenceHash);
       assert.equal(await fs.readFile(path.join(cursorHome, "unrelated.txt"), "utf8"), "keep-cursor");
       assert.equal(await fs.readFile(path.join(codexHome, "unrelated.txt"), "utf8"), "keep-codex");

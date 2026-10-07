@@ -339,8 +339,6 @@ test("architecture pass implements only spec-backed candidates in every active e
   const dirs = [
     path.join(root, "plugin", "skills", "ycm-harness-work"),
     path.join(root, "plugin", "skills", "ycm-harness-work-lite"),
-    path.join(root, ".cursor", "skills", "ycm-harness"),
-    path.join(root, ".cursor", "skills", "ycm-harness-work-lite"),
   ];
   let checked = 0;
   for (const dir of dirs) {
@@ -363,7 +361,7 @@ test("architecture pass implements only spec-backed candidates in every active e
 
 
 test("every rule entrypoint actually defaults ordinary roles to MID", async () => {
-  for (const file of [projectRule, templateRule, path.join(root, '.cursor', 'rules', 'ycm-harness.mdc')]) {
+  for (const file of [projectRule, templateRule]) {
     const content = await fs.readFile(file, 'utf8');
     assert.match(content, /start MID and escalate to HIGH on a real failure/, file);
     assert.match(content, /do not default those roles to a MAX-class model/, file);
@@ -372,7 +370,7 @@ test("every rule entrypoint actually defaults ordinary roles to MID", async () =
 });
 
 test("review fix-loop keeps independent named seats with MID-first ordinary dispatch", async () => {
-  for (const dir of [workSkillDir, path.join(root, '.cursor', 'skills', 'ycm-harness')]) {
+  for (const dir of [workSkillDir]) {
     const file = path.join(dir, 'review-fix-loop.md');
     const content = await readIfPresent(file);
     if (content === null) continue; // The public distribution omits this companion.

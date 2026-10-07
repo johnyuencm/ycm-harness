@@ -59,40 +59,40 @@ async function runInstall(
   return stdout;
 }
 
-test("install --project copies the rule and skill into <cwd>/.cursor/", async () => {
+test("install copies skills, agents and the rule into the global Cursor home", async () => {
   const project = await tempProject();
   const home = await tempProject();
   try {
-    await runInstall(project, ["--project"], home);
+    await runInstall(project, [], home);
     const workSkill = path.join(
-      project,
+      home,
       ".cursor",
       "skills",
       "ycm-harness",
       "SKILL.md",
     );
     const designSkill = path.join(
-      project,
+      home,
       ".cursor",
       "skills",
       "ycm-harness-design",
       "SKILL.md",
     );
     const liteSkill = path.join(
-      project,
+      home,
       ".cursor",
       "skills",
       "ycm-harness-work-lite",
       "SKILL.md",
     );
     const autonomy = path.join(
-      project,
+      home,
       ".cursor",
       "skills",
       "ycm-harness",
       "autonomy.md",
     );
-    const rule = path.join(project, ".cursor", "rules", "ycm-harness.mdc");
+    const rule = path.join(home, ".cursor", "plugins", "ycm-harness", "rules", "ycm-harness.mdc");
     const workSkillContent = await fs.readFile(workSkill, "utf8");
     const designSkillContent = await fs.readFile(designSkill, "utf8");
     const liteSkillContent = await fs.readFile(liteSkill, "utf8");
@@ -110,21 +110,21 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
     }
     assert.match(ruleContent, /ycm-harness 0\.3/);
     const exploreSkill = path.join(
-      project,
+      home,
       ".cursor",
       "skills",
       "ycm-harness",
       "explore.md",
     );
     const implementerAgent = path.join(
-      project,
+      home,
       ".cursor",
       "agents",
       "ycm-harness",
       "implementer.md",
     );
     const techLead = path.join(
-      project,
+      home,
       ".cursor",
       "agents",
       "ycm-harness",
@@ -147,7 +147,7 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       "explore-risks.md",
     ]) {
       const agentPath = path.join(
-        project,
+        home,
         ".cursor",
         "agents",
         "ycm-harness",
@@ -165,7 +165,7 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       await fs
         .stat(
           path.join(
-            project,
+            home,
             ".cursor",
             "agents",
             "ycm-harness",
@@ -181,7 +181,7 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       assert.equal(
         await fs
           .stat(
-            path.join(project, ".cursor", "agents", "ycm-harness", retired),
+            path.join(home, ".cursor", "agents", "ycm-harness", retired),
           )
           .then(() => true)
           .catch(() => false),
@@ -209,7 +209,7 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       "cavecrew",
     ]) {
       const externalSkill = path.join(
-        project,
+        home,
         ".cursor",
         "skills",
         external,
@@ -236,7 +236,7 @@ test("install --project copies the rule and skill into <cwd>/.cursor/", async ()
       "integrating-google-adsense",
     ]) {
       const ownedSkill = path.join(
-        project,
+        home,
         ".cursor",
         "skills",
         owned,
@@ -351,60 +351,38 @@ test("install --user copies the skill into the user home", async () => {
   }
 });
 
-test("install default scope installs both user skill and project skill+rule", async () => {
+test("install defaults to the global scope and writes nothing into the project", async () => {
   const project = await tempProject();
   const home = await tempProject();
   try {
     await runInstall(project, [], home);
-    const userWorkSkill = path.join(
-      home,
-      ".cursor",
-      "skills",
-      "ycm-harness",
-      "SKILL.md",
-    );
-    const userDesignSkill = path.join(
-      home,
-      ".cursor",
-      "skills",
-      "ycm-harness-design",
-      "SKILL.md",
-    );
-    const projectWorkSkill = path.join(
-      project,
-      ".cursor",
-      "skills",
-      "ycm-harness",
-      "SKILL.md",
-    );
-    const projectDesignSkill = path.join(
-      project,
-      ".cursor",
-      "skills",
-      "ycm-harness-design",
-      "SKILL.md",
-    );
-    const projectRule = path.join(
-      project,
-      ".cursor",
-      "rules",
-      "ycm-harness.mdc",
-    );
     for (const f of [
-      userWorkSkill,
-      userDesignSkill,
-      projectWorkSkill,
-      projectDesignSkill,
-      projectRule,
+      path.join(home, ".cursor", "skills", "ycm-harness", "SKILL.md"),
+      path.join(home, ".cursor", "skills", "ycm-harness-design", "SKILL.md"),
+      path.join(home, ".cursor", "plugins", "ycm-harness", "rules", "ycm-harness.mdc"),
     ]) {
-      assert.ok(
-        await fs
-          .stat(f)
-          .then(() => true)
-          .catch(() => false),
-        `expected file: ${f}`,
-      );
+      await fs.stat(f);
     }
+    await assert.rejects(fs.stat(path.join(project, ".cursor")), { code: "ENOENT" });
+  } finally {
+    await cleanup(project);
+    await cleanup(home);
+  }
+});
+
+test("install --project fails and points at doctor --repair", async () => {
+  const project = await tempProject();
+  const home = await tempProject();
+  try {
+    await assert.rejects(
+      runInstall(project, ["--project"], home),
+      {
+        message:
+          "ycm-harness installs globally; per-project install was removed. Run `ycm-harness doctor --repair` to clean old project copies.",
+      },
+    );
+    await assert.rejects(fs.stat(path.join(project, ".cursor")), { code: "ENOENT" });
+    await assert.rejects(fs.stat(path.join(home, ".cursor")), { code: "ENOENT" });
   } finally {
     await cleanup(project);
     await cleanup(home);
@@ -415,13 +393,13 @@ test("install refuses to overwrite without --force", async () => {
   const project = await tempProject();
   const home = await tempProject();
   try {
-    await runInstall(project, ["--project"], home);
-    const rule = path.join(project, ".cursor", "rules", "ycm-harness.mdc");
+    await runInstall(project, [], home);
+    const rule = path.join(home, ".cursor", "plugins", "ycm-harness", "rules", "ycm-harness.mdc");
     await fs.writeFile(rule, "user-edited", "utf8");
-    await runInstall(project, ["--project"], home);
+    await runInstall(project, [], home);
     const after = await fs.readFile(rule, "utf8");
     assert.equal(after, "user-edited");
-    await runInstall(project, ["--project", "--force"], home);
+    await runInstall(project, ["--force"], home);
     const overwritten = await fs.readFile(rule, "utf8");
     assert.match(overwritten, /ycm-harness 0\.3/);
   } finally {
@@ -430,13 +408,13 @@ test("install refuses to overwrite without --force", async () => {
   }
 });
 
-test("install --project --force prunes leftover nested skill files", async () => {
+test("install --force prunes leftover nested user skill files", async () => {
   const project = await tempProject();
   const home = await tempProject();
   try {
-    await runInstall(project, ["--project"], home);
+    await runInstall(project, [], home);
     const leftover = path.join(
-      project,
+      home,
       ".cursor",
       "skills",
       "llm-wiki",
@@ -445,7 +423,7 @@ test("install --project --force prunes leftover nested skill files", async () =>
     );
     await fs.mkdir(path.dirname(leftover), { recursive: true });
     await fs.writeFile(leftover, "# stale nested cursor-harness wiki\n", "utf8");
-    await runInstall(project, ["--project", "--force"], home);
+    await runInstall(project, ["--force"], home);
     assert.equal(
       await fs
         .stat(leftover)
@@ -456,7 +434,7 @@ test("install --project --force prunes leftover nested skill files", async () =>
     );
     assert.ok(
       await fs
-        .stat(path.join(project, ".cursor", "skills", "llm-wiki", "SKILL.md"))
+        .stat(path.join(home, ".cursor", "skills", "llm-wiki", "SKILL.md"))
         .then(() => true)
         .catch(() => false),
     );
@@ -466,11 +444,11 @@ test("install --project --force prunes leftover nested skill files", async () =>
   }
 });
 
-test("install --project --force prunes retired combined_reviewer agent", async () => {
+test("install --force prunes retired user agents such as combined_reviewer", async () => {
   const project = await tempProject();
   const home = await tempProject();
   try {
-    await runInstall(project, ["--project"], home);
+    await runInstall(project, [], home);
     const leftoverNames = [
       "combined_reviewer.md",
       "spec_reviewer.md",
@@ -478,16 +456,16 @@ test("install --project --force prunes retired combined_reviewer agent", async (
     ];
     for (const name of leftoverNames) {
       await fs.writeFile(
-        path.join(project, ".cursor", "agents", "ycm-harness", name),
+        path.join(home, ".cursor", "agents", "ycm-harness", name),
         "# retired leftover\n",
         "utf8",
       );
     }
-    await runInstall(project, ["--project", "--force"], home);
+    await runInstall(project, ["--force"], home);
     for (const name of leftoverNames) {
       assert.equal(
         await fs
-          .stat(path.join(project, ".cursor", "agents", "ycm-harness", name))
+          .stat(path.join(home, ".cursor", "agents", "ycm-harness", name))
           .then(() => true)
           .catch(() => false),
         false,
@@ -497,7 +475,7 @@ test("install --project --force prunes retired combined_reviewer agent", async (
     assert.ok(
       await fs
         .stat(
-          path.join(project, ".cursor", "agents", "ycm-harness", "tech_lead.md"),
+          path.join(home, ".cursor", "agents", "ycm-harness", "tech_lead.md"),
         )
         .then(() => true)
         .catch(() => false),
