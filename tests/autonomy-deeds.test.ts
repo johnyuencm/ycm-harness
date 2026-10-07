@@ -197,3 +197,10 @@ test("Stop accepts no turn/model, ignores passthrough, and scopes raising to an 
   assert.match(derivedTurn, /^stop-[0-9a-f]{64}$/);
   assert.equal(ensures, 1);
 });
+test("Stop accepts Claude and Codex payloads with no or null last_assistant_message", async () => {
+  // Claude Code sends no last_assistant_message; Codex may send null (LESSONS L25).
+  const claude = { session_id: "s", transcript_path: "t.jsonl", cwd: "C:/safe", permission_mode: "default", hook_event_name: "Stop", stop_hook_active: false };
+  assert.equal(await dispatchStopHook(claude, undefined), null);
+  assert.equal(await dispatchStopHook({ ...claude, last_assistant_message: null }, undefined), null);
+  assert.equal(await dispatchStopHook({ ...claude, last_assistant_message: null }, activeState()), null);
+});

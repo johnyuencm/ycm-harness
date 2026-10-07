@@ -155,7 +155,8 @@ const StopPayloadSchema = z.object({
   hook_event_name: z.literal("Stop"),
   model: z.string().min(1).max(256).optional(),
   stop_hook_active: z.boolean().optional(),
-  last_assistant_message: z.string().max(64 * 1024),
+  // Claude Code sends no last_assistant_message and Codex may send null (LESSONS L25).
+  last_assistant_message: z.string().max(64 * 1024).nullish().transform((value) => value ?? ""),
 }).passthrough();
 
 export type StopPayload = z.infer<typeof StopPayloadSchema>;

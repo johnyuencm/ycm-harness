@@ -431,6 +431,7 @@ test("production PostToolUse hook scripts fail open when bundled CLI dispatch br
     await fs.mkdir(dist, { recursive: true });
     await fs.copyFile(postToolUseScript, path.join(scripts, "post-tool-use-hook.mjs"));
     await fs.copyFile(stopScript, path.join(scripts, "stop-hook.mjs"));
+    await fs.copyFile(path.join(repoRoot, "plugin", "scripts", "harness-cli-path.mjs"), path.join(scripts, "harness-cli-path.mjs"));
     await fs.writeFile(path.join(dist, "index.js"), 'process.stderr.write("RAW SECRET"); process.exit(7);', "utf8");
 
     const post = spawnSync(process.execPath, [path.join(scripts, "post-tool-use-hook.mjs")], {
@@ -455,7 +456,6 @@ test("production PostToolUse hook scripts fail open when bundled CLI dispatch br
     await fs.rm(root, { recursive: true, force: true });
   }
 });
-
 
 test("findHarnessCli keeps each client tree on its own runtime", async () => {
   // Regression: the resolver used to fall back to ~/.cursor for any caller, so a
@@ -520,6 +520,151 @@ test("a Claude cache hook finds the shared ~/.cursor CLI", async () => {
     if (prior.claudeRoot === undefined) delete process.env.CLAUDE_PLUGIN_ROOT; else process.env.CLAUDE_PLUGIN_ROOT = prior.claudeRoot;
     if (prior.claudeEnv === undefined) delete process.env.CLAUDE_ENV_FILE; else process.env.CLAUDE_ENV_FILE = prior.claudeEnv;
     if (prior.pluginRoot === undefined) delete process.env.PLUGIN_ROOT; else process.env.PLUGIN_ROOT = prior.pluginRoot;
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+async function runNotesCheck(
+  turn: Array<Record<string, unknown>>,
+  extra: Record<string, unknown> = {},
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ch-notes-check-"));
+  try {
+    const transcript = path.join(root, "transcript.jsonl");
+    await fs.writeFile(transcript, turn.map((entry) => JSON.stringify(entry)).join("\n"), "utf8");
+    const stop = spawnSync(process.execPath, [stopScript], {
+      cwd: root,
+      encoding: "utf8",
+      env,
+      input: JSON.stringify({
+        session_id: "session",
+        cwd: root,
+        hook_event_name: "Stop",
+        stop_hook_active: false,
+        last_assistant_message: "Done.",
+        transcript_path: transcript,
+        ...extra,
+      }),
+    });
+    assert.equal(stop.status, 0, stop.stderr);
+    return JSON.parse(stop.stdout) as Record<string, unknown>;
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+}
+
+const userPrompt = (text: string) => ({ type: "user", message: { role: "user", content: text } });
+const toolUse = (name: string, input: Record<string, unknown> = {}) => ({
+  type: "assistant",
+  message: { role: "assistant", content: [{ type: "tool_use", id: name, name, input }] },
+});
+const toolResult = { type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "x", content: "ok" }] } };
+
+test("Stop asks for a notes check once after a turn that changed files", async () => {
+  const output = await runNotesCheck([userPrompt("fix it"), toolUse("Edit", { file_path: "a.ts" }), toolResult]);
+  assert.equal(output.decision, "block");
+  assert.match(String(output.reason), /notes/i);
+  assert.match(String(output.reason), /issue|PR|wiki|journal|memory/i);
+
+  // Claude sets stop_hook_active on the continuation, so the check never loops.
+  assert.deepEqual(await runNotesCheck([userPrompt("fix it"), toolUse("Write")], { stop_hook_active: true }), {});
+});
+
+test("Stop notes check fires on git and tracker writes, not on reads", async () => {
+  for (const command of ["git commit -m x", "git -C repo push -u origin b", "gh pr create --title t", "gh issue comment 3 --body b"]) {
+    const output = await runNotesCheck([userPrompt("ship"), toolUse("Bash", { command }), toolResult]);
+    assert.equal(output.decision, "block", command);
+  }
+  for (const command of ["git status --porcelain", "git merge-base main HEAD", "gh pr view 3", "gh issue list"]) {
+    assert.deepEqual(await runNotesCheck([userPrompt("look"), toolUse("Bash", { command }), toolResult]), {}, command);
+  }
+  assert.deepEqual(await runNotesCheck([userPrompt("look"), toolUse("Read"), toolUse("Grep"), toolResult]), {});
+});
+
+test("Stop notes check only looks at the current turn and can be turned off", async () => {
+  // The edit belongs to an earlier turn; this turn only answered a question.
+  assert.deepEqual(await runNotesCheck([userPrompt("fix it"), toolUse("Edit"), toolResult, userPrompt("what changed?")]), {});
+  assert.deepEqual(
+    await runNotesCheck([userPrompt("fix it"), toolUse("Edit")], {}, { ...process.env, YCM_NOTES_CHECK: "off" }),
+    {},
+  );
+  // No readable transcript: fail open.
+  assert.deepEqual(await runNotesCheck([userPrompt("fix it"), toolUse("Edit")], { transcript_path: "missing.jsonl" }), {});
+});
+
+const cursorUser = (text: string) => ({ role: "user", message: { content: [{ type: "text", text: `<user_query>${text}</user_query>` }] } });
+const cursorTool = (name: string, input: Record<string, unknown> = {}) => ({
+  role: "assistant",
+  message: { content: [{ type: "tool_use", name, input }] },
+});
+const cursorStop = (extra: Record<string, unknown> = {}) => ({
+  hook_event_name: "stop",
+  conversation_id: "conversation",
+  generation_id: "generation",
+  workspace_roots: [os.tmpdir()],
+  status: "completed",
+  loop_count: 0,
+  ...extra,
+});
+
+test("Stop notes check speaks Cursor: followup_message once, then loop_count stops it", async () => {
+  const edited = await runNotesCheck([cursorUser("fix"), cursorTool("StrReplace", { path: "a.tex" })], cursorStop());
+  assert.match(String(edited.followup_message), /notes/i);
+  assert.equal(edited.decision, undefined);
+  const shell = await runNotesCheck([cursorUser("ship"), cursorTool("Shell", { command: "git push" })], cursorStop());
+  assert.match(String(shell.followup_message), /notes/i);
+  assert.deepEqual(await runNotesCheck([cursorUser("look"), cursorTool("Shell", { command: "git status" })], cursorStop()), {});
+  assert.deepEqual(await runNotesCheck([cursorUser("fix"), cursorTool("Write")], cursorStop({ loop_count: 1 })), {});
+  assert.deepEqual(
+    await runNotesCheck([cursorUser("fix"), cursorTool("Write"), { role: "turn_ended" }, cursorUser("thanks")], cursorStop()),
+    {},
+  );
+});
+
+const codexTurn = { type: "event_msg", payload: { type: "task_started", turn_id: "t" } };
+const codexExec = (cmd: string) => ({
+  type: "response_item",
+  payload: { type: "custom_tool_call", name: "exec", input: `const r=await tools.exec_command({cmd:${JSON.stringify(cmd)}})` },
+});
+const codexPatch = {
+  type: "response_item",
+  payload: { type: "function_call", name: "apply_patch", arguments: JSON.stringify({ input: "*** Begin Patch\n*** Update File: a.ts\n" }) },
+};
+
+test("Stop notes check reads Codex rollouts: tool calls in the current task only", async () => {
+  assert.equal((await runNotesCheck([codexTurn, codexPatch])).decision, "block");
+  assert.equal((await runNotesCheck([codexTurn, codexExec("git commit -m x")])).decision, "block");
+  assert.deepEqual(await runNotesCheck([codexTurn, codexExec("git status --short")]), {});
+  assert.deepEqual(await runNotesCheck([codexTurn, codexPatch, codexTurn, codexExec("git log -1")]), {});
+  assert.deepEqual(await runNotesCheck([codexTurn, codexPatch], { stop_hook_active: true, last_assistant_message: null }), {});
+});
+
+test("Stop wrapper finds the CLI, gives Cursor a CLI-shaped payload, and translates a block", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ch-stop-cli-"));
+  try {
+    const cli = path.join(root, "fake-cli.mjs");
+    const seen = path.join(root, "seen.json");
+    await fs.writeFile(
+      cli,
+      `import { readFileSync, writeFileSync } from "node:fs";
+writeFileSync(${JSON.stringify(seen)}, readFileSync(0, "utf8"));
+process.stdout.write(JSON.stringify({ decision: "block", reason: "Finish ticket T-1." }));`,
+      "utf8",
+    );
+    const env = { ...process.env, YCM_HARNESS_CLI: cli };
+    const claude = await runNotesCheck([userPrompt("look")], {}, env);
+    assert.equal(claude.decision, "block");
+    assert.equal(claude.reason, "Finish ticket T-1.");
+
+    const cursor = await runNotesCheck([cursorUser("look")], cursorStop({ loop_count: 2 }), env);
+    assert.deepEqual(cursor, { followup_message: "Finish ticket T-1." });
+    const forwarded = JSON.parse(await fs.readFile(seen, "utf8")) as Record<string, unknown>;
+    assert.equal(forwarded.hook_event_name, "Stop");
+    assert.equal(forwarded.session_id, "conversation");
+    assert.equal(forwarded.cwd, os.tmpdir());
+    assert.equal(forwarded.stop_hook_active, true);
+  } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
 });
