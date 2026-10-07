@@ -5,7 +5,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
-import type { CliContext } from "./context.js";
 import { ensureDir, fileExists } from "../state/io.js";
 import { PLUGIN_NAME } from "../branding.js";
 import {
@@ -27,10 +26,9 @@ export interface AuditItem {
 
 export interface InstallAudit {
   user_skill: AuditItem[];
-  project_skill: AuditItem[];
-  project_rule?: AuditItem;
   user_agents: AuditItem[];
-  project_agents: AuditItem[];
+  /** Harness copies that the removed per-project install left under <cwd>/.cursor. */
+  project_leftovers: AuditItem[];
   cursor_plugin: AuditItem[];
   codex_plugin: AuditItem[];
   codex_marketplace: AuditItem;
@@ -45,15 +43,6 @@ export interface InstallAudit {
   caveman: AuditItem;
   /** Presence of user-installed ponytail (DietrichGebert/ponytail Cursor/Claude plugin). */
   ponytail: AuditItem;
-}
-
-export interface InstallScopeOptions {
-  user?: boolean;
-  project?: boolean;
-  force?: boolean;
-  skillOnly?: boolean;
-  ruleOnly?: boolean;
-  sourceRoot?: string;
 }
 
 export interface ClientSyncOptions {
@@ -475,20 +464,67 @@ async function reportLegacyAgentPrunes(
   return removed > 0 ? [`${label} legacy agents pruned: ${removed}`] : [];
 }
 
-/** Doctor --repair: remove leftover pre-rebrand agent dirs even when project force is off. */
-export async function repairLegacyAgentDirs(cwd: string): Promise<string[]> {
-  return [
-    ...(await reportLegacyAgentPrunes(
-      "cursor user",
-      path.join(cursorHome(), "agents"),
-      true,
-    )),
-    ...(await reportLegacyAgentPrunes(
-      "project",
-      path.join(cwd, ".cursor", "agents"),
-      true,
-    )),
+/** Doctor --repair: remove leftover pre-rebrand agent dirs at the user level. */
+export async function repairLegacyAgentDirs(): Promise<string[]> {
+  return reportLegacyAgentPrunes(
+    "cursor user",
+    path.join(cursorHome(), "agents"),
+    true,
+  );
+}
+
+/** Same directory by identity, so symlinks, junctions and path case cannot hide it. */
+async function sameDirectory(a: string, b: string): Promise<boolean> {
+  try {
+    const [left, right] = await Promise.all([
+      fs.stat(a, { bigint: true }),
+      fs.stat(b, { bigint: true }),
+    ]);
+    return left.dev === right.dev && left.ino === right.ino;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Paths the removed per-project install wrote under <cwd>/.cursor. They
+ * duplicate the global Cursor plugin, so doctor reports and removes them.
+ */
+async function projectLeftovers(cwd: string): Promise<string[]> {
+  const cursor = path.join(cwd, ".cursor");
+  // From the home directory, <cwd>/.cursor is the global Cursor home: its
+  // harness dirs are the user-level install, never leftovers to delete.
+  if (await sameDirectory(cursor, cursorHome())) return [];
+  const groups: Array<[string, readonly string[]]> = [
+    ["skills", HARNESS_SKILL_DIRS],
+    ["agents", [PLUGIN_NAME]],
+    ["rules", ["ycm-harness.mdc"]],
   ];
+  const managed: string[] = [];
+  for (const [dir, names] of groups) {
+    const parent = path.join(cursor, dir);
+    // A linked skills/agents/rules dir (symlink or junction) points outside
+    // this project, for example at ~/.cursor/skills. Deleting through it
+    // would remove the target's files, so such a dir has no leftovers.
+    const stat = await fs.lstat(parent).catch(() => undefined);
+    if (!stat?.isDirectory()) continue;
+    managed.push(...names.map((name) => path.join(parent, name)));
+  }
+  managed.sort();
+  const found: string[] = [];
+  for (const target of managed) {
+    if (await fileExists(target)) found.push(target);
+  }
+  return found;
+}
+
+/** Doctor --repair: remove leftover per-project copies; other .cursor files stay. */
+export async function removeProjectLeftovers(cwd: string): Promise<string[]> {
+  const leftovers = await projectLeftovers(cwd);
+  for (const target of leftovers) {
+    await fs.rm(target, { recursive: true, force: true });
+  }
+  return leftovers.map((target) => `project leftover removed: ${target}`);
 }
 
 async function staleLegacyAgentItems(
@@ -1886,96 +1922,6 @@ async function auditCodexConfig(): Promise<{
   };
 }
 
-export async function runInstallScopes(
-  ctx: CliContext,
-  opts: InstallScopeOptions,
-): Promise<string[]> {
-  const sourceRoot = opts.sourceRoot ?? packageRoot();
-  const pluginRoot = path.join(sourceRoot, "plugin");
-  const force = !!opts.force;
-  const reports: string[] = [];
-
-  if (opts.user) {
-    if (!opts.ruleOnly) {
-      reports.push(
-        renderTreeReport(
-          "cursor user skills",
-          await copyHarnessSkills(
-            pluginRoot,
-            path.join(cursorHome(), "skills"),
-            force,
-          ),
-        ),
-      );
-      reports.push(
-        renderTreeReport(
-          "cursor user agents",
-          await copyManagedAgents(
-            pluginRoot,
-            path.join(cursorHome(), "agents", PLUGIN_NAME),
-            force,
-          ),
-        ),
-      );
-      reports.push(
-        ...(await reportLegacyAgentPrunes(
-          "cursor user",
-          path.join(cursorHome(), "agents"),
-          force,
-        )),
-      );
-    }
-
-    reports.push(...(await installCursorPluginDestinations(sourceRoot, force)));
-    reports.push(
-      ...(await syncCursorGithubClone({ sourceRoot })).reports,
-    );
-  }
-
-  if (opts.project) {
-    if (!opts.ruleOnly) {
-      reports.push(
-        renderTreeReport(
-          "project skills",
-          await copyHarnessSkills(
-            pluginRoot,
-            path.join(ctx.cwd, ".cursor", "skills"),
-            force,
-          ),
-        ),
-      );
-      reports.push(
-        renderTreeReport(
-          "project agents",
-          await copyManagedAgents(
-            pluginRoot,
-            path.join(ctx.cwd, ".cursor", "agents", PLUGIN_NAME),
-            force,
-          ),
-        ),
-      );
-      reports.push(
-        ...(await reportLegacyAgentPrunes(
-          "project",
-          path.join(ctx.cwd, ".cursor", "agents"),
-          force,
-        )),
-      );
-    }
-
-    if (!opts.skillOnly) {
-      const ruleResult = await copyFileManaged(
-        path.join(pluginRoot, "rules", "ycm-harness.mdc"),
-        path.join(ctx.cwd, ".cursor", "rules", "ycm-harness.mdc"),
-        force,
-      );
-      reports.push(`project rule: ${ruleResult}`);
-    }
-  }
-
-  return reports;
-}
-
 export async function runClientSync(
   opts: ClientSyncOptions,
 ): Promise<string[]> {
@@ -2161,14 +2107,6 @@ export async function auditInstall(
       pluginRoot,
       path.join(cursorHome(), "skills"),
     ),
-    project_skill: await auditHarnessSkills(
-      pluginRoot,
-      path.join(cwd, ".cursor", "skills"),
-    ),
-    project_rule: await auditFile(
-      path.join(pluginRoot, "rules", "ycm-harness.mdc"),
-      path.join(cwd, ".cursor", "rules", "ycm-harness.mdc"),
-    ),
     user_agents: [
       ...(await auditTree(
         path.join(pluginRoot, "agents"),
@@ -2176,13 +2114,10 @@ export async function auditInstall(
       )),
       ...(await staleLegacyAgentItems(path.join(cursorHome(), "agents"))),
     ],
-    project_agents: [
-      ...(await auditTree(
-        path.join(pluginRoot, "agents"),
-        path.join(cwd, ".cursor", "agents", PLUGIN_NAME),
-      )),
-      ...(await staleLegacyAgentItems(path.join(cwd, ".cursor", "agents"))),
-    ],
+    project_leftovers: (await projectLeftovers(cwd)).map((target) => ({
+      path: target,
+      status: "stale" as AuditStatus,
+    })),
     cursor_plugin: [
       ...(await auditPluginProjection(root, cursorInstallRoot())),
       ...(await auditPinnedCursorPlugins(pluginRoot)),
@@ -2276,10 +2211,8 @@ export async function auditInstall(
     audit,
     needs_sync: anyDrift(
       audit.user_skill,
-      audit.project_skill,
-      audit.project_rule,
       audit.user_agents,
-      audit.project_agents,
+      audit.project_leftovers,
       audit.cursor_plugin,
       audit.codex_plugin,
       audit.codex_marketplace,

@@ -9,7 +9,7 @@ description: Run, use, or test an evidence-grounded technical architecture discu
 
 Use this skill directory's `driver.mjs` (the folder that contains this `SKILL.md`). The driver collects a deterministic evidence packet; the agent supplies research, architectural judgment, and the human-facing discussion.
 
-Resolve `SKILL_DIR` to that folder (for a Cursor/OpenCode user install that is typically `~/.cursor/skills/run-technical-design-discussion` or the matching project `.cursor/skills/...` path; inside this repo it is `plugin/skills/run-technical-design-discussion`).
+Resolve `SKILL_DIR` to that folder (for a Cursor/OpenCode user install that is typically `~/.cursor/skills/run-technical-design-discussion`; inside this repo it is `plugin/skills/run-technical-design-discussion`).
 
 Syntax-check and test the driver:
 

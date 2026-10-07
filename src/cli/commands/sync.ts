@@ -2,15 +2,15 @@ import type { Command } from "commander";
 import type { CliContext } from "../context.js";
 import type { CliOutput } from "../output.js";
 import { fileExists } from "../../state/io.js";
-import { runClientSync, runInstallScopes } from "../install-kit.js";
+import { runClientSync } from "../install-kit.js";
 import path from "node:path";
 import os from "node:os";
 
-export function registerSync(program: Command, ctx: CliContext, out: CliOutput): void {
+export function registerSync(program: Command, _ctx: CliContext, out: CliOutput): void {
   program
     .command("sync")
     .description(
-      "Sync plugin assets into detected Cursor, Codex, OpenCode, and Claude Code clients (also refreshes Cursor install --force).",
+      "Sync plugin assets into detected Cursor, Codex, OpenCode, and Claude Code clients. Installs are global; sync never writes into the current project.",
     )
     .option("--cursor", "Sync Cursor only", false)
     .option("--codex", "Sync Codex CLI plugin only", false)
@@ -61,12 +61,8 @@ export function registerSync(program: Command, ctx: CliContext, out: CliOutput):
       const opencode = wantAll || opts.opencode || (!anyExplicit && await fileExists(path.join(home, ".config", "opencode")));
       const claude = wantAll || opts.claude || (!anyExplicit && await fileExists(path.join(home, ".claude")));
 
-      // Cursor install targets (user + project skills/rule) always when cursor is selected.
-      const reports: string[] = [];
-      if (cursor) {
-        reports.push(...await runInstallScopes(ctx, { user: true, project: true, force: true }));
-      }
-      reports.push(...await runClientSync({
+      // Global installs only: sync never writes into the current project.
+      const reports = await runClientSync({
         cursor,
         codex,
         opencode,
@@ -75,7 +71,7 @@ export function registerSync(program: Command, ctx: CliContext, out: CliOutput):
         claudeRef: opts.claudeRef,
         force: true,
         refreshCodexCache: !!opts.refreshCodexCache || !!codex,
-      }));
+      });
 
       if (opts.json) {
         out.json({

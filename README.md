@@ -260,6 +260,8 @@ Sync the packaged plugin assets into every detected local client:
 ycm-harness sync
 ```
 
+Installs are global (user-level). `install`, `sync` and `doctor --repair` never write harness copies into the current project. Older versions copied skills, agents and `rules/ycm-harness.mdc` into a project's `.cursor/`. Those copies duplicate the global plugin: `ycm-harness doctor` lists them as `project_leftovers`, and `ycm-harness doctor --repair` removes them.
+
 Useful variants:
 
 ```bash
@@ -279,7 +281,7 @@ Behavior:
 - Cursor GitHub marketplace installs **pin a commit SHA** and do not auto-update. `sync --cursor` copies current plugin assets into `~/.cursor/plugins/local/ycm-harness` **and** overwrites any SHA-pinned `plugins/cache/**/ycm-harness/<sha>/` copy Cursor is actually loading. A Cursor SessionStart hook then starts `plugin/scripts/github-refresh.mjs` in the background (fail-open). That script does not need a sibling `runtime/` CLI — SHA-pinned marketplace copies only ship plugin files — so later chats can track GitHub HEAD. This chat still uses already-loaded rules; start a new chat after refresh. `YCM_HARNESS_SKIP_GITHUB_PLUGIN=1` skips that SessionStart clone/overwrite; `sync --cursor` still writes this checkout onto dests.
 - `plugin update` is the simplest local update path: it syncs managed plugin files and, for Codex, refreshes the installed plugin cache using official `codex plugin remove/add`.
 - Stable/default sync uses the bundled package assets, then refreshes the GitHub clone when network is allowed.
-- `doctor --repair` repairs managed installs without force-overwriting edited project `.cursor/` files. It also flags pinned Cursor/Claude cache copies whose rules/agents are behind the package.
+- `doctor --repair` repairs the global installs. In the current project it removes only the harness copies listed in `project_leftovers`; other `.cursor/` files stay. It also flags pinned Cursor/Claude cache copies whose rules/agents are behind the package.
 
 ### Claude Code
 
@@ -532,7 +534,7 @@ The `plugin/` folder is a ready-to-install Cursor plugin layout:
 - `plugin/rules/ycm-harness.mdc` — thin rule pointing agents at the harness CLI.
 - `plugin/rules/git-commits.mdc` — default commit+push after implementation (worktree and irreversible-op exceptions).
 
-Copy `plugin/rules/ycm-harness.mdc` into your project's `.cursor/rules/` (or symlink it). The session-start hook reads state from the project's `.ycm-harness/state.json` automatically.
+The global Cursor plugin loads `plugin/rules/ycm-harness.mdc` in every project. Do not copy it into a project's `.cursor/rules/`; a copy only duplicates the plugin rule. The session-start hook reads state from the project's `.ycm-harness/state.json` automatically.
 
 **Stop scoping (lean):** `active_goal_id` is only the CLI default for commands without `--goal`. High-assurance Stop enforcement uses `session_claims[host_session_id]` (set via `goal create|activate --session <id>`) or a cwd inside the goal's `worktree_path`. Unrelated sessions in the same repo are not blocked. SessionStart with a host `session_id` resumes the claimed/worktree goal and surfaces the host session id for activate; it does not auto-claim from bare `active_goal_id`.
 

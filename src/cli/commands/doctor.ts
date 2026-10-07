@@ -8,8 +8,8 @@ import {
   cavemanInstallHint,
   ponytailInstallHint,
   runClientSync,
-  runInstallScopes,
   repairLegacyAgentDirs,
+  removeProjectLeftovers,
   packageRoot,
   homeDir,
 } from "../install-kit.js";
@@ -38,7 +38,7 @@ export function registerDoctor(
   program
     .command("doctor")
     .description(
-      "Audit Cursor/OpenCode installs against the canonical lean package",
+      "Audit the global client installs against the canonical lean package, and report harness copies left in the current project",
     )
     .option("--json")
     .option("--repair")
@@ -75,14 +75,6 @@ export function registerDoctor(
       const repairReports: string[] = [];
       if (needs_sync && opts.repair) {
         repairReports.push(
-          ...(await runInstallScopes(ctx, {
-            user: true,
-            project: true,
-            force: false,
-            sourceRoot,
-          })),
-        );
-        repairReports.push(
           ...(await runClientSync({
             cursor: true,
             codex: await fileExists(path.join(homeDir(), ".codex")),
@@ -93,7 +85,8 @@ export function registerDoctor(
             sourceRoot,
           })),
         );
-        repairReports.push(...(await repairLegacyAgentDirs(ctx.cwd)));
+        repairReports.push(...(await repairLegacyAgentDirs()));
+        repairReports.push(...(await removeProjectLeftovers(ctx.cwd)));
         repaired = true;
         ({ audit, needs_sync } = await auditInstall(ctx.cwd));
       }
@@ -111,13 +104,12 @@ export function registerDoctor(
       const payload = {
         cli_version: version,
         project_root: ctx.cwd,
+        project_leftovers: audit.project_leftovers.map((item) => item.path),
         source_root: sourceRoot,
         needs_sync,
         repaired,
         repair_command: `${CLI_NAME} doctor --repair`,
         user_skill_gaps: countBad(audit.user_skill),
-        project_skill_gaps: countBad(audit.project_skill),
-        project_rule_status: audit.project_rule?.status ?? "n/a",
         cursor_plugin_gaps: countBad(audit.cursor_plugin),
         opencode_skill_gaps: countBad(audit.opencode_skill),
         opencode_config_status: audit.opencode_config.status,
@@ -130,6 +122,9 @@ export function registerDoctor(
       if (opts.json) return out.json(payload);
       out.out(`${CLI_NAME} doctor (CLI ${version})`);
       out.out(`needs_sync: ${needs_sync}`);
+      for (const item of audit.project_leftovers) {
+        out.out(`project leftover (duplicates the global plugin): ${item.path}`);
+      }
       out.out(
         `mattpocock-skills: ${audit.mattpocock_skills.status}` +
           (audit.mattpocock_skills.status === "ok"
