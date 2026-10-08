@@ -2,11 +2,35 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { Command } from "commander";
 import { createContext } from "../src/cli/context.js";
 import { registerDoctor } from "../src/cli/commands/doctor.js";
-import { auditInstall, runClientSync } from "../src/cli/install-kit.js";
+import {
+  auditInstall,
+  leftoverMatchesHarnessCopy,
+  packageRoot,
+  runClientSync,
+} from "../src/cli/install-kit.js";
 import { cleanup, tempProject, withTempUserHome } from "./helpers.js";
+
+const execFileAsync = promisify(execFile);
+
+function pluginRoot(): string {
+  return path.join(packageRoot(), "plugin");
+}
+
+const DENY_LISTED_SKILLS = [
+  "building-ios-ipa-sideloadly",
+  "deploying-to-mumu-emulator",
+  "setup-autonomy-p1-p7",
+] as const;
+
+async function plantCopy(dest: string, src: string): Promise<void> {
+  await fs.mkdir(path.dirname(dest), { recursive: true });
+  await fs.cp(src, dest, { recursive: true });
+}
 
 async function runDoctor(cwd: string, args: string[]): Promise<Record<string, unknown>> {
   const jsons: unknown[] = [];
@@ -21,6 +45,25 @@ async function runDoctor(cwd: string, args: string[]): Promise<Record<string, un
   });
   await program.parseAsync(["doctor", ...args, "--json"], { from: "user" });
   return jsons.at(-1) as Record<string, unknown>;
+}
+
+async function runDoctorText(cwd: string, args: string[]): Promise<string[]> {
+  const lines: string[] = [];
+  const program = new Command();
+  program.exitOverride();
+  registerDoctor(program, createContext(cwd), {
+    out(line: string) {
+      lines.push(line);
+    },
+    err() {},
+    json() {},
+  });
+  await program.parseAsync(["doctor", ...args], { from: "user" });
+  return lines;
+}
+
+function isRootUser(): boolean {
+  return typeof process.getuid === "function" && process.getuid() === 0;
 }
 
 test("auditInstall reports missing user skills in an empty home", async () => {
@@ -75,13 +118,12 @@ test("doctor reports leftover project copies and --repair removes only harness-m
         // Vendor skills the user may install per project; harness never owns these here.
         path.join(cursor, "skills", "tdd", "SKILL.md"),
       ];
-      for (const file of [
-        path.join(leftovers[0]!, "tech_lead.md"),
-        leftovers[1]!,
-        path.join(leftovers[2]!, "SKILL.md"),
-        path.join(leftovers[3]!, "SKILL.md"),
-        ...foreign,
-      ]) {
+      const plugin = pluginRoot();
+      await plantCopy(leftovers[0]!, path.join(plugin, "agents"));
+      await plantCopy(leftovers[1]!, path.join(plugin, "rules", "ycm-harness.mdc"));
+      await plantCopy(leftovers[2]!, path.join(plugin, "skills", "llm-wiki"));
+      await plantCopy(leftovers[3]!, path.join(plugin, "skills", "ycm-harness-work"));
+      for (const file of foreign) {
         await fs.mkdir(path.dirname(file), { recursive: true });
         await fs.writeFile(file, "old copy", "utf8");
       }
@@ -89,11 +131,13 @@ test("doctor reports leftover project copies and --repair removes only harness-m
       const before = await runDoctor(project, []);
       assert.equal(before.needs_sync, true);
       assert.deepEqual(before.project_leftovers, leftovers);
+      assert.deepEqual(before.project_leftovers_kept, []);
 
       const after = await runDoctor(project, ["--repair"]);
       assert.equal(after.repaired, true);
       assert.equal(after.needs_sync, false);
       assert.deepEqual(after.project_leftovers, []);
+      assert.deepEqual(after.project_leftovers_kept, []);
       for (const leftover of leftovers) {
         await assert.rejects(fs.stat(leftover), { code: "ENOENT" });
       }
@@ -162,6 +206,504 @@ test("doctor --repair repairs global installs and writes nothing into the projec
     } finally {
       if (priorCodex === undefined) delete process.env.CODEX_CLI_PATH;
       else process.env.CODEX_CLI_PATH = priorCodex;
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor --repair removes an identical leftover skill copy", async () => {
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-identical-leftover-");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+      await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
+
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [leftover]);
+      assert.deepEqual(before.project_leftovers_kept, []);
+      assert.equal(before.needs_sync, true);
+
+      const after = await runDoctor(project, ["--repair"]);
+      assert.equal(after.repaired, true);
+      assert.equal(after.needs_sync, false);
+      assert.deepEqual(after.project_leftovers, []);
+      await assert.rejects(fs.stat(leftover), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor keeps a same-named project skill whose content differs from the harness copy", async () => {
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-kept-skill-");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      const leftover = path.join(project, ".cursor", "skills", "create-skill");
+      const identical = path.join(project, ".cursor", "skills", "llm-wiki");
+      await fs.mkdir(leftover, { recursive: true });
+      await fs.writeFile(path.join(leftover, "SKILL.md"), "# project create-skill\n", "utf8");
+      const keptOnly = await runDoctor(project, []);
+      assert.deepEqual(keptOnly.project_leftovers, []);
+      assert.deepEqual(keptOnly.project_leftovers_kept, [leftover]);
+      // Kept paths must not keep needs_sync true, or --repair can never clear.
+      assert.equal(keptOnly.needs_sync, false);
+
+      await plantCopy(identical, path.join(pluginRoot(), "skills", "llm-wiki"));
+
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [identical]);
+      assert.deepEqual(before.project_leftovers_kept, [leftover]);
+      assert.equal(before.needs_sync, true);
+
+      const lines = await runDoctorText(project, []);
+      assert.ok(
+        lines.includes(
+          `project leftover kept (differs from the harness copy): ${leftover} (inspect it; delete it manually if it is an old harness copy)`,
+        ),
+      );
+
+      const after = await runDoctor(project, ["--repair"]);
+      assert.equal(after.repaired, true);
+      assert.equal(after.needs_sync, false);
+      assert.deepEqual(after.project_leftovers, []);
+      assert.deepEqual(after.project_leftovers_kept, [leftover]);
+      assert.equal(await fs.readFile(path.join(leftover, "SKILL.md"), "utf8"), "# project create-skill\n");
+      await assert.rejects(fs.stat(identical), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor keeps a harness leftover that has one extra user file", async () => {
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-extra-file-");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+      const identical = path.join(project, ".cursor", "agents", "ycm-harness");
+      await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
+      await fs.writeFile(path.join(leftover, "USER-NOTES.md"), "keep me\n", "utf8");
+      await plantCopy(identical, path.join(pluginRoot(), "agents"));
+
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [identical]);
+      assert.deepEqual(before.project_leftovers_kept, [leftover]);
+      assert.equal(before.needs_sync, true);
+
+      const after = await runDoctor(project, ["--repair"]);
+      assert.equal(after.needs_sync, false);
+      assert.deepEqual(after.project_leftovers_kept, [leftover]);
+      assert.equal(await fs.readFile(path.join(leftover, "USER-NOTES.md"), "utf8"), "keep me\n");
+      await fs.stat(path.join(leftover, "SKILL.md"));
+      await assert.rejects(fs.stat(identical), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor keeps an edited rules/ycm-harness.mdc leftover", async () => {
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-edited-rule-");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      const leftover = path.join(project, ".cursor", "rules", "ycm-harness.mdc");
+      const identical = path.join(project, ".cursor", "skills", "llm-wiki");
+      await plantCopy(leftover, path.join(pluginRoot(), "rules", "ycm-harness.mdc"));
+      await fs.appendFile(leftover, "\n# project edit\n", "utf8");
+      await plantCopy(identical, path.join(pluginRoot(), "skills", "llm-wiki"));
+
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [identical]);
+      assert.deepEqual(before.project_leftovers_kept, [leftover]);
+      assert.equal(before.needs_sync, true);
+
+      const after = await runDoctor(project, ["--repair"]);
+      assert.equal(after.needs_sync, false);
+      assert.deepEqual(after.project_leftovers_kept, [leftover]);
+      assert.match(await fs.readFile(leftover, "utf8"), /# project edit/);
+      await assert.rejects(fs.stat(identical), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor --repair removes a leftover that differs only by CRLF", async () => {
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-crlf-leftover-");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      const leftover = path.join(project, ".cursor", "rules", "ycm-harness.mdc");
+      const source = await fs.readFile(path.join(pluginRoot(), "rules", "ycm-harness.mdc"));
+      await fs.mkdir(path.dirname(leftover), { recursive: true });
+      await fs.writeFile(leftover, source.toString("utf8").replace(/\n/g, "\r\n"));
+
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [leftover]);
+      assert.deepEqual(before.project_leftovers_kept, []);
+
+      const after = await runDoctor(project, ["--repair"]);
+      assert.deepEqual(after.project_leftovers, []);
+      await assert.rejects(fs.stat(leftover), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor keeps a leftover with an unreadable nested dir and does not crash", async (t) => {
+  if (isRootUser()) {
+    t.skip("chmod 000 is ineffective as root");
+    return;
+  }
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-eacces-leftover-");
+    const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+    const locked = path.join(leftover, "agents");
+    const identical = path.join(project, ".cursor", "agents", "ycm-harness");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
+      await plantCopy(identical, path.join(pluginRoot(), "agents"));
+      await fs.chmod(locked, 0o000);
+      try {
+        await fs.readdir(locked);
+        t.skip("still readable (non-POSIX fs); probe is invalid");
+        return;
+      } catch (err) {
+        assert.equal((err as NodeJS.ErrnoException).code, "EACCES");
+      }
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [identical]);
+      assert.deepEqual(before.project_leftovers_kept, [leftover]);
+      const after = await runDoctor(project, ["--repair"]);
+      assert.deepEqual(after.project_leftovers, []);
+      assert.deepEqual(after.project_leftovers_kept, [leftover]);
+      await fs.stat(path.join(leftover, "SKILL.md"));
+      await assert.rejects(fs.stat(identical), { code: "ENOENT" });
+    } finally {
+      await fs.chmod(locked, 0o755).catch(() => undefined);
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor keeps a leftover whose SKILL.md is a FIFO without hanging", { timeout: 10_000 }, async (t) => {
+  if (process.platform === "win32") {
+    t.skip("mkfifo is not available on win32");
+    return;
+  }
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-fifo-leftover-");
+    const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+    const fifo = path.join(leftover, "SKILL.md");
+    const identical = path.join(project, ".cursor", "agents", "ycm-harness");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
+      await plantCopy(identical, path.join(pluginRoot(), "agents"));
+      await fs.rm(fifo);
+      await execFileAsync("mkfifo", [fifo]);
+      const started = Date.now();
+      const before = await runDoctor(project, []);
+      assert.ok(Date.now() - started < 8_000, "FIFO leftover compare must return promptly");
+      assert.deepEqual(before.project_leftovers, [identical]);
+      assert.deepEqual(before.project_leftovers_kept, [leftover]);
+      const after = await runDoctor(project, ["--repair"]);
+      assert.deepEqual(after.project_leftovers, []);
+      assert.deepEqual(after.project_leftovers_kept, [leftover]);
+      const st = await fs.lstat(fifo);
+      assert.equal(st.isFIFO(), true);
+      await assert.rejects(fs.stat(identical), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor --repair removes a truncated subset leftover copy", async () => {
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-truncated-leftover-");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+      await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
+      await fs.rm(path.join(leftover, "agents", "openai.yaml"));
+
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [leftover]);
+      assert.deepEqual(before.project_leftovers_kept, []);
+
+      const after = await runDoctor(project, ["--repair"]);
+      assert.deepEqual(after.project_leftovers, []);
+      await assert.rejects(fs.stat(leftover), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor --repair removes a leftover that is itself a symlink and leaves the target intact", async () => {
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-symlink-leftover-");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      const target = path.join(project, "real-llm-wiki");
+      const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+      await plantCopy(target, path.join(pluginRoot(), "skills", "llm-wiki"));
+      await fs.mkdir(path.dirname(leftover), { recursive: true });
+      await fs.symlink(target, leftover, "junction");
+
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [leftover]);
+      assert.deepEqual(before.project_leftovers_kept, []);
+
+      const after = await runDoctor(project, ["--repair"]);
+      assert.deepEqual(after.project_leftovers, []);
+      await assert.rejects(fs.lstat(leftover), { code: "ENOENT" });
+      await fs.stat(path.join(target, "SKILL.md"));
+      await fs.stat(path.join(target, "agents", "openai.yaml"));
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("leftover file compare is strict when either buffer contains NUL", async () => {
+  const dir = await tempProject("ch-leftover-nul-");
+  try {
+    const expected = path.join(dir, "expected.bin");
+    const actual = path.join(dir, "actual.bin");
+    await fs.writeFile(expected, Buffer.from([0x41, 0x0d, 0x0a, 0x00, 0x42]));
+    await fs.writeFile(actual, Buffer.from([0x41, 0x0a, 0x00, 0x42]));
+    assert.equal(await leftoverMatchesHarnessCopy(actual, expected), false);
+    await fs.writeFile(actual, Buffer.from([0x41, 0x0d, 0x0a, 0x00, 0x42]));
+    assert.equal(await leftoverMatchesHarnessCopy(actual, expected), true);
+    await fs.writeFile(expected, Buffer.from("a\r\nb"));
+    await fs.writeFile(actual, Buffer.from("a\nb"));
+    assert.equal(await leftoverMatchesHarnessCopy(actual, expected), true);
+  } finally {
+    await cleanup(dir);
+  }
+});
+
+test("doctor --repair removes a leftover containing a symlink leaf and leaves the target intact", async () => {
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-inner-symlink-leftover-");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+      const skillTarget = path.join(project, "outside-SKILL.md");
+      await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
+      await fs.rename(path.join(leftover, "SKILL.md"), skillTarget);
+      await fs.symlink(skillTarget, path.join(leftover, "SKILL.md"));
+
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [leftover]);
+      assert.deepEqual(before.project_leftovers_kept, []);
+
+      const after = await runDoctor(project, ["--repair"]);
+      assert.deepEqual(after.project_leftovers, []);
+      await assert.rejects(fs.lstat(leftover), { code: "ENOENT" });
+      assert.equal(
+        await fs.readFile(skillTarget, "utf8"),
+        await fs.readFile(path.join(pluginRoot(), "skills", "llm-wiki", "SKILL.md"), "utf8"),
+      );
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor keeps same-named project folders for deny-listed skills absent from plugin/skills", async () => {
+  for (const name of DENY_LISTED_SKILLS) {
+    await assert.rejects(fs.stat(path.join(pluginRoot(), "skills", name)), { code: "ENOENT" });
+  }
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-deny-listed-");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      const leftoverPaths = DENY_LISTED_SKILLS.map((name) =>
+        path.join(project, ".cursor", "skills", name),
+      );
+      for (const leftover of leftoverPaths) {
+        await fs.mkdir(leftover, { recursive: true });
+        await fs.writeFile(path.join(leftover, "SKILL.md"), "# project local\n", "utf8");
+      }
+      const identical = path.join(project, ".cursor", "skills", "llm-wiki");
+      await plantCopy(identical, path.join(pluginRoot(), "skills", "llm-wiki"));
+
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [identical]);
+      assert.deepEqual([...before.project_leftovers_kept as string[]].sort(), [...leftoverPaths].sort());
+      assert.equal(before.needs_sync, true);
+
+      const after = await runDoctor(project, ["--repair"]);
+      assert.deepEqual(after.project_leftovers, []);
+      assert.deepEqual([...after.project_leftovers_kept as string[]].sort(), [...leftoverPaths].sort());
+      for (const leftover of leftoverPaths) {
+        assert.equal(await fs.readFile(path.join(leftover, "SKILL.md"), "utf8"), "# project local\n");
+      }
+      await assert.rejects(fs.stat(identical), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("audit reports stale when a global installed file differs from source only by CRLF", async () => {
+  await withTempUserHome(async (home) => {
+    const project = await tempProject("ch-doctor-audit-crlf-");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      const healthy = await auditInstall(project);
+      assert.equal(healthy.needs_sync, false);
+      const installed = path.join(home, ".cursor", "skills", "llm-wiki", "SKILL.md");
+      const source = await fs.readFile(path.join(pluginRoot(), "skills", "llm-wiki", "SKILL.md"));
+      const crlf = source.toString("utf8").replace(/\n/g, "\r\n");
+      assert.notEqual(crlf, source.toString("utf8"), "fixture must actually differ by CRLF");
+      await fs.writeFile(installed, crlf);
+      const { needs_sync, audit } = await auditInstall(project);
+      const item = audit.user_skill.find((entry) => entry.path === installed);
+      assert.ok(item, "audit must include the CRLF-divergent global skill file");
+      assert.equal(item.status, "stale");
+      assert.equal(needs_sync, true);
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor keeps a leftover with an inner symlink to a FIFO without hanging", { timeout: 10_000 }, async (t) => {
+  if (process.platform === "win32") {
+    t.skip("mkfifo is not available on win32");
+    return;
+  }
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-symlink-fifo-");
+    const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+    const fifo = path.join(project, "pipe.fifo");
+    const identical = path.join(project, ".cursor", "agents", "ycm-harness");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
+      await plantCopy(identical, path.join(pluginRoot(), "agents"));
+      await execFileAsync("mkfifo", [fifo]);
+      await fs.rm(path.join(leftover, "SKILL.md"));
+      await fs.symlink(fifo, path.join(leftover, "SKILL.md"));
+      const started = Date.now();
+      const before = await runDoctor(project, []);
+      assert.ok(Date.now() - started < 8_000, "symlink-to-FIFO leftover compare must return promptly");
+      assert.deepEqual(before.project_leftovers, [identical]);
+      assert.deepEqual(before.project_leftovers_kept, [leftover]);
+      const after = await runDoctor(project, ["--repair"]);
+      assert.deepEqual(after.project_leftovers, []);
+      assert.deepEqual(after.project_leftovers_kept, [leftover]);
+      await fs.lstat(path.join(leftover, "SKILL.md"));
+      await assert.rejects(fs.stat(identical), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor keeps a leftover with an inner symlink to a directory", async () => {
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-symlink-dir-");
+    const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+    const dirTarget = path.join(project, "outside-dir");
+    const identical = path.join(project, ".cursor", "agents", "ycm-harness");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
+      await plantCopy(identical, path.join(pluginRoot(), "agents"));
+      await fs.mkdir(dirTarget);
+      await fs.rm(path.join(leftover, "SKILL.md"));
+      await fs.symlink(dirTarget, path.join(leftover, "SKILL.md"));
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [identical]);
+      assert.deepEqual(before.project_leftovers_kept, [leftover]);
+      const after = await runDoctor(project, ["--repair"]);
+      assert.deepEqual(after.project_leftovers, []);
+      assert.deepEqual(after.project_leftovers_kept, [leftover]);
+      const st = await fs.lstat(path.join(leftover, "SKILL.md"));
+      assert.equal(st.isSymbolicLink(), true);
+      await assert.rejects(fs.stat(identical), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor keeps a leftover with a dangling inner symlink", async () => {
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-dangling-symlink-");
+    const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+    const identical = path.join(project, ".cursor", "agents", "ycm-harness");
+    try {
+      await runClientSync({ cursor: true, force: true });
+      await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
+      await plantCopy(identical, path.join(pluginRoot(), "agents"));
+      await fs.rm(path.join(leftover, "SKILL.md"));
+      await fs.symlink(path.join(project, "missing-target"), path.join(leftover, "SKILL.md"));
+      const before = await runDoctor(project, []);
+      assert.deepEqual(before.project_leftovers, [identical]);
+      assert.deepEqual(before.project_leftovers_kept, [leftover]);
+      const after = await runDoctor(project, ["--repair"]);
+      assert.deepEqual(after.project_leftovers, []);
+      assert.deepEqual(after.project_leftovers_kept, [leftover]);
+      const st = await fs.lstat(path.join(leftover, "SKILL.md"));
+      assert.equal(st.isSymbolicLink(), true);
+      await assert.rejects(fs.stat(identical), { code: "ENOENT" });
+    } finally {
+      await cleanup(project);
+    }
+  });
+});
+
+test("doctor keeps a leftover when a plugin source subdir is unreadable and does not crash", async (t) => {
+  if (isRootUser()) {
+    t.skip("chmod 000 is ineffective as root");
+    return;
+  }
+  await withTempUserHome(async () => {
+    const source = await tempProject("ch-doctor-unreadable-src-");
+    const project = await tempProject("ch-doctor-unreadable-src-leftover-");
+    const pluginLlm = path.join(pluginRoot(), "skills", "llm-wiki");
+    const expected = path.join(source, "plugin", "skills", "llm-wiki");
+    const leftover = path.join(project, ".cursor", "skills", "llm-wiki");
+    const locked = path.join(expected, "agents");
+    try {
+      await plantCopy(expected, pluginLlm);
+      await plantCopy(leftover, pluginLlm);
+      await fs.chmod(locked, 0o000);
+      try {
+        await fs.readdir(locked);
+        t.skip("still readable (non-POSIX fs); probe is invalid");
+        return;
+      } catch (err) {
+        assert.equal((err as NodeJS.ErrnoException).code, "EACCES");
+      }
+      const started = Date.now();
+      const { audit } = await auditInstall(project, source);
+      assert.ok(Date.now() - started < 8_000, "unreadable source compare must return promptly");
+      assert.deepEqual(
+        audit.project_leftovers.map((item) => item.path),
+        [],
+      );
+      assert.deepEqual(
+        audit.project_leftovers_kept.map((item) => item.path),
+        [leftover],
+      );
+      assert.equal(await leftoverMatchesHarnessCopy(leftover, expected), false);
+      await fs.stat(path.join(leftover, "SKILL.md"));
+    } finally {
+      await fs.chmod(locked, 0o755).catch(() => undefined);
+      await cleanup(source);
       await cleanup(project);
     }
   });
