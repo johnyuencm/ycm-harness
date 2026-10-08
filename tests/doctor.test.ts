@@ -19,6 +19,7 @@ const execFileAsync = promisify(execFile);
 
 /** Release a blocked FIFO reader so a timed-out leftover compare cannot hang the file. */
 function registerFifoUnblock(t: TestContext, fifoPath: string): void {
+  let forced = false;
   const unblock = (): void => {
     try {
       const fd = fsSync.openSync(
@@ -30,9 +31,34 @@ function registerFifoUnblock(t: TestContext, fifoPath: string): void {
       /* ENXIO if no blocked reader; ENOENT if already cleaned up */
     }
   };
-  t.after(unblock);
-  const timer = setTimeout(unblock, 8_000);
-  t.after(() => clearTimeout(timer));
+  // 9s is below the 10s test timeout and above the 8s promptness assert, so a
+  // hung open() fails that assert (or the timeout) instead of deadlocking
+  // withTempUserHome.
+  const timer = setTimeout(() => {
+    forced = true;
+    unblock();
+  }, 9_000);
+  t.after(() => {
+    clearTimeout(timer);
+    unblock();
+    if (forced) {
+      throw new Error(`${fifoPath} had to be force-unblocked: doctor opened the FIFO`);
+    }
+  });
+}
+
+async function skipUnlessProbeEacces(
+  t: TestContext,
+  probe: () => Promise<unknown>,
+): Promise<boolean> {
+  try {
+    await probe();
+    t.skip("EACCES cannot be simulated (root or non-POSIX fs)");
+    return false;
+  } catch (err) {
+    assert.equal((err as NodeJS.ErrnoException).code, "EACCES");
+    return true;
+  }
 }
 
 function pluginRoot(): string {
@@ -44,22 +70,12 @@ async function plantCopy(dest: string, src: string): Promise<void> {
   await fs.cp(src, dest, { recursive: true });
 }
 
-async function runDoctor(cwd: string, args: string[]): Promise<Record<string, unknown>> {
+async function runDoctorCommand(
+  cwd: string,
+  args: string[],
+  jsonMode: boolean,
+): Promise<{ payload?: Record<string, unknown>; lines: string[]; exitCode: number }> {
   const jsons: unknown[] = [];
-  const program = new Command();
-  program.exitOverride();
-  registerDoctor(program, createContext(cwd), {
-    out() {},
-    err() {},
-    json(value: unknown) {
-      jsons.push(value);
-    },
-  });
-  await program.parseAsync(["doctor", ...args, "--json"], { from: "user" });
-  return jsons.at(-1) as Record<string, unknown>;
-}
-
-async function runDoctorText(cwd: string, args: string[]): Promise<string[]> {
   const lines: string[] = [];
   const program = new Command();
   program.exitOverride();
@@ -68,9 +84,38 @@ async function runDoctorText(cwd: string, args: string[]): Promise<string[]> {
       lines.push(line);
     },
     err() {},
-    json() {},
+    json(value: unknown) {
+      jsons.push(value);
+    },
   });
-  await program.parseAsync(["doctor", ...args], { from: "user" });
+  let exitCode = 0;
+  try {
+    await program.parseAsync(
+      jsonMode ? ["doctor", ...args, "--json"] : ["doctor", ...args],
+      { from: "user" },
+    );
+  } catch (err) {
+    const code = (err as { exitCode?: unknown }).exitCode;
+    if (typeof code !== "number") throw err;
+    exitCode = code;
+  }
+  return {
+    payload: jsons.at(-1) as Record<string, unknown> | undefined,
+    lines,
+    exitCode,
+  };
+}
+
+async function runDoctor(cwd: string, args: string[]): Promise<Record<string, unknown>> {
+  const { payload, exitCode } = await runDoctorCommand(cwd, args, true);
+  assert.equal(exitCode, 0, `doctor ${args.join(" ")} --json exited ${exitCode}`);
+  assert.ok(payload, "doctor --json produced no payload");
+  return payload;
+}
+
+async function runDoctorText(cwd: string, args: string[]): Promise<string[]> {
+  const { lines, exitCode } = await runDoctorCommand(cwd, args, false);
+  assert.equal(exitCode, 0, `doctor ${args.join(" ")} exited ${exitCode}`);
   return lines;
 }
 
@@ -100,6 +145,7 @@ test("doctor reports only global health, the same from any cwd", async () => {
       const a = await runDoctor(first, []);
       const b = await runDoctor(second, []);
       assert.equal(a.needs_sync, false);
+      assert.deepEqual(a.repair_errors, []);
       assert.deepEqual(a.audit, b.audit);
       for (const key of ["project_skill_gaps", "project_rule_status"]) {
         assert.equal(key in a, false, `doctor must not report ${key}`);
@@ -148,6 +194,7 @@ test("doctor reports leftover project copies and --repair removes only harness-m
       const after = await runDoctor(project, ["--repair"]);
       assert.equal(after.repaired, true);
       assert.equal(after.needs_sync, false);
+      assert.deepEqual(after.repair_errors, []);
       assert.deepEqual(after.project_leftovers, []);
       assert.deepEqual(after.project_leftovers_kept, []);
       for (const leftover of leftovers) {
@@ -384,13 +431,7 @@ test("doctor keeps a leftover with an unreadable nested dir and does not crash",
       await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
       await plantCopy(identical, path.join(pluginRoot(), "agents"));
       await fs.chmod(locked, 0o000);
-      try {
-        await fs.readdir(locked);
-        t.skip("still readable (non-POSIX fs); probe is invalid");
-        return;
-      } catch (err) {
-        assert.equal((err as NodeJS.ErrnoException).code, "EACCES");
-      }
+      if (!(await skipUnlessProbeEacces(t, () => fs.readdir(locked)))) return;
       const before = await runDoctor(project, []);
       assert.deepEqual(before.project_leftovers, [identical]);
       assert.deepEqual(before.project_leftovers_kept, [leftover]);
@@ -664,13 +705,7 @@ test("doctor keeps a leftover when a plugin source subdir is unreadable and does
       await plantCopy(expected, pluginLlm);
       await plantCopy(leftover, pluginLlm);
       await fs.chmod(locked, 0o000);
-      try {
-        await fs.readdir(locked);
-        t.skip("still readable (non-POSIX fs); probe is invalid");
-        return;
-      } catch (err) {
-        assert.equal((err as NodeJS.ErrnoException).code, "EACCES");
-      }
+      if (!(await skipUnlessProbeEacces(t, () => fs.readdir(locked)))) return;
       const started = Date.now();
       let matched: boolean | undefined;
       let threw: unknown;
@@ -710,14 +745,19 @@ test("doctor --repair reports when a project leftover cannot be removed", async 
       await runClientSync({ cursor: true, force: true });
       await plantCopy(leftover, path.join(pluginRoot(), "rules", "ycm-harness.mdc"));
       await fs.chmod(parent, 0o555);
-      try {
-        await fs.rm(leftover, { recursive: true, force: true });
-        t.skip("EACCES cannot be simulated (root or non-POSIX fs)");
+      if (
+        !(await skipUnlessProbeEacces(t, () =>
+          fs.rm(leftover, { recursive: true, force: true }),
+        ))
+      ) {
         return;
-      } catch (err) {
-        assert.ok((err as NodeJS.ErrnoException).code);
       }
-      const lines = await runDoctorText(project, ["--repair"]);
+      const { lines, exitCode: textExit } = await runDoctorCommand(
+        project,
+        ["--repair"],
+        false,
+      );
+      assert.equal(textExit, 1);
       const report = lines.find((line) =>
         line.startsWith(`project leftover not removed: ${leftover} (`),
       );
@@ -728,6 +768,20 @@ test("doctor --repair reports when a project leftover cannot be removed", async 
         false,
       );
       await fs.stat(leftover);
+
+      const { payload, exitCode } = await runDoctorCommand(
+        project,
+        ["--repair"],
+        true,
+      );
+      assert.equal(exitCode, 1);
+      assert.equal(payload?.repaired, true);
+      assert.equal(payload?.needs_sync, true);
+      assert.deepEqual(payload?.project_leftovers, [leftover]);
+      const repairErrors = payload?.repair_errors as Array<{ path: string; code: string }>;
+      assert.equal(repairErrors.length, 1);
+      assert.equal(repairErrors[0]?.path, leftover);
+      assert.match(repairErrors[0]?.code ?? "", /^[A-Z]+$/);
     } finally {
       await fs.chmod(parent, 0o755).catch(() => undefined);
       await cleanup(project);

@@ -12,6 +12,7 @@ import {
   removeProjectLeftovers,
   packageRoot,
   homeDir,
+  type LeftoverRepairError,
 } from "../install-kit.js";
 import { fileExists } from "../../state/io.js";
 import { readFile } from "node:fs/promises";
@@ -73,6 +74,7 @@ export function registerDoctor(
       let { audit, needs_sync } = await auditInstall(ctx.cwd, sourceRoot);
       let repaired = false;
       const repairReports: string[] = [];
+      let leftoverRepairErrors: LeftoverRepairError[] = [];
       if (needs_sync && opts.repair) {
         repairReports.push(
           ...(await runClientSync({
@@ -86,9 +88,9 @@ export function registerDoctor(
           })),
         );
         repairReports.push(...(await repairLegacyAgentDirs()));
-        repairReports.push(
-          ...(await removeProjectLeftovers(ctx.cwd, sourceRoot)),
-        );
+        const leftoverRepair = await removeProjectLeftovers(ctx.cwd, sourceRoot);
+        repairReports.push(...leftoverRepair.reports);
+        leftoverRepairErrors = leftoverRepair.errors;
         repaired = true;
         ({ audit, needs_sync } = await auditInstall(ctx.cwd, sourceRoot));
       }
@@ -113,6 +115,7 @@ export function registerDoctor(
         source_root: sourceRoot,
         needs_sync,
         repaired,
+        repair_errors: leftoverRepairErrors,
         repair_command: `${CLI_NAME} doctor --repair`,
         user_skill_gaps: countBad(audit.user_skill),
         cursor_plugin_gaps: countBad(audit.cursor_plugin),
@@ -124,52 +127,63 @@ export function registerDoctor(
         ponytail_status: audit.ponytail.status,
         audit,
       };
-      if (opts.json) return out.json(payload);
-      out.out(`${CLI_NAME} doctor (CLI ${version})`);
-      out.out(`needs_sync: ${needs_sync}`);
-      for (const item of audit.project_leftovers) {
-        out.out(`project leftover (duplicates the global plugin): ${item.path}`);
-      }
-      for (const item of audit.project_leftovers_kept) {
+      if (opts.json) {
+        out.json(payload);
+      } else {
+        out.out(`${CLI_NAME} doctor (CLI ${version})`);
+        out.out(`needs_sync: ${needs_sync}`);
+        for (const item of audit.project_leftovers) {
+          out.out(`project leftover (duplicates the global plugin): ${item.path}`);
+        }
+        for (const item of audit.project_leftovers_kept) {
+          out.out(
+            `project leftover kept (differs from the harness copy): ${item.path} (inspect it; delete it manually if it is an old harness copy)`,
+          );
+        }
         out.out(
-          `project leftover kept (differs from the harness copy): ${item.path} (inspect it; delete it manually if it is an old harness copy)`,
+          `mattpocock-skills: ${audit.mattpocock_skills.status}` +
+            (audit.mattpocock_skills.status === "ok"
+              ? ` (${audit.mattpocock_skills.path})`
+              : ""),
+        );
+        if (audit.mattpocock_skills.status === "missing") {
+          out.out(mattPocockInstallHint());
+        }
+        out.out(
+          `ralph-loop: ${audit.ralph_loop.status}` +
+            (audit.ralph_loop.status === "ok"
+              ? ` (${audit.ralph_loop.path})`
+              : ""),
+        );
+        if (audit.ralph_loop.status === "missing") {
+          out.out(ralphLoopInstallHint());
+        }
+        out.out(
+          `caveman: ${audit.caveman.status}` +
+            (audit.caveman.status === "ok" ? ` (${audit.caveman.path})` : ""),
+        );
+        if (audit.caveman.status === "missing") {
+          out.out(cavemanInstallHint());
+        }
+        out.out(
+          `ponytail: ${audit.ponytail.status}` +
+            (audit.ponytail.status === "ok" ? ` (${audit.ponytail.path})` : ""),
+        );
+        if (audit.ponytail.status === "missing") {
+          out.out(ponytailInstallHint());
+        }
+        if (needs_sync && !repaired) {
+          out.out(`Repair: ${CLI_NAME} doctor --repair`);
+        }
+        for (const line of repairReports) out.out(line);
+      }
+      if (leftoverRepairErrors.length > 0) {
+        throw Object.assign(
+          new Error(
+            `doctor --repair could not remove ${leftoverRepairErrors.length} project leftover(s)`,
+          ),
+          { exitCode: 1 },
         );
       }
-      out.out(
-        `mattpocock-skills: ${audit.mattpocock_skills.status}` +
-          (audit.mattpocock_skills.status === "ok"
-            ? ` (${audit.mattpocock_skills.path})`
-            : ""),
-      );
-      if (audit.mattpocock_skills.status === "missing") {
-        out.out(mattPocockInstallHint());
-      }
-      out.out(
-        `ralph-loop: ${audit.ralph_loop.status}` +
-          (audit.ralph_loop.status === "ok"
-            ? ` (${audit.ralph_loop.path})`
-            : ""),
-      );
-      if (audit.ralph_loop.status === "missing") {
-        out.out(ralphLoopInstallHint());
-      }
-      out.out(
-        `caveman: ${audit.caveman.status}` +
-          (audit.caveman.status === "ok" ? ` (${audit.caveman.path})` : ""),
-      );
-      if (audit.caveman.status === "missing") {
-        out.out(cavemanInstallHint());
-      }
-      out.out(
-        `ponytail: ${audit.ponytail.status}` +
-          (audit.ponytail.status === "ok" ? ` (${audit.ponytail.path})` : ""),
-      );
-      if (audit.ponytail.status === "missing") {
-        out.out(ponytailInstallHint());
-      }
-      if (needs_sync && !repaired) {
-        out.out(`Repair: ${CLI_NAME} doctor --repair`);
-      }
-      for (const line of repairReports) out.out(line);
     });
 }
