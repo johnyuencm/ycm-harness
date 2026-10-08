@@ -1,5 +1,6 @@
 ﻿import { promises as fs } from "node:fs";
 import fsSync from "node:fs";
+import type { Stats } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +30,8 @@ export interface InstallAudit {
   user_agents: AuditItem[];
   /** Harness copies that the removed per-project install left under <cwd>/.cursor. */
   project_leftovers: AuditItem[];
+  /** Same-named project paths that differ from the plugin source (kept, not drift). */
+  project_leftovers_kept: AuditItem[];
   cursor_plugin: AuditItem[];
   codex_plugin: AuditItem[];
   codex_marketplace: AuditItem;
@@ -255,13 +258,40 @@ async function collectRelativeFiles(
   return files.sort();
 }
 
-async function sameFile(a: string, b: string): Promise<boolean> {
+/** Byte-equal by default. Leftover matching may ignore CRLF on text (no NUL). */
+async function sameFile(
+  a: string,
+  b: string,
+  options?: { ignoreCrlf?: boolean },
+): Promise<boolean> {
   try {
     const [left, right] = await Promise.all([fs.readFile(a), fs.readFile(b)]);
-    return left.equals(right);
+    return sameBytes(left, right, options?.ignoreCrlf === true);
   } catch {
     return false;
   }
+}
+
+/** Byte compare that treats CRLF and LF as the same, as the leftover review did. */
+function normalizeCrlf(buf: Buffer): Buffer {
+  if (!buf.includes(0x0d)) return buf;
+  const out = Buffer.allocUnsafe(buf.length);
+  let n = 0;
+  for (let i = 0; i < buf.length; i++) {
+    const current = buf[i];
+    if (current === undefined) continue;
+    if (current === 0x0d && buf[i + 1] === 0x0a) continue;
+    out[n++] = current;
+  }
+  return out.subarray(0, n);
+}
+
+function sameBytes(left: Buffer, right: Buffer, ignoreCrlf: boolean): boolean {
+  // Binary (NUL in either buffer) always compares strictly.
+  if (ignoreCrlf && !left.includes(0) && !right.includes(0)) {
+    return normalizeCrlf(left).equals(normalizeCrlf(right));
+  }
+  return left.equals(right);
 }
 
 async function auditFile(expected: string, actual: string): Promise<AuditItem> {
@@ -486,21 +516,142 @@ async function sameDirectory(a: string, b: string): Promise<boolean> {
   }
 }
 
+function leftoverExpectedPath(
+  kind: "skills" | "agents" | "rules",
+  name: string,
+  pluginRoot: string,
+): string {
+  if (kind === "skills") {
+    return path.join(
+      pluginRoot,
+      "skills",
+      harnessSkillSourceDir(name as (typeof HARNESS_SKILL_DIRS)[number]),
+    );
+  }
+  if (kind === "agents") return path.join(pluginRoot, "agents");
+  return path.join(pluginRoot, "rules", name);
+}
+
+async function isFollowedDirectory(target: string): Promise<boolean> {
+  const stat = await fs.stat(target).catch(() => undefined);
+  return stat?.isDirectory() === true;
+}
+
 /**
- * Paths the removed per-project install wrote under <cwd>/.cursor. They
- * duplicate the global Cursor plugin, so doctor reports and removes them.
+ * True only when `actual` is a harness copy of `expected`: every file under
+ * it matches (CRLF-insensitive on text) and there are no extra files. Missing
+ * source files are allowed so a truncated copy is still removable.
+ *
+ * Total: never throws. Any stat/read error (including EACCES on an unreadable
+ * nested dir) returns false (differs, keep). A FIFO, socket, device, or any
+ * other leaf that is not a regular file or symlink also returns false.
+ * Symlinks are compared through the link when the followed target is a
+ * regular file — `fs.rm` later removes the link only, not the target.
  */
-async function projectLeftovers(cwd: string): Promise<string[]> {
+export async function leftoverMatchesHarnessCopy(
+  actual: string,
+  expected: string,
+): Promise<boolean> {
+  try {
+    if (!(await fileExists(expected))) return false;
+    const actualDir = await isFollowedDirectory(actual);
+    const expectedDir = await isFollowedDirectory(expected);
+    if (actualDir !== expectedDir) return false;
+    if (!actualDir) return await leftoverLeafMatches(actual, expected);
+    const expectedByKey = new Map(
+      (await relativeFiles(expected)).map((rel) => [relKey(rel), rel] as const),
+    );
+    return await leftoverDirMatches(actual, expected, expectedByKey, "");
+  } catch {
+    return false;
+  }
+}
+
+/** Read through a symlink only when it points at a regular file; never open specials. */
+async function leftoverLeafIsRegularFile(
+  target: string,
+  st: Stats,
+): Promise<boolean> {
+  if (st.isFile()) return true;
+  if (!st.isSymbolicLink()) return false;
+  try {
+    return (await fs.stat(target)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+async function leftoverLeafMatches(
+  actual: string,
+  expected: string,
+): Promise<boolean> {
+  try {
+    const st = await fs.lstat(actual);
+    if (!(await leftoverLeafIsRegularFile(actual, st))) return false;
+    return await sameFile(expected, actual, { ignoreCrlf: true });
+  } catch {
+    return false;
+  }
+}
+
+async function leftoverDirMatches(
+  actualRoot: string,
+  expectedRoot: string,
+  expectedByKey: Map<string, string>,
+  prefix: string,
+): Promise<boolean> {
+  try {
+    const entries = await fs.readdir(actualRoot, { withFileTypes: true });
+    for (const entry of entries) {
+      const rel = prefix ? path.join(prefix, entry.name) : entry.name;
+      const full = path.join(actualRoot, entry.name);
+      const st = await fs.lstat(full);
+      if (st.isDirectory()) {
+        if (!(await leftoverDirMatches(full, expectedRoot, expectedByKey, rel))) {
+          return false;
+        }
+        continue;
+      }
+      if (!(await leftoverLeafIsRegularFile(full, st))) return false;
+      const expectedRel = expectedByKey.get(relKey(rel));
+      if (expectedRel === undefined) return false;
+      if (
+        !(await sameFile(path.join(expectedRoot, expectedRel), full, {
+          ignoreCrlf: true,
+        }))
+      ) {
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Paths the removed per-project install wrote under <cwd>/.cursor.
+ * Removable leftovers are identical harness copies (no extra files).
+ * Same-named paths that differ are kept.
+ */
+async function classifyProjectLeftovers(
+  cwd: string,
+  sourceRoot = packageRoot(),
+): Promise<{ removable: string[]; kept: string[] }> {
   const cursor = path.join(cwd, ".cursor");
   // From the home directory, <cwd>/.cursor is the global Cursor home: its
   // harness dirs are the user-level install, never leftovers to delete.
-  if (await sameDirectory(cursor, cursorHome())) return [];
-  const groups: Array<[string, readonly string[]]> = [
+  if (await sameDirectory(cursor, cursorHome())) {
+    return { removable: [], kept: [] };
+  }
+  const pluginRoot = path.join(sourceRoot, "plugin");
+  const groups: Array<["skills" | "agents" | "rules", readonly string[]]> = [
     ["skills", HARNESS_SKILL_DIRS],
     ["agents", [PLUGIN_NAME]],
     ["rules", ["ycm-harness.mdc"]],
   ];
-  const managed: string[] = [];
+  const removable: string[] = [];
+  const kept: string[] = [];
   for (const [dir, names] of groups) {
     const parent = path.join(cursor, dir);
     // A linked skills/agents/rules dir (symlink or junction) points outside
@@ -508,23 +659,43 @@ async function projectLeftovers(cwd: string): Promise<string[]> {
     // would remove the target's files, so such a dir has no leftovers.
     const stat = await fs.lstat(parent).catch(() => undefined);
     if (!stat?.isDirectory()) continue;
-    managed.push(...names.map((name) => path.join(parent, name)));
+    for (const name of names) {
+      const target = path.join(parent, name);
+      if (!(await fileExists(target))) continue;
+      const expected = leftoverExpectedPath(dir, name, pluginRoot);
+      if (await leftoverMatchesHarnessCopy(target, expected)) {
+        removable.push(target);
+      } else {
+        kept.push(target);
+      }
+    }
   }
-  managed.sort();
-  const found: string[] = [];
-  for (const target of managed) {
-    if (await fileExists(target)) found.push(target);
-  }
-  return found;
+  removable.sort();
+  kept.sort();
+  return { removable, kept };
 }
 
 /** Doctor --repair: remove leftover per-project copies; other .cursor files stay. */
-export async function removeProjectLeftovers(cwd: string): Promise<string[]> {
-  const leftovers = await projectLeftovers(cwd);
-  for (const target of leftovers) {
-    await fs.rm(target, { recursive: true, force: true });
+export async function removeProjectLeftovers(
+  cwd: string,
+  sourceRoot = packageRoot(),
+): Promise<string[]> {
+  const { removable } = await classifyProjectLeftovers(cwd, sourceRoot);
+  const reports: string[] = [];
+  for (const target of removable) {
+    // Compare-then-rm is a TOCTOU window; risk is low because --repair is an
+    // explicit operator action on same-named .cursor harness paths.
+    // A leaf that is a link (symlink or junction) is removed as a link only;
+    // fs.rm does not follow links inside a removed tree.
+    try {
+      await fs.rm(target, { recursive: true, force: true });
+      reports.push(`project leftover removed: ${target}`);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code ?? "ERR";
+      reports.push(`project leftover not removed: ${target} (${code})`);
+    }
   }
-  return leftovers.map((target) => `project leftover removed: ${target}`);
+  return reports;
 }
 
 async function staleLegacyAgentItems(
@@ -2102,6 +2273,7 @@ export async function auditInstall(
   const opencodeDetected = await fileExists(opencodeHome());
   const opencodeSpec = await opencodePluginSpecForSource(root);
 
+  const classifiedLeftovers = await classifyProjectLeftovers(cwd, root);
   const audit: InstallAudit = {
     user_skill: await auditHarnessSkills(
       pluginRoot,
@@ -2114,9 +2286,16 @@ export async function auditInstall(
       )),
       ...(await staleLegacyAgentItems(path.join(cursorHome(), "agents"))),
     ],
-    project_leftovers: (await projectLeftovers(cwd)).map((target) => ({
+    project_leftovers: classifiedLeftovers.removable.map((target) => ({
       path: target,
       status: "stale" as AuditStatus,
+    })),
+    // Kept leftovers stay status "ok" so they do not count toward needs_sync
+    // (`anyDrift` ignores "ok"/"n/a"). JSON still lists them separately as
+    // project_leftovers_kept; adding a new AuditStatus would break consumers.
+    project_leftovers_kept: classifiedLeftovers.kept.map((target) => ({
+      path: target,
+      status: "ok" as AuditStatus,
     })),
     cursor_plugin: [
       ...(await auditPluginProjection(root, cursorInstallRoot())),
