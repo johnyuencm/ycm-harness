@@ -260,7 +260,7 @@ Sync the packaged plugin assets into every detected local client:
 ycm-harness sync
 ```
 
-Installs are global (user-level). `install`, `sync` and `doctor --repair` never write harness copies into the current project. Older versions copied skills, agents and `rules/ycm-harness.mdc` into a project's `.cursor/`. Those copies duplicate the global plugin: `ycm-harness doctor` lists them as `project_leftovers`, and `ycm-harness doctor --repair` removes them.
+Installs are global (user-level). `install`, `sync` and `doctor --repair` never write harness copies into the current project. Older versions copied skills, agents and `rules/ycm-harness.mdc` into a project's `.cursor/`. Those copies duplicate the global plugin: `ycm-harness doctor` lists identical copies as `project_leftovers`, and `ycm-harness doctor --repair` removes them. A same-named path that differs from the plugin source, or has extra files, is kept and listed as `project_leftovers_kept`. Inspect a kept path and delete it manually if it is an old harness copy; `--repair` will not remove it, and it can shadow the global skill in that project.
 
 Useful variants:
 
@@ -281,7 +281,7 @@ Behavior:
 - Cursor GitHub marketplace installs **pin a commit SHA** and do not auto-update. `sync --cursor` copies current plugin assets into `~/.cursor/plugins/local/ycm-harness` **and** overwrites any SHA-pinned `plugins/cache/**/ycm-harness/<sha>/` copy Cursor is actually loading. A Cursor SessionStart hook then starts `plugin/scripts/github-refresh.mjs` in the background (fail-open). That script does not need a sibling `runtime/` CLI — SHA-pinned marketplace copies only ship plugin files — so later chats can track GitHub HEAD. This chat still uses already-loaded rules; start a new chat after refresh. `YCM_HARNESS_SKIP_GITHUB_PLUGIN=1` skips that SessionStart clone/overwrite; `sync --cursor` still writes this checkout onto dests.
 - `plugin update` is the simplest local update path: it syncs managed plugin files and, for Codex, refreshes the installed plugin cache using official `codex plugin remove/add`.
 - Stable/default sync uses the bundled package assets, then refreshes the GitHub clone when network is allowed.
-- `doctor --repair` repairs the global installs. In the current project it removes only the harness copies listed in `project_leftovers`; other `.cursor/` files stay. It also flags pinned Cursor/Claude cache copies whose rules/agents are behind the package.
+- `doctor --repair` repairs the global installs. In the current project it removes only identical harness copies listed in `project_leftovers`; same-named paths that differ (`project_leftovers_kept`) and other `.cursor/` files stay. Inspect a kept leftover and delete it manually if it is an old harness copy. It also flags pinned Cursor/Claude cache copies whose rules/agents are behind the package.
 
 ### Claude Code
 

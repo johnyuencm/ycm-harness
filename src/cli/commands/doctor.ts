@@ -70,7 +70,7 @@ export function registerDoctor(
       }
 
       const sourceRoot = packageRoot();
-      let { audit, needs_sync } = await auditInstall(ctx.cwd);
+      let { audit, needs_sync } = await auditInstall(ctx.cwd, sourceRoot);
       let repaired = false;
       const repairReports: string[] = [];
       if (needs_sync && opts.repair) {
@@ -86,9 +86,11 @@ export function registerDoctor(
           })),
         );
         repairReports.push(...(await repairLegacyAgentDirs()));
-        repairReports.push(...(await removeProjectLeftovers(ctx.cwd)));
+        repairReports.push(
+          ...(await removeProjectLeftovers(ctx.cwd, sourceRoot)),
+        );
         repaired = true;
-        ({ audit, needs_sync } = await auditInstall(ctx.cwd));
+        ({ audit, needs_sync } = await auditInstall(ctx.cwd, sourceRoot));
       }
       let version = "unknown";
       try {
@@ -105,6 +107,9 @@ export function registerDoctor(
         cli_version: version,
         project_root: ctx.cwd,
         project_leftovers: audit.project_leftovers.map((item) => item.path),
+        project_leftovers_kept: audit.project_leftovers_kept.map(
+          (item) => item.path,
+        ),
         source_root: sourceRoot,
         needs_sync,
         repaired,
@@ -124,6 +129,11 @@ export function registerDoctor(
       out.out(`needs_sync: ${needs_sync}`);
       for (const item of audit.project_leftovers) {
         out.out(`project leftover (duplicates the global plugin): ${item.path}`);
+      }
+      for (const item of audit.project_leftovers_kept) {
+        out.out(
+          `project leftover kept (differs from the harness copy): ${item.path} (inspect it; delete it manually if it is an old harness copy)`,
+        );
       }
       out.out(
         `mattpocock-skills: ${audit.mattpocock_skills.status}` +
