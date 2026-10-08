@@ -675,27 +675,54 @@ async function classifyProjectLeftovers(
   return { removable, kept };
 }
 
+export interface LeftoverRepairError {
+  path: string;
+  code: string;
+}
+
+async function leftoverChildCount(target: string): Promise<number | undefined> {
+  try {
+    return (await fs.readdir(target)).length;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Doctor --repair: remove leftover per-project copies; other .cursor files stay. */
 export async function removeProjectLeftovers(
   cwd: string,
   sourceRoot = packageRoot(),
-): Promise<string[]> {
+): Promise<{ reports: string[]; errors: LeftoverRepairError[] }> {
   const { removable } = await classifyProjectLeftovers(cwd, sourceRoot);
   const reports: string[] = [];
+  const errors: LeftoverRepairError[] = [];
   for (const target of removable) {
     // Compare-then-rm is a TOCTOU window; risk is low because --repair is an
     // explicit operator action on same-named .cursor harness paths.
     // A leaf that is a link (symlink or junction) is removed as a link only;
     // fs.rm does not follow links inside a removed tree.
+    const beforeCount = await leftoverChildCount(target);
     try {
       await fs.rm(target, { recursive: true, force: true });
       reports.push(`project leftover removed: ${target}`);
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code ?? "ERR";
-      reports.push(`project leftover not removed: ${target} (${code})`);
+      errors.push({ path: target, code });
+      let phrase = "not removed";
+      if (await fileExists(target)) {
+        const afterCount = await leftoverChildCount(target);
+        if (
+          beforeCount !== undefined &&
+          afterCount !== undefined &&
+          afterCount < beforeCount
+        ) {
+          phrase = "not fully removed";
+        }
+      }
+      reports.push(`project leftover ${phrase}: ${target} (${code})`);
     }
   }
-  return reports;
+  return { reports, errors };
 }
 
 async function staleLegacyAgentItems(
