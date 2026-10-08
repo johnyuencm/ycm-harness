@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
-import { promises as fs } from "node:fs";
+import fsSync, { promises as fs } from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -16,6 +16,24 @@ import {
 import { cleanup, tempProject, withTempUserHome } from "./helpers.js";
 
 const execFileAsync = promisify(execFile);
+
+/** Release a blocked FIFO reader so a timed-out leftover compare cannot hang the file. */
+function registerFifoUnblock(t: TestContext, fifoPath: string): void {
+  const unblock = (): void => {
+    try {
+      const fd = fsSync.openSync(
+        fifoPath,
+        fsSync.constants.O_WRONLY | fsSync.constants.O_NONBLOCK,
+      );
+      fsSync.closeSync(fd);
+    } catch {
+      /* ENXIO if no blocked reader; ENOENT if already cleaned up */
+    }
+  };
+  t.after(unblock);
+  const timer = setTimeout(unblock, 8_000);
+  t.after(() => clearTimeout(timer));
+}
 
 function pluginRoot(): string {
   return path.join(packageRoot(), "plugin");
@@ -410,6 +428,7 @@ test("doctor keeps a leftover whose SKILL.md is a FIFO without hanging", { timeo
       await plantCopy(identical, path.join(pluginRoot(), "agents"));
       await fs.rm(fifo);
       await execFileAsync("mkfifo", [fifo]);
+      registerFifoUnblock(t, fifo);
       const started = Date.now();
       const before = await runDoctor(project, []);
       assert.ok(Date.now() - started < 8_000, "FIFO leftover compare must return promptly");
@@ -597,6 +616,7 @@ test("doctor keeps a leftover with an inner symlink to a FIFO without hanging", 
       await plantCopy(leftover, path.join(pluginRoot(), "skills", "llm-wiki"));
       await plantCopy(identical, path.join(pluginRoot(), "agents"));
       await execFileAsync("mkfifo", [fifo]);
+      registerFifoUnblock(t, fifo);
       await fs.rm(path.join(leftover, "SKILL.md"));
       await fs.symlink(fifo, path.join(leftover, "SKILL.md"));
       const started = Date.now();
