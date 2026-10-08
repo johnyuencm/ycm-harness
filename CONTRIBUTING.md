@@ -20,6 +20,10 @@ npm test
 
 Node.js **>= 20** is required.
 
+Tests that exist only in the public repo live under `tests/public-only/`.
+The private→public promote never copies, updates, prunes, or deletes that
+directory. `npm test` and `npm run smoke` run the folder when it exists.
+
 ## Pull requests
 
 1. Open an issue (or claim an existing one) describing the change.
