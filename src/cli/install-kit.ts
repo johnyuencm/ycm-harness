@@ -681,14 +681,21 @@ export async function removeProjectLeftovers(
   sourceRoot = packageRoot(),
 ): Promise<string[]> {
   const { removable } = await classifyProjectLeftovers(cwd, sourceRoot);
+  const reports: string[] = [];
   for (const target of removable) {
     // Compare-then-rm is a TOCTOU window; risk is low because --repair is an
     // explicit operator action on same-named .cursor harness paths.
     // A leaf that is a link (symlink or junction) is removed as a link only;
     // fs.rm does not follow links inside a removed tree.
-    await fs.rm(target, { recursive: true, force: true });
+    try {
+      await fs.rm(target, { recursive: true, force: true });
+      reports.push(`project leftover removed: ${target}`);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code ?? "ERR";
+      reports.push(`project leftover not removed: ${target} (${code})`);
+    }
   }
-  return removable.map((target) => `project leftover removed: ${target}`);
+  return reports;
 }
 
 async function staleLegacyAgentItems(

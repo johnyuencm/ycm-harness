@@ -718,3 +718,41 @@ test("doctor keeps a leftover when a plugin source subdir is unreadable and does
     }
   });
 });
+
+test("doctor --repair reports when a project leftover cannot be removed", async (t) => {
+  if (isRootUser()) {
+    t.skip("chmod 555 is ineffective as root");
+    return;
+  }
+  await withTempUserHome(async () => {
+    const project = await tempProject("ch-doctor-rm-eacces-");
+    const leftover = path.join(project, ".cursor", "rules", "ycm-harness.mdc");
+    const parent = path.dirname(leftover);
+    try {
+      await runClientSync({ cursor: true, force: true });
+      await plantCopy(leftover, path.join(pluginRoot(), "rules", "ycm-harness.mdc"));
+      await fs.chmod(parent, 0o555);
+      try {
+        await fs.rm(leftover, { recursive: true, force: true });
+        t.skip("EACCES cannot be simulated (root or non-POSIX fs)");
+        return;
+      } catch (err) {
+        assert.ok((err as NodeJS.ErrnoException).code);
+      }
+      const lines = await runDoctorText(project, ["--repair"]);
+      const report = lines.find((line) =>
+        line.startsWith(`project leftover not removed: ${leftover} (`),
+      );
+      assert.ok(report, `expected leftover-not-removed line, got: ${lines.join("\n")}`);
+      assert.match(report, /\([A-Z]+\)/);
+      assert.equal(
+        lines.some((line) => line === `project leftover removed: ${leftover}`),
+        false,
+      );
+      await fs.stat(leftover);
+    } finally {
+      await fs.chmod(parent, 0o755).catch(() => undefined);
+      await cleanup(project);
+    }
+  });
+});
