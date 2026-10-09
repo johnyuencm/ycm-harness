@@ -154,6 +154,20 @@ Default to the **most abstract** skill that still works. Skills often travel acr
 
 **Refinement loop:** After drafting from a real incident, strip proper nouns and one-repo paths. Ask: “Would this still make sense in an unrelated codebase?” If not, generalize again.
 
+**Abstract the purpose, not only the names.** Stripping proper nouns is the easy half. A skill stays locked to one world when its *steps* assume that world's materials — a web stack, a database, a test runner, a cloud. Those assumptions hide inside a step that reads as generic because it names no product. Write the durable question; let the agent bind it to the materials in front of it.
+
+| Locked to one domain | Portable purpose |
+|----------------------|------------------|
+| "Grep every caller of the changed function" | "Find every dependent of each changed public thing" |
+| "Run `npm test` and `tsc --noEmit`" | "Run the checks the project already has, whatever its kind" |
+| "Confirm the migration has a down script" | "What cannot be undone after this ships?" |
+
+Each right cell covers its left cell and keeps working in firmware, a data pipeline, a documentation set, or an infrastructure repo. Prefer the material-neutral word: *artifact* over file, *dependent* over caller, *check* over test, *entry point* over route.
+
+**The three-project test.** Read the mandatory steps as three projects with fixed axes: one with no database, one with no test runner, one that is not code at all. A step that goes silent for two of the three is a detail wearing a generic name. Keep the question in `SKILL.md`; move the domain instance to `examples.md`.
+
+**Do not pay for abstraction with checkability.** A general step still needs a completion criterion an agent can fail. "Consider the boundaries" is unfalsifiable; "every question has a recorded answer — a finding, or 'none' with what was looked at" is not. Stay concrete about the shape of the work and what counts as proof; let only the materials vary.
+
 ### 2. Concise is Key
 
 The context window is shared with conversation history, other skills, and requests. Every token competes for space.
@@ -447,7 +461,7 @@ If you have access to the AskQuestion tool, use it for efficient structured gath
 3. Ensure consistent terminology throughout
 4. Verify all file references are one level deep
 5. Test that the skill can be discovered and applied
-6. Portability check: if the skill is not single-project-scoped, ask “Would this still make sense in an unrelated codebase?” and strip until yes
+6. Portability check: if the skill is not single-project-scoped, run the three-project test and strip until every mandatory step survives it
 
 ---
 
@@ -516,7 +530,7 @@ Before finalizing a skill, verify:
 - [ ] SKILL.md body is under 500 lines
 - [ ] Consistent terminology throughout
 - [ ] Examples are concrete, not abstract
-- [ ] Portable skills stay abstract (no one-repo proper nouns in the mandatory workflow)
+- [ ] Portable skills stay abstract: no one-repo proper nouns, and every mandatory step survives the three-project test with a criterion that can still fail
 - [ ] Project-only concrete details live in project skills or optional `examples.md`
 
 ### Structure
