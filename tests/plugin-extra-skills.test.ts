@@ -13,6 +13,7 @@ const commanderSystem = path.join(repo, "plugin", "commander-system");
 const EXTRA_SKILLS = [
   "commander",
   "merge-branches-to-master",
+  "review-past-commits",
   "create-skill",
   "migrate-multica-to-github-projects",
   "integrating-google-adsense",

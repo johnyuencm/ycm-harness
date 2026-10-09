@@ -79,6 +79,7 @@ const HARNESS_SKILL_DIRS = [
   "setup-autonomy-p1-p7",
   "run-technical-design-discussion",
   "merge-branches-to-master",
+  "review-past-commits",
   "create-skill",
   "migrate-multica-to-github-projects",
   "integrating-google-adsense",
