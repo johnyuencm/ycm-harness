@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Past Commits"
+  short_description: "Review merged commits over a pinned range and publish the evidence"
+  default_prompt: "Use $review-past-commits to pin the commit range, read every commit against its recorded intent, run the repo checks, grade each finding with file:line evidence, verify independently, then commit and push the report."

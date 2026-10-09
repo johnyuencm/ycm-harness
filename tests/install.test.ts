@@ -232,6 +232,7 @@ test("install copies skills, agents and the rule into the global Cursor home", a
       "run-technical-design-discussion",
       "llm-wiki",
       "merge-branches-to-master",
+      "review-past-commits",
       "create-skill",
       "integrating-google-adsense",
     ]) {
