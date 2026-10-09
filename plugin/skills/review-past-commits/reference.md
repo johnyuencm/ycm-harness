@@ -1,13 +1,13 @@
 # Reference — git forensics, grading, report template
 
-The defect checklist lives in [SKILL.md](SKILL.md). This file holds the commands, the scales, and the output shape.
+Normative. The review questions live in [SKILL.md](SKILL.md); worked instances of each live in [examples.md](examples.md).
 
 ## Git forensics
 
 Run these from a clean checkout or a detached worktree.
 
 ```bash
-# The range. Pin both ends to full SHAs.
+# The range. Pin both ends to full commit ids.
 git rev-parse <base> <head>
 git merge-base <default-branch> <branch>    # the base for a branch or pull request
 git log --oneline <base>..<head>
@@ -24,9 +24,9 @@ git cherry <base> <branch>                  # '-' an equivalent is upstream, '+'
 git range-diff <old-base>..<old-tip> <new-base>..<new-tip> -- <paths>
 git diff --exit-code <before> <after> -- <paths>
 
-# Callers of a changed public symbol.
+# Dependents of a changed public thing.
 git diff <base>..<head> --name-only
-git grep -n '\b<symbol>\b' -- <source dirs>
+git grep -n '<name>' -- <search paths>
 
 # Hygiene after any integration.
 git diff --check <base>
@@ -34,9 +34,9 @@ git ls-files -u
 git status --short --branch
 ```
 
-`git cherry` compares patch ids. A rebase that absorbed surrounding changes shifts the patch id, so a `+` means "no identical patch upstream", not "the work is missing". Settle every `+` with `git range-diff` or by reading the current code.
+`git cherry` compares patch ids. A rebase that absorbed surrounding changes shifts the patch id, so a `+` means "no identical patch upstream", not "the work is missing". Settle every `+` with `git range-diff` or by reading the current state.
 
-Read the continuous-integration result for the exact head SHA, not for the branch.
+Read the continuous-integration result for the exact head commit, not for the branch.
 
 ## Severity and grade
 
@@ -44,15 +44,15 @@ Severity answers how bad. Grade answers how sure. Report both.
 
 | Severity | Meaning |
 |----------|---------|
-| CRITICAL | Data loss, access-control break, or outage on a path that runs today. Blocks the merge. |
-| HIGH | A real defect on a path that runs today, or a latent access-control gap the next change activates. |
+| CRITICAL | Loss, exposure, or outage on a path that runs today. Blocks the merge. |
+| HIGH | A real defect on a path that runs today, or a latent one the next change activates. |
 | MEDIUM | Wrong behaviour on a reachable edge case. |
 | LOW | Cosmetic, fragile, or a maintenance risk. |
 
 | Grade | Meaning |
 |-------|---------|
 | CONFIRMED | A command, a test, or a reproduction shows it. |
-| PLAUSIBLE | A careful code read shows it, and nothing executed it. |
+| PLAUSIBLE | Careful reading shows it, and nothing executed it. |
 | UNVERIFIED | The specific claim could not be checked. Say why. |
 
 ## Report template
@@ -70,29 +70,38 @@ Intent sources: <tickets, pull requests, specs, decision records>.
 ## Findings
 
 ### H1 HIGH (PLAUSIBLE) — <one-line claim>
-- `path/to/file.ts:104`, `path/to/other.ts:75`
+- `<location>`, `<location>`
 - Failure: <inputs or state, then the wrong result>. <Where the single fix belongs.>
 
 ### M1 MEDIUM (CONFIRMED) — <one-line claim>
-- `path/to/file.ts:68`
+- `<location>`
 - Failure: <concrete path>. <Fix location.>
+
+## Questions answered
+
+One row per review question. "None" is an answer; an empty cell is not.
+
+| # | Question | Answer | What was looked at |
+|---|----------|--------|--------------------|
+| 1 | Intent | <finding ids, or none> | <ledger claims checked> |
+| … | … | … | … |
 
 ## Checks that passed
 
 - <Area> — PASS (CONFIRMED): <evidence>.
 
-## Spec drift
+## Intent drift
 
-<Per criterion: met, not met, or deferred with its tracked item.>
+<Per recorded claim: met, not met, or deferred with its tracked item.>
 
-## Done well (patterns for other agents)
+## Worth copying
 
-1. `path/to/file.ts:26` — <what to copy, and why>.
+1. `<location>` — <what to reuse, and why>.
 
 ## Verification
 
 - `<command>`: exit <code>. <Counts, or the reason it could not run.>
-- Continuous integration at `<head>`: <result and run reference>.
+- Continuous integration at `<head>`: <result and run reference, or none configured>.
 - Independent reviewer: <accept or reject, and what they checked>.
 
 ## Not checked
@@ -100,4 +109,4 @@ Intent sources: <tickets, pull requests, specs, decision records>.
 - <Claim>: <why>.
 ```
 
-Commit the report into the repository and link committed paths only.
+Commit the report into the project and link committed paths only.
