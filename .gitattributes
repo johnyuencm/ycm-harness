@@ -1,0 +1,10 @@
+# The working copy lives on a Windows drive under WSL, where an editor can
+# rewrite a tracked text file with CRLF endings. Git keeps LF in the object
+# store, so every rewritten file then reads as modified while its content is
+# unchanged. `text=auto` makes git detect text, store and check out LF, and
+# convert a CRLF working file back to LF when it reads it. `git status` stays
+# clean even after a Windows tool touches the file.
+#
+# `text=auto` also detects a binary file and leaves its bytes alone. This
+# repository tracks no binary file today; a future one needs no rule here.
+* text=auto eol=lf
