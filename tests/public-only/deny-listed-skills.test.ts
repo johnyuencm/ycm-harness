@@ -12,11 +12,44 @@ function pluginRoot(): string {
   return path.join(packageRoot(), "plugin");
 }
 
+/**
+ * Every skill deny-listed in the private promote script. None may appear
+ * under this mirror's plugin/skills.
+ */
+const PRIVATE_ONLY_SKILLS = [
+  "building-ios-ipa-sideloadly",
+  "deploying-to-mumu-emulator",
+  "eli5",
+  "setup-autonomy-p1-p7",
+] as const;
+
+/**
+ * The subset install-kit still names in HARNESS_SKILL_DIRS. Doctor keeps a
+ * same-named project folder for these. `eli5` is not one: install-kit never
+ * knew the name, so doctor neither removes nor keeps such a folder.
+ */
 const DENY_LISTED_SKILLS = [
   "building-ios-ipa-sideloadly",
   "deploying-to-mumu-emulator",
   "setup-autonomy-p1-p7",
 ] as const;
+
+test("no private-only skill ships in the public mirror", async () => {
+  for (const name of PRIVATE_ONLY_SKILLS) {
+    await assert.rejects(fs.stat(path.join(pluginRoot(), "skills", name)), { code: "ENOENT" });
+  }
+});
+
+test("README advertises no skill the mirror does not ship", async () => {
+  const readme = await fs.readFile(path.join(packageRoot(), "README.md"), "utf8");
+  for (const name of PRIVATE_ONLY_SKILLS) {
+    assert.equal(
+      readme.includes(`\`plugin/skills/${name}/`),
+      false,
+      `README.md advertises plugin/skills/${name}/, which this mirror does not ship`,
+    );
+  }
+});
 
 async function plantCopy(dest: string, src: string): Promise<void> {
   await fs.mkdir(path.dirname(dest), { recursive: true });
@@ -39,9 +72,6 @@ async function runDoctor(cwd: string, args: string[]): Promise<Record<string, un
 }
 
 test("doctor keeps same-named project folders for deny-listed skills absent from plugin/skills", async () => {
-  for (const name of DENY_LISTED_SKILLS) {
-    await assert.rejects(fs.stat(path.join(pluginRoot(), "skills", name)), { code: "ENOENT" });
-  }
   await withTempUserHome(async () => {
     const project = await tempProject("ch-doctor-deny-listed-");
     try {
