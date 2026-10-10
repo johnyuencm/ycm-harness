@@ -1,10 +1,16 @@
-# The working copy lives on a Windows drive under WSL, where an editor can
-# rewrite a tracked text file with CRLF endings. Git keeps LF in the object
-# store, so every rewritten file then reads as modified while its content is
-# unchanged. `text=auto` makes git detect text, store and check out LF, and
-# convert a CRLF working file back to LF when it reads it. `git status` stays
-# clean even after a Windows tool touches the file.
+# Git for Windows ships `core.autocrlf = true` in its system config
+# (`C:/Program Files/Git/etc/gitconfig`). This working copy lives on a Windows
+# drive and is used from WSL, where git has `core.autocrlf` unset. Any
+# Windows-side git operation therefore checks tracked text files out as CRLF,
+# and WSL git then reports hundreds of unchanged files as modified.
 #
-# `text=auto` also detects a binary file and leaves its bytes alone. This
-# repository tracks no binary file today; a future one needs no rule here.
+# A path attribute beats `core.autocrlf`, so `eol=lf` makes Windows git write
+# LF too. Measured 2026-10-09: `git.exe reset --hard` in a clone without this
+# file produced 319 CRLF files and 303 dirty files; in a clone with it, zero.
+#
+# `text=auto` also detects a binary file and leaves its bytes alone.
+#
+# Limit: this does not hide a CRLF working file from `git status`. If the churn
+# returns while `git check-attr text eol -- <file>` still reports `auto` and
+# `lf`, some other Windows tool wrote the CRLF, and git is not the cause.
 * text=auto eol=lf
