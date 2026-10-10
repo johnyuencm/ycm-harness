@@ -13,30 +13,40 @@ function pluginRoot(): string {
 }
 
 /**
- * Every skill deny-listed in the private promote script. None may appear
- * under this mirror's plugin/skills.
+ * PRIVATE_ONLY_SKILL_DIRS in the private promote script: machine-specific
+ * skills tied to this operator's hardware. None may appear under this
+ * mirror's plugin/skills. Private keeps the two lists partitioned over the
+ * real plugin/skills/ listing, so a new skill cannot reach the mirror
+ * undecided; this guard is the mirror-side backstop against a bad promote.
  */
 const PRIVATE_ONLY_SKILLS = [
   "building-ios-ipa-sideloadly",
   "deploying-to-mumu-emulator",
-  "eli5",
   "setup-autonomy-p1-p7",
 ] as const;
 
 /**
- * The subset install-kit still names in HARNESS_SKILL_DIRS. Doctor keeps a
- * same-named project folder for these. `eli5` is not one: install-kit never
- * knew the name, so doctor neither removes nor keeps such a folder.
+ * Same names: install-kit still lists all three in HARNESS_SKILL_DIRS, so
+ * doctor keeps a same-named project folder instead of removing it.
  */
-const DENY_LISTED_SKILLS = [
-  "building-ios-ipa-sideloadly",
-  "deploying-to-mumu-emulator",
-  "setup-autonomy-p1-p7",
-] as const;
+const DENY_LISTED_SKILLS = PRIVATE_ONLY_SKILLS;
+
+/** Published skills this mirror must keep shipping. */
+const PUBLISHED_SKILLS = ["eli5", "explainer"] as const;
 
 test("no private-only skill ships in the public mirror", async () => {
   for (const name of PRIVATE_ONLY_SKILLS) {
     await assert.rejects(fs.stat(path.join(pluginRoot(), "skills", name)), { code: "ENOENT" });
+  }
+});
+
+test("published skills ship in the public mirror", async () => {
+  for (const name of PUBLISHED_SKILLS) {
+    const skill = await fs.readFile(
+      path.join(pluginRoot(), "skills", name, "SKILL.md"),
+      "utf8",
+    );
+    assert.match(skill, new RegExp(`^---\\r?\\nname: ${name}\\r?\\n`));
   }
 });
 
