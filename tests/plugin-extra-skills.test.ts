@@ -18,6 +18,7 @@ const EXTRA_SKILLS = [
   "migrate-multica-to-github-projects",
   "integrating-google-adsense",
   "explainer",
+  "eli5",
 ] as const;
 
 test("extra plugin skills ship with SKILL.md and Codex openai.yaml", async () => {
@@ -83,7 +84,7 @@ test("plugin commander skill points at in-plugin commander-system", async () => 
   assert.doesNotMatch(skill, /npm run commander:install/);
 });
 
-test("explainer is installed via HARNESS_SKILL_DIRS", async () => {
+test("explainer and eli5 are installed via HARNESS_SKILL_DIRS", async () => {
   const kit = await fs.readFile(
     path.join(repo, "src", "cli", "install-kit.ts"),
     "utf8",
@@ -91,6 +92,10 @@ test("explainer is installed via HARNESS_SKILL_DIRS", async () => {
   const dirs = kit.match(/const HARNESS_SKILL_DIRS = \[([\s\S]*?)\] as const/);
   assert.ok(dirs);
   assert.match(dirs[1], /"explainer"/);
+  assert.match(dirs[1], /"eli5"/);
+  // eli5 routes to explainer, so shipping one without the other is a dead link.
+  const eli5 = await fs.readFile(path.join(pluginSkills, "eli5", "SKILL.md"), "utf8");
+  assert.match(eli5, /`explainer`/);
 });
 
 test("commander stays plugin-native and is not copied to user skill dirs", async () => {
