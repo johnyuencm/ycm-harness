@@ -86,16 +86,28 @@ Use the ancestry-only merge when the content is already present or deliberately 
 ## Dispatch prompt — independent verification
 
 ```text
-GOAL: Independently verify a commit review. Trust nothing in its report; check the artifacts.
-CONTEXT: Project <absolute path>. Range <base>..<head>. Read-only: make no edits, no commits,
-no merges, no writes to any external system. Claimed findings: <paste the finding list>.
-VERIFY:
-1. Read each cited location. Does the artifact do what the finding claims?
-2. Run <check commands>. Quote exit codes.
-3. Search for the dependents of each changed public thing named in the review.
-4. Scan the range for checks that got easier to pass: skipped, gated, loosened, silenced.
-REPORT (max 15 lines): per finding CONFIRMED / PLAUSIBLE / REJECTED with one evidence line
-each; then overall ACCEPT or BLOCK with specific reasons; then what you could not check.
+GOAL: Independently review a commit range, then grade a first pass's findings. The range
+comes first. Your most valuable output is a defect the first pass did not find.
+CONTEXT: Project <absolute path>. Range <base>..<head>. Slices: <pinned ids>. Read-only:
+make no edits, no commits, no merges, no writes to any external system.
+First pass's findings: <paste the finding list>.
+Questions it answered "none": <list>.
+A. REVIEW THE RANGE — do this before you read the claimed findings closely:
+1. Work the "read" questions over the artifacts yourself: authority, dependents, order and
+   repetition, boundaries, assumptions about input. Start with the ones answered "none".
+2. Search the dependents of each changed public thing, whether or not the review named it.
+3. Scan the range for checks that got easier to pass: skipped, gated, loosened, silenced.
+4. Report every defect you find, with a location and a failure path, whether or not the
+   first pass mentioned it.
+B. GRADE THE CLAIMS:
+5. Read each cited location. Does the artifact do what the finding claims?
+6. Run <check commands>. Quote exit codes. Name the risky paths this environment cannot run.
+REPORT (max 20 lines): first your own findings, each with severity, location and failure
+path — or "none", with the questions you re-ran to get there; then per claimed finding
+CONFIRMED / PLAUSIBLE / UNVERIFIED / REJECTED with one evidence line each; then ACCEPT or
+BLOCK with specific reasons; then what you could not check.
 ```
 
 Give the reviewer pinned commit ids and the absolute path of the checkout it must use. A reviewer that resolves a branch name reviews a different range than the one you reported.
+
+A dispatch that pastes only the finding list buys a proofreader. The first pass already missed what it did not think to look for; section A is the part that finds it.

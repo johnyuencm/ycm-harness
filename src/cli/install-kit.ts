@@ -82,6 +82,7 @@ const HARNESS_SKILL_DIRS = [
   "create-skill",
   "migrate-multica-to-github-projects",
   "integrating-google-adsense",
+  "explainer",
 ] as const;
 
 /** Plugin-native skills: not copied to ~/.cursor/skills; they update with the plugin. */
