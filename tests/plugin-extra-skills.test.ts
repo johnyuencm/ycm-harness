@@ -17,6 +17,7 @@ const EXTRA_SKILLS = [
   "create-skill",
   "migrate-multica-to-github-projects",
   "integrating-google-adsense",
+  "explainer",
 ] as const;
 
 test("extra plugin skills ship with SKILL.md and Codex openai.yaml", async () => {
@@ -80,6 +81,18 @@ test("plugin commander skill points at in-plugin commander-system", async () => 
   assert.match(skill, /\*\*only\*\* golden source/);
   assert.doesNotMatch(skill, /\{\{HOME\}\}/);
   assert.doesNotMatch(skill, /npm run commander:install/);
+});
+
+test("commander stays plugin-native and is not copied to user skill dirs", async () => {
+  const kit = await fs.readFile(
+    path.join(repo, "src", "cli", "install-kit.ts"),
+    "utf8",
+  );
+  assert.match(kit, /PLUGIN_NATIVE_SKILL_DIRS = \["commander"\] as const/);
+  assert.match(kit, /prunePluginNativeSkillDirs/);
+  const dirs = kit.match(/const HARNESS_SKILL_DIRS = \[([\s\S]*?)\] as const/);
+  assert.ok(dirs);
+  assert.doesNotMatch(dirs[1], /"commander"/);
 });
 
 test("install-commander migrates pointers and does not copy protocol", async () => {

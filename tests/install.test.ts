@@ -28,8 +28,12 @@ async function runInstall(
   homeOverride: string,
 ): Promise<string[]> {
   const originalHome = process.env.USERPROFILE ?? process.env.HOME;
+  // The installer honours YCM_HARNESS_HOME before HOME; clear it so a stray
+  // override cannot redirect the install away from the asserted home.
+  const originalHarnessHome = process.env.YCM_HARNESS_HOME;
   if (process.platform === "win32") process.env.USERPROFILE = homeOverride;
   process.env.HOME = homeOverride;
+  delete process.env.YCM_HARNESS_HOME;
 
   const stdout: string[] = [];
   const ctx = createContext(cwd);
@@ -54,6 +58,8 @@ async function runInstall(
     }
     if (originalHome === undefined) delete process.env.HOME;
     else process.env.HOME = originalHome;
+    if (originalHarnessHome === undefined) delete process.env.YCM_HARNESS_HOME;
+    else process.env.YCM_HARNESS_HOME = originalHarnessHome;
   }
 
   return stdout;
