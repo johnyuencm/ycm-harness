@@ -28,9 +28,9 @@ export interface AuditItem {
 export interface InstallAudit {
   user_skill: AuditItem[];
   user_agents: AuditItem[];
-  /** Harness copies that the removed per-project install left under <cwd>/.cursor. */
+  /** Identical harness copies that the removed per-project install left under <cwd>/.cursor. */
   project_leftovers: AuditItem[];
-  /** Same-named project paths that differ from the plugin source (kept, not drift). */
+  /** Same-named project paths that differ from the plugin source; doctor keeps them. */
   project_leftovers_kept: AuditItem[];
   cursor_plugin: AuditItem[];
   codex_plugin: AuditItem[];
@@ -70,7 +70,6 @@ const HARNESS_SKILL_DIRS = [
   "autonomous-harness",
   "hard-problem-solving",
   "llm-wiki",
-  "commander",
   "building-ios-ipa-sideloadly",
   "deploying-to-mumu-emulator",
   "plan-and-advance",
@@ -84,6 +83,9 @@ const HARNESS_SKILL_DIRS = [
   "migrate-multica-to-github-projects",
   "integrating-google-adsense",
 ] as const;
+
+/** Plugin-native skills: not copied to ~/.cursor/skills; they update with the plugin. */
+const PLUGIN_NATIVE_SKILL_DIRS = ["commander"] as const;
 
 /** Dest skill dir name ??plugin/skills source dir (when they differ). */
 const HARNESS_SKILL_SOURCE: Partial<
@@ -273,28 +275,6 @@ async function sameFile(
   }
 }
 
-/** Byte compare that treats CRLF and LF as the same, as the leftover review did. */
-function normalizeCrlf(buf: Buffer): Buffer {
-  if (!buf.includes(0x0d)) return buf;
-  const out = Buffer.allocUnsafe(buf.length);
-  let n = 0;
-  for (let i = 0; i < buf.length; i++) {
-    const current = buf[i];
-    if (current === undefined) continue;
-    if (current === 0x0d && buf[i + 1] === 0x0a) continue;
-    out[n++] = current;
-  }
-  return out.subarray(0, n);
-}
-
-function sameBytes(left: Buffer, right: Buffer, ignoreCrlf: boolean): boolean {
-  // Binary (NUL in either buffer) always compares strictly.
-  if (ignoreCrlf && !left.includes(0) && !right.includes(0)) {
-    return normalizeCrlf(left).equals(normalizeCrlf(right));
-  }
-  return left.equals(right);
-}
-
 async function auditFile(expected: string, actual: string): Promise<AuditItem> {
   if (!(await fileExists(actual))) return { path: actual, status: "missing" };
   return {
@@ -471,6 +451,21 @@ async function pruneLegacyWorkSkillDirs(
   return removed;
 }
 
+async function prunePluginNativeSkillDirs(
+  destSkillsRoot: string,
+  force: boolean,
+): Promise<number> {
+  let removed = 0;
+  for (const name of PLUGIN_NATIVE_SKILL_DIRS) {
+    const target = path.join(destSkillsRoot, name);
+    if (!(await fileExists(target))) continue;
+    if (!force) continue;
+    await fs.rm(target, { recursive: true, force: true });
+    removed += 1;
+  }
+  return removed;
+}
+
 async function pruneLegacyAgentDirs(
   destAgentsRoot: string,
   force: boolean,
@@ -517,20 +512,26 @@ async function sameDirectory(a: string, b: string): Promise<boolean> {
   }
 }
 
-function leftoverExpectedPath(
-  kind: "skills" | "agents" | "rules",
-  name: string,
-  pluginRoot: string,
-): string {
-  if (kind === "skills") {
-    return path.join(
-      pluginRoot,
-      "skills",
-      harnessSkillSourceDir(name as (typeof HARNESS_SKILL_DIRS)[number]),
-    );
+/** Byte compare that treats CRLF and LF as the same, as the leftover review did. */
+function normalizeCrlf(buf: Buffer): Buffer {
+  if (!buf.includes(0x0d)) return buf;
+  const out = Buffer.allocUnsafe(buf.length);
+  let n = 0;
+  for (let i = 0; i < buf.length; i++) {
+    const current = buf[i];
+    if (current === undefined) continue;
+    if (current === 0x0d && buf[i + 1] === 0x0a) continue;
+    out[n++] = current;
   }
-  if (kind === "agents") return path.join(pluginRoot, "agents");
-  return path.join(pluginRoot, "rules", name);
+  return out.subarray(0, n);
+}
+
+function sameBytes(left: Buffer, right: Buffer, ignoreCrlf: boolean): boolean {
+  // Binary (NUL in either buffer) always compares strictly.
+  if (ignoreCrlf && !left.includes(0) && !right.includes(0)) {
+    return normalizeCrlf(left).equals(normalizeCrlf(right));
+  }
+  return left.equals(right);
 }
 
 async function isFollowedDirectory(target: string): Promise<boolean> {
@@ -628,6 +629,22 @@ async function leftoverDirMatches(
   } catch {
     return false;
   }
+}
+
+function leftoverExpectedPath(
+  kind: "skills" | "agents" | "rules",
+  name: string,
+  pluginRoot: string,
+): string {
+  if (kind === "skills") {
+    return path.join(
+      pluginRoot,
+      "skills",
+      harnessSkillSourceDir(name as (typeof HARNESS_SKILL_DIRS)[number]),
+    );
+  }
+  if (kind === "agents") return path.join(pluginRoot, "agents");
+  return path.join(pluginRoot, "rules", name);
 }
 
 /**
@@ -1176,6 +1193,7 @@ async function copyHarnessSkills(
     totals.skipped += result.skipped;
   }
   await pruneLegacyWorkSkillDirs(destSkillsRoot, force);
+  await prunePluginNativeSkillDirs(destSkillsRoot, force);
   await pruneExternalMattPocockSkillDirs(destSkillsRoot, force);
   await pruneExternalCavemanSkillDirs(destSkillsRoot, force);
   return totals;
@@ -1197,6 +1215,12 @@ async function auditHarnessSkills(
     const legacyPath = path.join(destSkillsRoot, legacyDir);
     if (await fileExists(legacyPath)) {
       items.push({ path: legacyPath, status: "stale" });
+    }
+  }
+  for (const skillDir of PLUGIN_NATIVE_SKILL_DIRS) {
+    const stalePath = path.join(destSkillsRoot, skillDir);
+    if (await fileExists(stalePath)) {
+      items.push({ path: stalePath, status: "stale" });
     }
   }
   for (const skillDir of EXTERNAL_MATTOCK_SKILL_DIRS) {
