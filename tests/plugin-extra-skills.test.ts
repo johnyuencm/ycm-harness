@@ -83,6 +83,16 @@ test("plugin commander skill points at in-plugin commander-system", async () => 
   assert.doesNotMatch(skill, /npm run commander:install/);
 });
 
+test("explainer is installed via HARNESS_SKILL_DIRS", async () => {
+  const kit = await fs.readFile(
+    path.join(repo, "src", "cli", "install-kit.ts"),
+    "utf8",
+  );
+  const dirs = kit.match(/const HARNESS_SKILL_DIRS = \[([\s\S]*?)\] as const/);
+  assert.ok(dirs);
+  assert.match(dirs[1], /"explainer"/);
+});
+
 test("commander stays plugin-native and is not copied to user skill dirs", async () => {
   const kit = await fs.readFile(
     path.join(repo, "src", "cli", "install-kit.ts"),
