@@ -55,6 +55,17 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/ste-reminder-hook.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

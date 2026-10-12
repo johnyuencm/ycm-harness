@@ -46,6 +46,10 @@ test("Claude marketplace + plugin manifests exist and validate shape", async () 
   assert.ok(hooks.hooks.PostCompact);
   assert.ok(hooks.hooks.SessionStart);
   assert.ok(hooks.hooks.Stop);
+  // STE must hold on every reply, not only at session start.
+  assert.match(hooks.hooks.UserPromptSubmit?.[0]?.hooks[0]?.command ?? "", /ste-reminder-hook\.mjs/);
+  const { STE_REMINDER } = await import("../plugin/scripts/ste-reminder-hook.mjs");
+  assert.match(STE_REMINDER, /ASD-STE100/);
 
   const pre = hooks.hooks.PreCompact?.[0];
   const post = hooks.hooks.PostCompact?.[0];

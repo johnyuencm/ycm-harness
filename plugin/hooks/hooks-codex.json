@@ -23,6 +23,17 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/ste-reminder-hook.mjs\"",
+            "async": false
+          }
+        ]
+      }
     ]
   }
 }
