@@ -100,7 +100,7 @@ ycm-harness wiki show retry-contract
 `ycm-harness install` / `ycm-harness sync` projects skills and hooks into
 Cursor, OpenCode, Codex, and Claude Code. SessionStart orients an active goal;
 Stop can enforce unfinished high-assurance work when you turn that on.
-Companion packs such as mattpocock-skills, ralph-loop, caveman, and ponytail
+Companion packs such as mattpocock-skills, ralph-loop, and ponytail
 stay as separate vendor installs — see
 [Recommended vendor plugins](#recommended-vendor-plugins).
 
@@ -113,13 +113,12 @@ closed — no silent local shadow queue when `gh` or the network is down.
 ## Recommended vendor plugins
 
 ycm-harness stays a thin coordination kernel. It does **not** vendor third-party
-skill packs. Install these separately; `ycm-harness doctor` audits all four.
+skill packs. Install these separately; `ycm-harness doctor` audits all three.
 
 | Plugin | Role in the agentic loop | Install hint |
 | ------ | ------------------------ | ------------ |
 | [mattpocock-skills](https://github.com/mattpocock/skills) (`mattpocock-skills@mattpocock`) | Spec/tickets, TDD, architecture finish passes the harness skills call out | `claude plugin marketplace add mattpocock/skills && claude plugin install mattpocock-skills@mattpocock` then `/setup-matt-pocock-skills` |
 | [ralph-loop](https://github.com/anthropics/claude-plugins-official) (`ralph-loop@claude-plugins-official`) | Persistence loop during long execute turns | `claude plugin install ralph-loop@claude-plugins-official` |
-| [caveman](https://github.com/JuliusBrussee/caveman) (`caveman@caveman`) | Terse agent communication / compress-review helpers | `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman` (Cursor: `npx skills add JuliusBrussee/caveman -a cursor`) |
 | [ponytail](https://github.com/DietrichGebert/ponytail) (`ponytail@ponytail`) | Minimalism / YAGNI discipline so agents write less code | `claude plugin marketplace add DietrichGebert/ponytail && claude plugin install ponytail@ponytail` (Cursor: install from the marketplace, or copy `.cursor/rules/ponytail.mdc`) |
 
 Other complementary skills are fine as long as you keep **one** workflow OS per
@@ -191,9 +190,6 @@ audits all four when Cursor and/or Claude Code is present:
   then `/setup-matt-pocock-skills`
 - ralph-loop@claude-plugins-official — long-run persistence
   `claude plugin install ralph-loop@claude-plugins-official`
-- caveman@caveman — terse compress/review helpers
-  `claude plugin marketplace add JuliusBrussee/caveman && claude plugin install caveman@caveman`
-  (Cursor: `npx skills add JuliusBrussee/caveman -a cursor`)
 - ponytail@ponytail — minimalism / YAGNI
   `claude plugin marketplace add DietrichGebert/ponytail && claude plugin install ponytail@ponytail`
   (Cursor: marketplace install, or copy `.cursor/rules/ponytail.mdc`)
@@ -229,7 +225,7 @@ owner/repo/project/parent — do not invent them).
 Report back with:
 1. `ycm-harness` path / version proof (`ycm-harness --help` ok)
 2. which client install ran and `doctor` summary (include mattpocock / ralph /
-   caveman / ponytail status when shown)
+   ponytail status when shown)
 3. which vendor plugins are present vs still need a manual install
 4. whether `.ycm-harness/` was initialized
 5. goal/ticket IDs if created
@@ -341,16 +337,6 @@ claude plugin install mattpocock-skills@mattpocock
 ```
 
 `ycm-harness doctor` / `sync` report whether `mattpocock-skills` is present and prune any stale formerly-vendored copies from managed Cursor/OpenCode skill dirs.
-
-**Caveman skills are external.** The JuliusBrussee/caveman skill set (`caveman`, `caveman-compress`, `caveman-commit`, …) is **not** vendored into this repo. Install and keep it updated via Claude Code (or Cursor skills):
-
-```bash
-claude plugin marketplace add JuliusBrussee/caveman
-claude plugin install caveman@caveman
-# Cursor: npx skills add JuliusBrussee/caveman -a cursor
-```
-
-`ycm-harness doctor` / `sync` report whether `caveman` is present and prune any stale formerly-vendored copies from managed Cursor/OpenCode skill dirs.
 
 ## V1 golden path
 
@@ -487,12 +473,6 @@ ycm-harness verify verdict <ticket-id>
 ```
 
 Fix-loop: max 3 rounds. Invoke `$hard-problem-solving` before editing; re-submit after code changes; restart the two-phase panel (phase 1 first) distinct from the fix author; obtain fresh `verify run`. Round 3 still failing → delegate to a human reviewer. See `plugin/skills/ycm-harness-work/review-fix-loop.md`.
-
-## V3 Caveman compression (agent-internal only)
-
-Caveman skills are **not** shipped in this repo. Use the installed **`caveman@caveman`** plugin from [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) for LLM-driven compression (`/caveman`, `/caveman-compress`, …). The harness `caveman` CLI command is deprecated in 0.3.
-
-Apply this only to agent-internal artefacts. Never compress user-facing replies or irreversible-action confirmations.
 
 ## V3 session nudge
 

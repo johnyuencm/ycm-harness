@@ -155,5 +155,5 @@ Skip any file that is missing (public install ships `SKILL.md` +
 - Do not hand-edit `.ycm-harness/` state or generated wiki indexes.
 - Do not fabricate verification evidence or reuse the implementer as verifier.
 - Do not use retired phase, review, ritual, session, artifact, commit,
-  user-wiki, or caveman commands.
+  or user-wiki commands.
 - Ask before destructive or irreversible actions the user did not authorize.

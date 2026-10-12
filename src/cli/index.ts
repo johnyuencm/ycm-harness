@@ -19,7 +19,6 @@ import { registerWiki } from "./commands/wiki.js";
 import { registerUserWiki } from "./commands/user-wiki.js";
 import { registerReview } from "./commands/review.js";
 import { registerSession } from "./commands/session.js";
-import { registerCaveman } from "./commands/caveman.js";
 import { registerRitual } from "./commands/ritual.js";
 import { registerArtifact } from "./commands/artifact.js";
 import { registerCommit } from "./commands/commit.js";
@@ -55,7 +54,6 @@ export function buildProgram(cwd?: string): Command {
   registerUserWiki(program, ctx, out);
   registerReview(program, ctx, out);
   registerSession(program, ctx, out);
-  registerCaveman(program, ctx, out);
   registerRitual(program, ctx, out);
   registerArtifact(program, ctx, out);
   registerCommit(program, ctx, out);

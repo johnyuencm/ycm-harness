@@ -5,7 +5,6 @@ import {
   auditInstall,
   mattPocockInstallHint,
   ralphLoopInstallHint,
-  cavemanInstallHint,
   ponytailInstallHint,
   runClientSync,
   repairLegacyAgentDirs,
@@ -123,7 +122,6 @@ export function registerDoctor(
         opencode_config_status: audit.opencode_config.status,
         mattpocock_skills_status: audit.mattpocock_skills.status,
         ralph_loop_status: audit.ralph_loop.status,
-        caveman_status: audit.caveman.status,
         ponytail_status: audit.ponytail.status,
         audit,
       };
@@ -157,13 +155,6 @@ export function registerDoctor(
         );
         if (audit.ralph_loop.status === "missing") {
           out.out(ralphLoopInstallHint());
-        }
-        out.out(
-          `caveman: ${audit.caveman.status}` +
-            (audit.caveman.status === "ok" ? ` (${audit.caveman.path})` : ""),
-        );
-        if (audit.caveman.status === "missing") {
-          out.out(cavemanInstallHint());
         }
         out.out(
           `ponytail: ${audit.ponytail.status}` +

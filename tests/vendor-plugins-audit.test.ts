@@ -4,7 +4,6 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-  auditCaveman,
   auditMattPocockSkills,
   auditPonytail,
   auditRalphLoop,
@@ -63,12 +62,11 @@ test("auditPonytail accepts Cursor rules fallback", async () => {
   }
 });
 
-test("doctor vendor audits cover all four recommended plugins on this machine", async () => {
+test("doctor vendor audits cover all three recommended plugins on this machine", async () => {
   const home = homeDir();
   const audits = {
     mattpocock: await auditMattPocockSkills(home),
     ralph: await auditRalphLoop(home),
-    caveman: await auditCaveman(home),
     ponytail: await auditPonytail(home),
   };
   for (const [name, item] of Object.entries(audits)) {

@@ -109,7 +109,6 @@ const REQUIRED_CONTEXT_PHRASES: Record<string, string[]> = {
   "discuss-grill-me.md": ["AskQuestion", "Plan", "ready", "grill-with-docs"],
   "execute-agents.md": ["tdd", "T5"],
   "cursor-modes.md": ["Shift+Tab", "multitask"],
-  "caveman.md": ["Caveman compression", "User-facing messages stay normal"],
   "github-tickets.md": [
     "gh issue create",
     "parent issue",

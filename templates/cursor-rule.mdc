@@ -52,7 +52,7 @@ knowledge. Use `doctor` to inspect client projections and `install --force` to
 refresh them.
 
 `task` aliases `ticket`; `smoke` aliases `verify`. Do not use the retired phase,
-review, ritual, session, artifact, commit, user-wiki, or caveman workflows.
+review, ritual, session, artifact, commit, or user-wiki workflows.
 
 **Lite carve-out:** `ycm-harness-work-lite` uses its own stateless procedure and
 does not create harness goals, tickets, checkpoints, or wiki entries. Lite still

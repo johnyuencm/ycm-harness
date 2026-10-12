@@ -13,7 +13,7 @@ export function registerInstall(
   program
     .command("install")
     .description(
-      "Install user-level design/work skills and plugin assets (skills, agents, rule) under ~/.cursor. Installs are global; install never writes into the current project. Matt Pocock skills come from mattpocock-skills@mattpocock; Ralph from ralph-loop@claude-plugins-official; Caveman from caveman@caveman; Ponytail from ponytail@ponytail — not this install.",
+      "Install user-level design/work skills and plugin assets (skills, agents, rule) under ~/.cursor. Installs are global; install never writes into the current project. Matt Pocock skills come from mattpocock-skills@mattpocock; Ralph from ralph-loop@claude-plugins-official; Ponytail from ponytail@ponytail — not this install.",
     )
     .option(
       "--user",

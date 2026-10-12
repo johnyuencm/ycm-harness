@@ -4,7 +4,6 @@ import { Command } from "commander";
 import type { CliContext } from "../src/cli/context.js";
 import type { CliOutput } from "../src/cli/output.js";
 import { registerArtifact } from "../src/cli/commands/artifact.js";
-import { registerCaveman } from "../src/cli/commands/caveman.js";
 import { registerCommit } from "../src/cli/commands/commit.js";
 import { registerPhase } from "../src/cli/commands/phase.js";
 import { registerReview } from "../src/cli/commands/review.js";
@@ -23,7 +22,6 @@ const cases: Array<[string, (program: Command, ctx: CliContext, out: CliOutput) 
   ["ritual", registerRitual, "verify run / verify verdict"],
   ["session", registerSession, "status / checkpoint"],
   ["user-wiki", registerUserWiki, "wiki"],
-  ["caveman", registerCaveman, "deprecated"],
   ["artifact", registerArtifact, "checkpoint or wiki"],
   ["commit", registerCommit, "ticket submit"],
   ["plugin", registerPlugin, "install --force"],
@@ -39,7 +37,7 @@ test("legacy commands fail closed with exit code 2 and a replacement", async () 
         const e = error as { exitCode?: number; message?: string };
         assert.equal(e.exitCode, 2, name);
         assert.match(e.message ?? "", new RegExp(`deprecated`, "i"), name);
-        if (name !== "caveman") assert.match(e.message ?? "", new RegExp(replacement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), name);
+        assert.match(e.message ?? "", new RegExp(replacement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), name);
         return true;
       },
     );

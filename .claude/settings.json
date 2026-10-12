@@ -1,6 +1,5 @@
 {
   "enabledPlugins": {
-    "caveman@caveman": true,
     "mattpocock-skills@mattpocock": true,
     "open-code-review@open-code-review": true,
     "ponytail@ponytail": true,
@@ -8,12 +7,6 @@
     "ycm-harness@johnyuencm-harness": true
   },
   "extraKnownMarketplaces": {
-    "caveman": {
-      "source": {
-        "source": "github",
-        "repo": "JuliusBrussee/caveman"
-      }
-    },
     "johnyuencm-harness": {
       "source": {
         "source": "github",

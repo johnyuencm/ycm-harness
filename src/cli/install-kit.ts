@@ -42,8 +42,6 @@ export interface InstallAudit {
   mattpocock_skills: AuditItem;
   /** Presence of user-installed ralph-loop (Claude Code official plugin). */
   ralph_loop: AuditItem;
-  /** Presence of user-installed caveman (JuliusBrussee/caveman Claude Code plugin). */
-  caveman: AuditItem;
   /** Presence of user-installed ponytail (DietrichGebert/ponytail Cursor/Claude plugin). */
   ponytail: AuditItem;
 }
@@ -126,10 +124,7 @@ const MATTOCK_GITHUB = "mattpocock/skills";
 const RALPH_PLUGIN_KEY = "ralph-loop@claude-plugins-official";
 const RALPH_MARKETPLACE = "claude-plugins-official";
 const RALPH_PLUGIN_DIR = "ralph-loop";
-/**
- * Formerly vendored JuliusBrussee/caveman skills. No longer shipped ??
- * resolve from the user's `caveman@caveman` Claude Code plugin instead.
- */
+/** Retired caveman skills. Sync prunes leftover copies from managed skill dirs. */
 const EXTERNAL_CAVEMAN_SKILL_DIRS = [
   "caveman",
   "caveman-commit",
@@ -139,10 +134,6 @@ const EXTERNAL_CAVEMAN_SKILL_DIRS = [
   "caveman-stats",
   "cavecrew",
 ] as const;
-const CAVEMAN_PLUGIN_KEY = "caveman@caveman";
-const CAVEMAN_MARKETPLACE = "caveman";
-const CAVEMAN_PLUGIN_DIR = "caveman";
-const CAVEMAN_GITHUB = "JuliusBrussee/caveman";
 const PONYTAIL_PLUGIN_KEY = "ponytail@ponytail";
 const PONYTAIL_MARKETPLACE = "ponytail";
 const PONYTAIL_PLUGIN_DIR = "ponytail";
@@ -958,90 +949,6 @@ export function ralphLoopInstallHint(): string {
     `Ralph is NOT bundled. Install the Claude Code plugin: ` +
     `claude plugin install ${RALPH_PLUGIN_KEY} ` +
     `(from anthropics/claude-plugins-official). Then use /ralph-loop during harness execute.`
-  );
-}
-
-/**
- * Locate the user's caveman Claude Code plugin (cache or marketplace clone).
- * Returns the plugin root that contains `skills/caveman/`.
- */
-export async function resolveCavemanRoot(
-  home = homeDir(),
-): Promise<string | undefined> {
-  const cache = path.join(
-    home,
-    ".claude",
-    "plugins",
-    "cache",
-    CAVEMAN_MARKETPLACE,
-    CAVEMAN_PLUGIN_DIR,
-  );
-  if (await fileExists(cache)) {
-    try {
-      const versions = await fs.readdir(cache, { withFileTypes: true });
-      const versionDirs = versions
-        .filter((v) => v.isDirectory())
-        .map((v) => v.name)
-        .sort()
-        .reverse();
-      for (const ver of versionDirs) {
-        const candidate = path.join(cache, ver);
-        if (
-          (await fileExists(path.join(candidate, "skills", "caveman"))) ||
-          (await fileExists(
-            path.join(candidate, ".claude-plugin", "plugin.json"),
-          ))
-        ) {
-          return candidate;
-        }
-      }
-    } catch {
-      /* fall through */
-    }
-  }
-  const marketplace = path.join(
-    home,
-    ".claude",
-    "plugins",
-    "marketplaces",
-    CAVEMAN_MARKETPLACE,
-  );
-  if (
-    (await fileExists(path.join(marketplace, "skills", "caveman"))) ||
-    (await fileExists(
-      path.join(marketplace, ".claude-plugin", "plugin.json"),
-    ))
-  ) {
-    return marketplace;
-  }
-  return undefined;
-}
-
-export async function auditCaveman(home = homeDir()): Promise<AuditItem> {
-  const root = await resolveCavemanRoot(home);
-  if (root) return { path: root, status: "ok" };
-  const expected = path.join(
-    home,
-    ".claude",
-    "plugins",
-    "cache",
-    CAVEMAN_MARKETPLACE,
-    CAVEMAN_PLUGIN_DIR,
-  );
-  const claudePresent = await fileExists(path.join(home, ".claude"));
-  return {
-    path: expected,
-    status: claudePresent ? "missing" : "n/a",
-  };
-}
-
-export function cavemanInstallHint(): string {
-  return (
-    `Caveman skills are NOT bundled. Install the Claude Code plugin: ` +
-    `claude plugin marketplace add ${CAVEMAN_GITHUB} && ` +
-    `claude plugin install ${CAVEMAN_PLUGIN_KEY} ` +
-    `(or /plugin marketplace add ${CAVEMAN_GITHUB} then install caveman). ` +
-    `For Cursor: npx skills add ${CAVEMAN_GITHUB} -a cursor.`
   );
 }
 
@@ -2284,15 +2191,6 @@ export async function runClientSync(
     reports.push(`ralph-loop: n/a (Claude Code home not detected)`);
   }
 
-  const caveman = await auditCaveman();
-  if (caveman.status === "ok") {
-    reports.push(`caveman: ok (${caveman.path})`);
-  } else if (caveman.status === "missing") {
-    reports.push(`caveman: MISSING — ${cavemanInstallHint()}`);
-  } else {
-    reports.push(`caveman: n/a (Claude Code home not detected)`);
-  }
-
   const ponytail = await auditPonytail();
   if (ponytail.status === "ok") {
     reports.push(`ponytail: ok (${ponytail.path})`);
@@ -2410,7 +2308,6 @@ export async function auditInstall(
     opencode_config: { path: opencodeConfigPath(), status: "n/a" },
     mattpocock_skills: await auditMattPocockSkills(),
     ralph_loop: await auditRalphLoop(),
-    caveman: await auditCaveman(),
     ponytail: await auditPonytail(),
   };
 

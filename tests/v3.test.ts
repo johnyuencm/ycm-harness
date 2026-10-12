@@ -28,7 +28,6 @@ import { registerWiki } from "../src/cli/commands/wiki.js";
 import { registerUserWiki } from "../src/cli/commands/user-wiki.js";
 import { registerReview } from "../src/cli/commands/review.js";
 import { registerSession } from "../src/cli/commands/session.js";
-import { registerCaveman } from "../src/cli/commands/caveman.js";
 import { registerRitual } from "../src/cli/commands/ritual.js";
 import { registerArtifact } from "../src/cli/commands/artifact.js";
 
@@ -41,7 +40,6 @@ import {
 } from "../src/schema/review.js";
 import { aggregateReview, decideGate, MIN_SCORE, MAX_FIX_LOOP_ROUNDS } from "../src/review/policy.js";
 import { computeNudge, NUDGE_THRESHOLD, tickUserMessage, resetOnWikiWrite } from "../src/session/nudge.js";
-import { caveman } from "../src/caveman/compress.js";
 import {
   UserHarnessState,
   emptyUserState,
@@ -89,7 +87,6 @@ function buildProgram(cwd: string, out: CliOutput): Command {
   registerUserWiki(program, ctx, out);
   registerReview(program, ctx, out);
   registerSession(program, ctx, out);
-  registerCaveman(program, ctx, out);
   registerRitual(program, ctx, out);
   registerArtifact(program, ctx, out);
   return program;
@@ -329,29 +326,6 @@ test("session nudge counter increments on user_message and resets on wiki write"
   st = resetOnWikiWrite(st, at);
   assert.equal(st.user_msgs_since_wiki_write, 0);
   assert.equal(computeNudge(st.user_msgs_since_wiki_write).due, false);
-});
-
-test("caveman compress preserves code/URL and strips fluff", () => {
-  const input = "Sure! I would just basically really run `npm test` before pushing to https://github.com/example.\n\n```\nconsole.log('keep me');\n```\n\nOf course you might want to consider this approach. Use extensive logging in order to debug.";
-  const out = caveman(input, { level: "full" });
-  assert.match(out, /`npm test`/);
-  assert.match(out, /https:\/\/github\.com\/example/);
-  assert.match(out, /console\.log\('keep me'\);/);
-  assert.doesNotMatch(out, /Sure!/);
-  assert.doesNotMatch(out, /\bjust\b/);
-  assert.doesNotMatch(out, /\bbasically\b/);
-  assert.doesNotMatch(out, /Of course/);
-  assert.doesNotMatch(out, /you might want to consider/i);
-  assert.match(out, /\bbig\b/);
-});
-
-test("caveman lite keeps articles", () => {
-  const input = "I would just basically run the tests in order to verify the change.";
-  const out = caveman(input, { level: "lite" });
-  assert.match(out, /\bthe\b/);
-  assert.doesNotMatch(out, /\bjust\b/);
-  assert.doesNotMatch(out, /\bbasically\b/);
-  assert.doesNotMatch(out, /\bin order to\b/);
 });
 
 test("user-wiki golden path: init, redacted promote, page-show, lint", async () => {
@@ -825,15 +799,6 @@ test("wiki promote --dry-run does NOT write to user wiki", async () => {
       await cleanup(root);
     }
   });
-});
-
-test("caveman compress preserves URL embedded in inline code and inline code embedded in fence", () => {
-  const tricky = "Read `see https://example.com for details` then\n```js\nconst u = 'https://api.example.com';\n// `keep` me\n```\nDone.";
-  const out = caveman(tricky, { level: "full" });
-  assert.match(out, /`see https:\/\/example\.com for details`/);
-  assert.match(out, /const u = 'https:\/\/api\.example\.com';/);
-  assert.match(out, /`keep` me/);
-  assert.equal((out.match(/```/g) ?? []).length, 2);
 });
 
 test("review verdict re-record with new findings replaces unresolved priors; empty findings preserve them", async () => {
