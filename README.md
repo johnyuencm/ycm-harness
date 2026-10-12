@@ -110,6 +110,10 @@ Local tickets are the default. A GitHub-backed goal binds to an existing parent
 issue and Project so humans and agents share one queue. Remote mutations fail
 closed — no silent local shadow queue when `gh` or the network is down.
 
+## Output style
+
+Agents write every reply, report and doc in ASD-STE100 Simplified Technical English, about 80% strict. The commander entry files hold the rule, and `ste-reminder-hook.mjs` repeats it on every prompt. Use the `explainer` skill when a diagram, an HTML page or a video is clearer than text. The harness does not use caveman.
+
 ## Recommended vendor plugins
 
 ycm-harness stays a thin coordination kernel. It does **not** vendor third-party
@@ -491,8 +495,9 @@ The `plugin/` folder is a ready-to-install Cursor plugin layout:
 
 - `plugin/.cursor-plugin/plugin.json` — plugin manifest.
 - `plugin/hooks/hooks-cursor.json` — registers Cursor `sessionStart` and `stop`.
-- `plugin/hooks/hooks-codex.json` — registers Codex `SessionStart` and `Stop`. The `Stop` hook is a high-assurance safety net: it blocks only the host session that claimed the goal (or a session whose cwd is inside that goal's worktree), never every chat in the repo.
+- `plugin/hooks/hooks-codex.json` — registers Codex `SessionStart`, `UserPromptSubmit` and `Stop`. The `Stop` hook is a high-assurance safety net: it blocks only the host session that claimed the goal (or a session whose cwd is inside that goal's worktree), never every chat in the repo.
 - `plugin/scripts/session-start-hook.mjs` — runs `ycm-harness hook session-start` and emits `additional_context` for Cursor or Codex-native `hookSpecificOutput` when Codex invokes SessionStart.
+- `plugin/scripts/ste-reminder-hook.mjs` — the `UserPromptSubmit` hook for Claude Code and Codex. It adds the ASD-STE100 output rule to the context on every prompt, so the rule holds for every reply and does not fade in a long session. Cursor has no per-prompt context hook; it uses the always-on plugin rules.
 - `plugin/scripts/stop-hook.mjs` — the Stop hook for Claude Code, Codex and Cursor.
   - It finds the CLI with `findHarnessCli` (the same resolver as SessionStart) and runs `ycm-harness hook stop`. It gives Cursor's `stop` payload the CLI's Stop shape. A harness block wins.
   - If the CLI does not block, it runs a self-contained notes check. When the current turn wrote files or made a git or tracker write, it asks once whether all findings, decisions, deferrals, hand-offs and environment facts are recorded durably. Writes are file edits (`Edit`, `Write`, `StrReplace`, `apply_patch`, …), `git commit`/`push`/`merge`/`tag`, and `gh pr`/`gh issue` create, comment, edit, merge or close.
