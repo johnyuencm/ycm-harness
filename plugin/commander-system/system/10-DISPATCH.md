@@ -33,7 +33,7 @@ The commander's context is the most expensive real estate in the system: every l
 
 ## §2 Verified inventory (tiers here; concrete IDs on demand)
 
-Tiers are **harness-agnostic**. When dispatching, name **tier + concrete model/alias** for _this_ harness — never paste a Cursor slug into Claude/Codex, or an Anthropic alias into Cursor Task.
+Tiers are **harness-agnostic**. When dispatching, name **tier + concrete model/alias + effort** for _this_ harness — never paste a Cursor slug into Claude/Codex, or an Anthropic alias into Cursor Task.
 
 **Shared tier meaning:**
 
@@ -44,9 +44,19 @@ Tiers are **harness-agnostic**. When dispatching, name **tier + concrete model/a
 | HIGH          | hard debugging, architecture, escalations, second opinions                 |
 | MAX           | taste / adversarial review of critical work; twice-escalated failures only |
 
-**How the pick reaches the worker differs per harness.** Cursor encodes effort in the slug (`-high` / `-xhigh` / `-max`); Codex passes it with the dispatch; Claude Code carries model and effort **only** in an agent definition's frontmatter, so a dispatch there names a `subagent_type` (its Agent tool takes a 4-value `model` enum and no `effort` at all). A Claude Code rung with no agent definition is a missing file, not a blocked dispatch — name the missing definition and use the next rung.
+**Effort is part of the pick.** A dispatch names **tier + model + effort**. Omitting effort inherits the session default and is a different (usually weaker) pick. Follow the inventory's effort per rung; do not jump models because you left effort at `high`. How that pick is expressed differs per harness:
 
-**Default pick policy (all harnesses):** implementer → MID; escalation → HIGH (prefer a different model family than the failed worker); MAX only after the §5 budget is spent or for taste-critical review.
+| Harness     | How model + effort reach the worker                                                                                 |
+| ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| Cursor      | encoded in the slug (`-high` / `-xhigh` / `-max`)                                                                     |
+| Codex       | passed with the dispatch                                                                                               |
+| Claude Code | **only** in an agent definition's frontmatter. Dispatch names a `subagent_type`; the Agent tool's `model` is a 4-value enum and it has no `effort` parameter at all. |
+
+A missing Claude Code rung is therefore a missing agent definition, not a blocked dispatch. If the inventory names a rung with no agent type behind it, say which definition is missing and use the next rung — never stall the whole run for it.
+
+**Default pick policy (all harnesses):** implementer → MID; first real failure → HIGH (prefer a different model family than the failed worker); MAX is the **final boss** — last attempt after HIGH failed, or taste-critical review. Never start implementer, T5, or review-panel work on MAX.
+
+**Tier precedence:** this default governs initial dispatch. File count, cross-file invariants, and broad implementation scope are reasons to delegate, not reasons to skip MID. Start HIGH only when the assigned work itself is hard debugging, architecture, or a second opinion. Otherwise reach HIGH only through §5 after a MID reasoning failure. `20-JUDGMENT.md` §1 decides escalation after an attempt; it does not override the initial MID default.
 
 **Concrete IDs — read exactly one file for this session's harness (do not open the others):**
 
@@ -71,6 +81,7 @@ A dispatch missing any piece produces garbage you'll pay to re-do. Fill-in templ
 - Return AT MOST 15 lines: verdict first line, then bullets — each conclusion with `file:line` or a command+exit code as evidence.
 - Anything longer (full analysis, logs, diffs, scraped content) goes to a file. Reviews, reports and architecture output about a git project go into that repo (its existing place such as `artifacts/`, else `docs/reviews/`) and are committed and pushed, because remote agents only see the remote. Only work with no git project goes to `~/.agents/reports/YYYY-MM-DD-<topic>.md`. Return the path.
 - Never paste more than 30 consecutive lines of file content into the reply.
+- Write the reply and any report in ASD-STE100 Simplified Technical English (about 80% strict): one idea per sentence, active voice, same word for same thing. In chat, show structure or flow as a plain-text box-and-arrow diagram in a code block; chat does not render Mermaid. Use Mermaid only in `.md` or HTML files.
 - If blocked or the task is ambiguous: STOP, report the blocker in one line, return. Do not improvise scope.
 - Report failures as failures ("could not verify X" / "found no match"), never dressed as partial success.
 
@@ -80,9 +91,9 @@ Definitions, so the cap is unambiguous: attempt 1 = the initial dispatch. A "red
 
 Start: FAST for mechanical/search, MID for everything else. Ladder within the budget:
 
-- Started on FAST, failed → redispatch on MID (attempt 2), include the failed attempt's output. Fails again → final redispatch on HIGH (attempt 3) with the full trace.
-- Started on MID, failed → redispatch on MID with improved context if the failure was a context gap you can fill, otherwise on HIGH (attempt 2). Failed twice on MID → final redispatch on HIGH (attempt 3) with the full failure trace: all attempts, exact errors, your current hypothesis.
-- All 3 attempts spent (or HIGH failed) → STOP. Do not reach for MAX by reflex. Run the wrong-direction checklist (`20-JUDGMENT.md` §4); usually the decomposition is wrong, not the model.
+- Started on FAST, failed → redispatch on MID (attempt 2), include the failed attempt's output. Fails again → HIGH (attempt 3) with the full trace.
+- Started on MID, failed → redispatch on MID with improved context if the failure was a context gap you can fill, otherwise on HIGH (attempt 2). HIGH failed → MAX **final boss** (attempt 3) with the full failure trace: all attempts, exact errors, your current hypothesis.
+- MAX failed or the 3-attempt budget is spent → STOP. Do not fire MAX twice. Run the wrong-direction checklist (`20-JUDGMENT.md` §4); usually the decomposition is wrong, not the model.
 - Escalate early (skip the same-tier retry) when the failure is a reasoning failure: the report ignored acceptance criteria, hedged without evidence, or claimed success without running anything. Retrying the same tier on a reasoning failure wastes an attempt.
 - Mechanical failures (typo'd path you gave, missing flag, transient network) are NOT attempts: fix the input and resend at the same tier, provided the fix is obvious in under a minute.
 
@@ -95,6 +106,8 @@ DOWNGRADE (this pays for the whole system): once an instance of a repeating prob
 3. Verification report: per-criterion PASS/FAIL with one line of evidence each. A criterion without evidence is FAIL.
 4. High-risk work (irreversible ops, security-touching, architecture, >10 files changed) gets a second opinion from a HIGH model of a different family, or best-of-n (2–3 independent attempts, a separate reviewer picks the winner and says why).
 5. Cheap-tier output gets 100% verification. MID output on multi-file work: verify a 30% sample, minimum 2 items; any failure → verify everything.
+
+**Why this roster.** The specialist review panel is deliberately `tech_lead` + `project_manager` (phase 1) then `user_advocate` (phase 2): engineering judgment, delivery risk, and user impact. The retired `combined_reviewer` / `spec_reviewer` / `uiux` agents were folded into these seats — do not reintroduce them. Pick the strongest *suitable* model per seat from §2 and the active `11-INVENTORY-*.md`: MID-first, escalate to HIGH on a real failure. Never start an implementer, T5, or review seat on MAX — MAX is the final boss (§5).
 
 ## §7 Parallelism
 

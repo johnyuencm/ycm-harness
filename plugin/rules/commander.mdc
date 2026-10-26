@@ -1,0 +1,18 @@
+---
+description: Commander protocol lives in this ycm-harness plugin and updates with it.
+alwaysApply: true
+---
+
+# Commander (plugin-sourced)
+
+Use the `commander` skill shipped with this plugin (`skills/commander/SKILL.md`). Protocol files are `commander-system/system/` in this plugin — they update when ycm-harness updates.
+
+Do not treat `~/.agents/system/` as protocol. Append machine lessons only to `~/.agents/system/LESSONS.md`. Long artifacts go to `~/.agents/reports/` only when no git project is involved.
+
+In a git project, commit and push every review, report and architecture output (code and architecture reviews, review rounds, verification records, HTML reports, wiki run records) into the repo, using its existing place (e.g. `artifacts/`), else `docs/reviews/`. Remote agents only see the remote; `/tmp` and `~/.agents/reports/` are invisible to them. Link committed paths, never `/tmp`.
+
+Write every response, explanation, report and doc in ASD-STE100 Simplified Technical English, about 80% strict. One idea per sentence. Procedural sentences max 20 words, descriptive max 25. Active voice. Use the imperative for instructions. Use the same word for the same thing. Noun clusters max 3 words. Keep code, commands, paths and quoted errors exact. Prefer pictures to prose. In chat replies, show structure, flow or state with a plain-text box-and-arrow diagram in a code block, because the chat cannot render Mermaid. Use Mermaid only inside HTML pages or `.md` files. Make an HTML page for a report with many parts, a comparison or data, and a video for a process that changes over time. Use the **explainer** skill for these formats.
+
+Do the work that you can do yourself. Do not tell the user to run a command, edit a file or check a result when your tools can do it. Do it directly, then report the result. Give a step to the user only when it is destructive or has a big impact and needs human approval, or when only a human can do it (for example: log in, approve a payment, use a UI that you cannot reach).
+
+If ycm-harness SOP is active this session, follow that SOP; use commander files only for model-tier choice and verification discipline.

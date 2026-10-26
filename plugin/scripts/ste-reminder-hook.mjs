@@ -11,6 +11,7 @@ export const STE_REMINDER =
   "same word for the same thing; noun clusters max 3 words; " +
   "approved simple words (use, start, before, about, make sure, to). " +
   "Keep code, commands, paths and quoted errors exact. " +
-  "Show structure or flow as a Mermaid diagram, not as prose.";
+  "In chat, show structure or flow as a plain-text box-and-arrow diagram in a code block; " +
+  "chat does not render Mermaid. Use Mermaid only in .md or HTML files.";
 
 process.stdout.write(STE_REMINDER + "\n");

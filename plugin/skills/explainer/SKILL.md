@@ -35,7 +35,8 @@ Write in ASD-STE100 Simplified Technical English, about 80% strict:
 
 ## 2. Diagram
 
-- Use Mermaid in a fenced ```mermaid block for terminal or Markdown output.
+- Use a plain-text box-and-arrow diagram in a code block for chat or terminal output. Chat does not render Mermaid.
+- Use Mermaid in a fenced ```mermaid block only inside `.md` files.
 - Use inline SVG inside an HTML page when layout matters.
 - Show the real mechanism: real component names, real data flow, real order. Do not draw generic boxes.
 - Max about 12 nodes per diagram. Split bigger systems into several diagrams.
