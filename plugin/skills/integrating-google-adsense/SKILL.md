@@ -72,7 +72,12 @@ That certification-authority id is Google’s standard AdSense `ads.txt` token.
    - `frame-src`: `googleads.g.doubleclick.net`, `tpc.googlesyndication.com`, `www.google.com`, `google.com`, `pagead2.googlesyndication.com`, `www.googleadservices.com`, `ep2.adtrafficquality.google`, `fundingchoicesmessages.google.com`
    - `img-src` must allow `https:` (ad creatives)
 
-5. **Slots.** Reserve layout space before ids exist so the page does not jump later. Render a real `<ins class="adsbygoogle">` only when both a valid publisher id and a valid slot id exist. Otherwise show a labeled placeholder (“Advertisement” plus size), not a broken `ins`.
+5. **Slots.** Render a real `<ins class="adsbygoogle">` only when both a valid publisher id and a valid slot id exist. Never render a broken `ins`.
+
+   - **Production, no valid slot for a placement:** do not show the box and do not reserve its space. Empty “Advertisement” boxes earn nothing, make the page look unfinished to visitors and to the AdSense reviewer, and the loader plus meta are enough for review.
+   - **Production, valid slot:** reserve the box size (min-height per breakpoint) before the unit fills, so the page does not jump.
+   - **Dev or preview:** show a labeled placeholder (“Advertisement” plus size) behind a build flag (for example `ADSENSE_PLACEHOLDERS=1` or the framework's dev mode), so layout work can still see every placement.
+   - Keep this decision in one pure function (placement + env → hidden | placeholder | unit) with unit tests.
 
    ```html
    <ins class="adsbygoogle"
@@ -89,6 +94,8 @@ That certification-authority id is Google’s standard AdSense `ads.txt` token.
 
 6. **Manual units only.** Tell the user to leave Auto ads overlays off on pages that already reserve units. Auto ads plus manual units stacks ads.
 
+7. **Ad density.** If the user asks for a share of the page, keep mobile ads at or under 30% of the page height (Better Ads Standard; over it, Chrome can filter every ad on the site). Desktop side rails can carry more. Keep each unit at least 48px from buttons and links, so taps do not land on ads by mistake. Measure the share with real numbers; do not quote a target as a result.
+
 A validated publisher id may live as a code default after the user pastes it, so production does not depend on a dashboard env write. Slot ids stay empty until the user creates Display units. `NEXT_PUBLIC_*` (and the same class of var on other frameworks) is baked at build time: changing it requires a rebuild and redeploy.
 
 Search Console is a different product. If a verification value is present, store only the token inside `content`. Strip a full `<meta>` tag and a `google-site-verification=` prefix. Never put that token in `ads.txt`.
@@ -100,11 +107,12 @@ Fetch the public origin the user submitted to AdSense, not a login-gated preview
 - View source contains `adsbygoogle.js?client=ca-pub-DIGITS`
 - View source contains `<meta name="google-adsense-account" content="ca-pub-DIGITS">`
 - `GET /ads.txt` body is the single `google.com, pub-DIGITS, DIRECT, f08c47fec0942fa0` line
-- Before slot ids: placeholders still visible. After a slot deploy: each wired placement has `data-ad-slot` and the placeholder copy is gone
+- Before slot ids: no ad box and no empty gap on the production page. A placeholder build shows every placement. After a slot deploy: each wired placement has `data-ad-slot`
+- Check layout in a browser with no ad blocker. Filter lists such as EasyList hide common class names (`.ad-top`, `.ad-right`, `.ad-inline`, `.ad-slot`), so a user's screenshot with a blocker on shows only some boxes. Do not rename classes to get past blockers: the blocker also stops `adsbygoogle.js`, so those visitors only get empty boxes
 
 ## What to tell the user
 
 - While status is **Getting ready**, the snippet can be live and the boxes stay empty. That is expected.
 - Ask them to create **Ads → By ad unit → Display ads**, one unit per placement, and paste only the `data-ad-slot` numbers.
-- After **Ready** plus a deploy that contains those numbers, the placeholders become the units.
+- After **Ready** plus a deploy that contains those numbers, each placement appears with its unit. Until then the page shows no ad boxes.
 - Do not ask them to paste the loader `<script>` into the page again once the app injects it.
