@@ -565,9 +565,14 @@ test("upsertTomlSection keeps foreign text byte-for-byte and is idempotent", () 
 
 /** Parse with Python tomllib when available; exact-byte assertions apply either way. */
 function assertValidToml(text: string, label: string): void {
-  const result = spawnSync("python3", ["-c", "import sys, tomllib; tomllib.loads(sys.stdin.read())"], { input: text, encoding: "utf8" });
-  if (result.error || /No module named 'tomllib'/.test(result.stderr)) return;
-  assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+  for (const python of ["python3", "python"]) {
+    const result = spawnSync(python, ["-c", "import sys, tomllib; tomllib.loads(sys.stdin.read())"], { input: text, encoding: "utf8" });
+    // 9009: Windows Store alias stub, no real interpreter behind the name.
+    if (result.error || result.status === 9009) continue;
+    if (/No module named 'tomllib'/.test(result.stderr)) return;
+    assert.equal(result.status, 0, `${label}: ${result.stderr}`);
+    return;
+  }
 }
 
 test("upsertTomlSection fixes the reviewer's adjacent-comment and indented-table repros", () => {
