@@ -82,6 +82,7 @@ const HARNESS_SKILL_DIRS = [
   "integrating-google-adsense",
   "explainer",
   "eli5",
+  "designing-ux-mechanics",
 ] as const;
 
 /** Plugin-native skills: not copied to ~/.cursor/skills; they update with the plugin. */

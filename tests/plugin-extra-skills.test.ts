@@ -19,6 +19,7 @@ const EXTRA_SKILLS = [
   "integrating-google-adsense",
   "explainer",
   "eli5",
+  "designing-ux-mechanics",
 ] as const;
 
 test("extra plugin skills ship with SKILL.md and Codex openai.yaml", async () => {

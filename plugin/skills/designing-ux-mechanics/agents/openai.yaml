@@ -1,0 +1,4 @@
+interface:
+  display_name: "UX mechanics"
+  short_description: "Design and audit navigation, back, layers, loading, sending, live data and motion before visuals"
+  default_prompt: "Use $designing-ux-mechanics to map this UI as a state machine and run the stress walk."

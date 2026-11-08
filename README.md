@@ -517,6 +517,7 @@ The `plugin/` folder is a ready-to-install Cursor plugin layout:
 - `plugin/skills/integrating-google-adsense/SKILL.md` — connect a public website to Google AdSense (loader, account meta, ads.txt, CSP, manual units).
 - `plugin/skills/explainer/SKILL.md` — pick the clearest output format: STE text, a diagram, an HTML page, or a narrated video (`$explainer`).
 - `plugin/skills/eli5/SKILL.md` — explain to a complete beginner as an HTML page with big pictures and few words (`$eli5`); routes to `explainer`.
+- `plugin/skills/designing-ux-mechanics/SKILL.md` — design and audit app mechanics before visuals: one-router back, at most one layer, load/empty/error states, single-flight actions, live data, motion; stress walk in `checklist.md` (`$designing-ux-mechanics`).
 - `plugin/rules/ycm-harness.mdc` — thin rule pointing agents at the harness CLI.
 - `plugin/rules/git-commits.mdc` — default commit+push after implementation (worktree and irreversible-op exceptions).
 
