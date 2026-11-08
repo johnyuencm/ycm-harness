@@ -243,3 +243,15 @@ test("fresh commander install writes plugin pointers and only a machine journal"
     await fs.rm(tmp, { recursive: true, force: true });
   }
 });
+
+test("designing-ux-mechanics ships its stress walk and is required by user_advocate", async () => {
+  const dir = path.join(pluginSkills, "designing-ux-mechanics");
+  for (const f of ["checklist.md", "stress-walk.mjs", "fixtures/bad.html", "fixtures/good.html"]) {
+    await fs.stat(path.join(dir, f));
+  }
+  const skill = await fs.readFile(path.join(dir, "SKILL.md"), "utf8");
+  assert.match(skill, /stress-walk\.mjs/);
+  const advocate = await fs.readFile(path.join(repo, "plugin", "agents", "user_advocate.md"), "utf8");
+  assert.match(advocate, /designing-ux-mechanics/);
+  assert.match(advocate, /stress-walk/);
+});

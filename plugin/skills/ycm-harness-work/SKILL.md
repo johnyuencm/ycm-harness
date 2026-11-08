@@ -5,7 +5,7 @@ description: Coordinate long-running coding work with lean ycm-harness goals, ti
 
 # ycm-harness work
 
-The harness is a **coordination ledger for a strong agent** (Opus-class). It
+The harness is a **coordination ledger for a strong agent**. It
 records goals, tickets, and proof so work survives context loss. It does not
 replace reading the code, making a focused change, or running the project's
 real checks. Do not walk retired phase/ritual SOPs. Do not invent extra
@@ -66,6 +66,8 @@ After 3 rounds still unsettled → FAIL; do **not** run `user_advocate`.
 operator value, job-to-be-done, and Shneiderman / usability. Give them the
 worktree, diff, and phase-1 artifact paths; do not re-do spec or architecture
 unless live behavior contradicts them.
+
+For a ticket that changes an app UI, the implementer runs `$designing-ux-mechanics` before submit (state machine first, then `stress-walk.mjs`), and `user_advocate` must attach the stress-walk table. No table, no PASS.
 
 - `tech_lead` — architecture, correctness, tests, ops, security
 - `project_manager` — goal alignment, honest done-state, every acceptance

@@ -40,6 +40,13 @@ contradicts the phase-1 artifacts.
    short-term memory load. Also: clarity, visual hierarchy, and accessibility
    (contrast, keyboard/TTY, no information by color alone). Do not restyle an
    existing design system for taste.
+7. **App UI mechanics** (any web or mobile app screen): load the
+   `designing-ux-mechanics` skill. Run its `stress-walk.mjs` against the live
+   build with a config for the changed screens, and paste the result table into
+   the review artifact. Walk the manual items of its `checklist.md` and mark
+   each PASS, FAIL or NOT TESTED with a reason. A missing table for an app UI
+   change is a `high` finding. Any FAIL on N2, N3, L1, D1 or A2 is `high`
+   (getting stuck, false information, or a duplicate action).
 
 ## Evidence contract
 

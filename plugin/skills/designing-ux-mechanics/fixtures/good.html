@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- Correct fixture for stress-walk.mjs --self-test: the same app as bad.html with sound mechanics. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{font:16px system-ui;margin:0}.row,.skel{padding:16px;border-bottom:1px solid #ddd;height:52px;box-sizing:border-box}.skel{background:#eee}#list{min-height:104px}[aria-modal]{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #999;padding:16px}#toast{position:fixed;top:8px;left:8px}</style>
+<main id="home"><h1>Alerts</h1><div id="list"><div class="skel"></div><div class="skel"></div></div><p id="empty" hidden>No alerts near you yet. Report one with the tiles below.</p></main>
+<section id="detail" hidden><button id="back">Back</button><h2>Fire</h2><button id="report">Report</button></section>
+<section id="sheet" aria-modal="true" hidden><div id="sheetBody"><button id="send">Send</button><button id="more">More</button></div></section>
+<p id="toast" role="status" hidden></p>
+<script>
+const $ = s => document.querySelector(s);
+// One router owns history. Pages push; a layer pushes one entry that back closes; results replace or pop.
+const router = {
+  push(s) { history.pushState(s, ''); render(s); },
+  back() { history.back(); },
+};
+function render(s) { $('#home').hidden = s.view !== 'home'; $('#detail').hidden = s.view !== 'detail'; $('#sheet').hidden = !s.sheet; }
+addEventListener('popstate', e => render(e.state || { view: 'home' }));
+history.replaceState({ view: 'home' }, '');
+// Skeleton reserves the space; empty shows only after an empty answer.
+fetch('/api/items').then(r => r.json()).then(items => {
+  $('#list').innerHTML = items.map(i => `<div class="row">${i.t}</div>`).join('');
+  $('#empty').hidden = items.length > 0;
+});
+let sending = false;
+document.addEventListener('click', e => {
+  if (e.target.closest('.row')) router.push({ view: 'detail' });
+  if (e.target.id === 'back') router.back();
+  if (e.target.id === 'report') router.push({ view: 'detail', sheet: true });
+  // A follow-up step changes the sheet's content; it never opens a second layer.
+  if (e.target.id === 'more') $('#sheetBody').insertAdjacentHTML('beforeend', '<p>More options</p>');
+  if (e.target.id === 'send') {
+    if (sending) return;                                  // single-flight
+    sending = true; const b = e.target; b.disabled = true; b.setAttribute('aria-busy', 'true'); b.textContent = 'Sending';
+    fetch('/api/send', { method: 'POST', headers: { 'idempotency-key': crypto.randomUUID() } }).then(() => {
+      router.back();                                      // the sheet leaves history; the result is a toast
+      $('#toast').textContent = 'Sent. Undo'; $('#toast').hidden = false;
+    }).finally(() => { sending = false; b.disabled = false; b.removeAttribute('aria-busy'); b.textContent = 'Send'; });
+  }
+});
+</script>

@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- Deliberately broken fixture for stress-walk.mjs --self-test. Every mechanic here is wrong on purpose. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{font:16px system-ui;margin:0}.row{padding:16px;border-bottom:1px solid #ddd}[aria-modal]{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #999;padding:16px}#dlg{bottom:40%}</style>
+<main id="home"><h1>Alerts</h1><p id="empty">No alerts near you.</p><div id="list"></div></main>
+<section id="detail" hidden><button id="back">Back</button><h2>Fire</h2><button id="report">Report</button></section>
+<section id="sheet" aria-modal="true" hidden><button id="send">Send</button><button id="more">More</button></section>
+<section id="dlg" aria-modal="true" hidden><p>Are you sure?</p></section>
+<section id="sent" hidden><h2>Sent</h2></section>
+<script>
+const $ = s => document.querySelector(s);
+const views = ['home', 'detail', 'sent'];
+function show(v) { views.forEach(x => $('#' + x).hidden = x !== v); }
+// BAD: every step pushes history, including the sheet, the dialog and the success screen.
+function go(state) { history.pushState(state, ''); render(state); }
+function render(s) { show(s.view); $('#sheet').hidden = !s.sheet; $('#dlg').hidden = !s.dlg; }
+addEventListener('popstate', e => render(e.state || { view: 'home' }));
+history.replaceState({ view: 'home' }, '');
+// BAD: empty state visible before the first answer; content lands by pushing a banner on top.
+fetch('/api/items').then(r => r.json()).then(items => {
+  const b = document.createElement('div'); b.style.height = '420px'; b.textContent = 'Breaking news'; document.body.prepend(b);
+  $('#empty').hidden = true;
+  $('#list').innerHTML = items.map(i => `<div class="row">${i.t}</div>`).join('');
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('.row')) go({ view: 'detail' });
+  if (e.target.id === 'back') history.back();
+  if (e.target.id === 'report') go({ view: 'detail', sheet: true });
+  if (e.target.id === 'more') go({ view: 'detail', sheet: true, dlg: true });
+  // BAD: no busy state, no single-flight, success screen pushed into history.
+  if (e.target.id === 'send') fetch('/api/send', { method: 'POST' }).then(() => go({ view: 'sent' }));
+});
+</script>

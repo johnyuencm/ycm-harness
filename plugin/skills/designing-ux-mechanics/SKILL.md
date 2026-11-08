@@ -30,10 +30,31 @@ If a rule below conflicts with the product's own design system or the user's wor
 1. **Map the screens as a state machine before any styling.** Write it as a box-and-arrow diagram: each screen, each overlay, each async state, and every edge (tap, back, swipe, push, deep link, error). Name what the back action does on every node.
 2. **Apply the rule sets below** to that map: navigation, layers, data states, actions, live data, motion, failure.
 3. **Build the mechanics with plain styling.** Use one router or state store; never jump screens from scattered click handlers.
-4. **Run the stress walk** in [checklist.md](checklist.md) on the real build, with throttled network.
+4. **Run the stress walk** on the real build, with throttled network: `stress-walk.mjs` automates the checks it can (see below); walk the rest of [checklist.md](checklist.md) by hand.
 5. **Only then refine visuals.** Then run the stress walk again: visual work often breaks mechanics (layout shift, focus, z-index).
 
 Report results as the checklist table: each item PASS, FAIL with the exact screen and step, or NOT TESTED with the reason.
+
+## Automated stress walk
+
+`stress-walk.mjs` drives the live app in Chrome at phone size and fails the run on broken mechanics:
+
+| Check | What it does |
+|---|---|
+| N2 | From each configured screen, presses system back and the on-screen back; FAIL if home needs more than 2 presses |
+| N3 | After a send, presses back twice; FAIL if the form comes back |
+| L1, L2 | After every step, counts open layers (FAIL above 1); FAIL if a layer covers the back control |
+| D1 | Delays the list API; FAIL if the empty state shows before the first answer |
+| M1 | Measures layout shift when data lands; FAIL above CLS 0.1 |
+| A1, A2 | Double-taps each send button; FAIL above 100 ms to the first visible change, or more than 1 request |
+
+```bash
+npm i -D playwright@1.64.1                      # once, in the app repo
+node <skill-dir>/stress-walk.mjs ux-walk.json --out artifacts/ux-walk
+node <skill-dir>/stress-walk.mjs --self-test    # proves the checks catch fixtures/bad.html and pass fixtures/good.html
+```
+
+The config names the app's own selectors: `home.ready`, each screen's `steps` and `ready`, `backSelector`, each list's `api` and `empty`, and each send's `steps`, `button`, `api` and `form`. The header of `stress-walk.mjs` has a full example. Exit code 1 means at least one FAIL; attach `artifacts/ux-walk/stress-walk.md` and its screenshots to the review.
 
 ## 1. Navigation and the back button
 
