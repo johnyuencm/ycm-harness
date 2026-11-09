@@ -34,7 +34,7 @@ sources: issues  ─┐
 
 1. Read project tracker docs when present: `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md`.
 2. Else read `plugin/skills/ycm-harness-work/github-tickets.md` for `gh` conventions.
-3. **Scope.** Default scope is every non-archived repo owned by the authenticated user (`gh api user -q .login`) and by each of that user's orgs (`gh api user/orgs -q ".[].login"`). With the `here` arg inside a repo clone, scope is that repo only (owner/repo from `git remote -v`). Archived repos are always out of scope.
+3. **Scope.** When the request or the routine prompt names one repository (for example "Repository: OWNER/REPO"), scope is that repository only; this keeps single-repo routines single-repo. Otherwise the default scope is every non-archived repo owned by the authenticated user (`gh api user -q .login`) and by each of that user's orgs (`gh api user/orgs -q ".[].login"`). With the `here` arg inside a repo clone, scope is that repo only (owner/repo from `git remote -v`). Archived repos are always out of scope.
 4. Work each item inside a local clone of its repo. Look for the clone under the workspace root first; run `gh repo clone` only when none exists.
 
 ## Invocation args (optional)
