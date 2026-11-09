@@ -16,7 +16,10 @@
 //   "sends": [ { "name": "Confirm", "steps": [{ "click": ".row" }], "button": "#confirm",
 //                "api": "/api/vote", "method": "POST", "form": "#confirm" } ],
 //   "layerSelector": "dialog[open], [aria-modal=true]:not([hidden])",
-//   "throttleMs": 2500
+//   "throttleMs": 2500,
+//   "geolocation": { "latitude": 47.61, "longitude": -122.33 },   // grants location to the page
+//   "setup": [{ "click": "#welcomeOk", "ifVisible": true }],         // run after each page load
+//   "contextHeaders": { "CF-Connecting-IP": "10.{r}.{r}.{r}" }       // local dev only: {r} = random 1-254 per browser
 // }
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
@@ -47,11 +50,20 @@ async function visible(page, sel) {
 
 async function runSteps(page, steps = [], layers, results, label) {
   for (const s of steps) {
+    if (s.click && s.ifVisible && !(await visible(page, s.click))) continue;
     if (s.click) {
-      try { await page.locator(s.click).first().click({ timeout: 4000 }); }
+      try {
+        // Wait for the target to exist and settle first, so slow data is not reported as a broken control.
+        await page.locator(s.click).first().waitFor({ state: 'visible', timeout: 10000 });
+        await page.locator(s.click).first().click({ timeout: 4000 });
+      }
       catch (e) {
-        const why = /intercepts pointer events/.test(String(e)) ? 'covered by another layer' : 'not clickable';
-        results.push({ id: 'N0', check: 'Every step can be done', target: label, status: 'FAIL', detail: `"${s.click}" ${why}` });
+        const msg = String(e);
+        const why = /intercepts pointer events/.test(msg) ? 'covered by another layer'
+          : /waitFor/.test(msg) ? 'never appeared within 10 s'
+          : /detached|not attached/.test(msg) ? 're-rendered while being clicked (unstable element)'
+          : 'not clickable: ' + msg.split(/\r?\n/)[0].slice(0, 120);
+        results.push({ id: 'N0', check: 'Every step can be done', target: label, status: 'FAIL', detail: `"${s.click}" ${why}`, shot: await shot(page, outDir, `N0-${label}`) });
         return false;
       }
     }
@@ -66,8 +78,23 @@ async function runSteps(page, steps = [], layers, results, label) {
   return true;
 }
 
+async function setup(page, cfg) {
+  for (const s of cfg.setup ?? []) {
+    if (s.click) { const l = page.locator(s.click).first(); await l.waitFor({ timeout: s.ifVisible ? 4000 : 15000 }).catch(() => {}); if (await l.isVisible().catch(() => false)) await l.click().catch(() => {}); }
+    await sleep(s.pause ?? 400);
+  }
+}
+
 async function freshPage(browser, cfg) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true,
+    ...(cfg.geolocation ? { geolocation: cfg.geolocation, permissions: ['geolocation'] } : {}) });
+  if (cfg.contextHeaders) {
+    const h = {};
+    for (const [k, v] of Object.entries(cfg.contextHeaders)) h[k] = String(v).replace(/\{r\}/g, () => String(1 + Math.floor(Math.random() * 254)));
+    // Same-origin only: a custom header on third-party calls (bot checks, fonts) fails their CORS check.
+    const origin = new URL(cfg.baseUrl).origin;
+    await ctx.route(u => u.origin === origin, r => r.continue({ headers: { ...r.request().headers(), ...h } }));
+  }
   const page = await ctx.newPage();
   await page.addInitScript(() => {
     window.__cls = 0;
@@ -86,7 +113,9 @@ async function shot(page, out, name) {
   return f;
 }
 
+let outDir = null;
 export async function walk(cfg, out) {
+  outDir = out;
   const results = [];
   const layers = cfg.layerSelector || DEFAULT_LAYERS;
   const base = cfg.baseUrl.replace(/\/$/, '');
@@ -96,7 +125,7 @@ export async function walk(cfg, out) {
     for (const sc of cfg.screens ?? []) {
       for (const mode of ['system', cfg.backSelector ? 'on-screen' : null].filter(Boolean)) {
         const { ctx, page } = await freshPage(browser, cfg);
-        await page.goto(base + cfg.home.path); await page.locator(cfg.home.ready).first().waitFor({ timeout: 10000 });
+        await page.goto(base + cfg.home.path); await setup(page, cfg); await page.locator(cfg.home.ready).first().waitFor({ timeout: 20000 });
         if (!(await runSteps(page, sc.steps, layers, results, sc.name))) { await ctx.close(); continue; }
         if (sc.ready && !(await visible(page, sc.ready))) {
           results.push({ id: 'N0', check: 'Screen reachable', target: sc.name, status: 'FAIL', detail: `"${sc.ready}" not visible after steps`, shot: await shot(page, out, `N0-${sc.name}`) });
@@ -145,7 +174,7 @@ export async function walk(cfg, out) {
       const { ctx, page } = await freshPage(browser, cfg);
       let sent = 0;
       page.on('request', r => { if (r.url().includes(s.api) && r.method() === (s.method || 'POST')) sent++; });
-      await page.goto(base + cfg.home.path); await page.locator(cfg.home.ready).first().waitFor({ timeout: 10000 });
+      await page.goto(base + cfg.home.path); await setup(page, cfg); await page.locator(cfg.home.ready).first().waitFor({ timeout: 20000 });
       if (!(await runSteps(page, s.steps, layers, results, s.name))) { await ctx.close(); continue; }
       const btn = page.locator(s.button).first();
       await page.evaluate(sel => {
