@@ -26,7 +26,10 @@ const NOTES_REASON = "Notes check: this turn changed files or the tracker. Befor
   + "you would tell the user is recorded durably, not only in chat: findings, decisions, deferrals, hand-offs, next "
   + "steps and environment facts. Use the project's own places (run record or wiki, docs, journal; committed and "
   + "pushed), issue and PR comments for hand-offs, and the machine journal or memory for environment facts. Record "
-  + "anything missing now. If everything is recorded, say where in one line and stop.";
+  + "anything missing now. If you found anything that needs attention and is not fixed in this turn (a bug, a risk, "
+  + "an owner decision, a deferred item), raise a GitHub issue for it in the repo it belongs to (`gh issue create`), "
+  + "unless an open issue already covers it; link the issue in the run record. If everything is recorded, say where "
+  + "in one line and stop.";
 
 /** One transcript line → whether it starts a user turn, and its tool calls as { name, text }. */
 function readEntry(entry) {
