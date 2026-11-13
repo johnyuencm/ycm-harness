@@ -19,7 +19,7 @@ const PostToolUsePayloadSchema = z.object({
   hook_event_name: z.literal("PostToolUse"),
   model: z.string().min(1).max(256),
   tool_name: z.string().min(1).max(128),
-  tool_input: z.record(z.unknown()),
+  tool_input: z.record(z.string(), z.unknown()),
   tool_response: z.unknown(),
   tool_use_id: SAFE_ID,
 }).strict();
