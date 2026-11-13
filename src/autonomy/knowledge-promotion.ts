@@ -247,7 +247,7 @@ const RequestSchema = z.object({
     report_id: z.string().regex(REPORT_ID),
     report_sha256: z.string().regex(SHA256),
     report_bytes: z.string().min(1).max(1024 * 1024),
-    authentication: z.record(z.unknown()),
+    authentication: z.record(z.string(), z.unknown()),
   }).strict(),
   action: z.object({
     receipt_id: z.string().regex(ACTION_RECEIPT_ID),
@@ -265,7 +265,7 @@ const RequestSchema = z.object({
       origin: z.string().max(2048),
       source_uri: z.string().max(4096),
       content_type: z.string().min(1).max(256),
-      type_metadata: z.record(z.string()).optional(),
+      type_metadata: z.record(z.string(), z.string()).optional(),
     }).strict(),
     classification: z.string().min(1).max(128),
   }).strict(),

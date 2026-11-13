@@ -27,7 +27,7 @@ export const RitualRecord = z.object({
   status: RitualStatus.default(() => "complete" as const),
   evidence_path: ShortText,
   summary: LongText,
-  metadata: z.record(z.unknown()).default(() => ({})),
+  metadata: z.record(z.string(), z.unknown()).default(() => ({})),
   created_at: IsoDateTime,
 });
 export type RitualRecordT = z.infer<typeof RitualRecord>;

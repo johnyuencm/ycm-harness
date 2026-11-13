@@ -44,8 +44,8 @@ export type WikiLogEntryT = z.infer<typeof WikiLogEntry>;
 export const WikiState = z.object({
   initialized: z.boolean().default(false),
   initialized_at: IsoDateTime.optional(),
-  sources: z.record(WikiSource).default(() => ({})),
-  pages: z.record(WikiPage).default(() => ({})),
+  sources: z.record(z.string(), WikiSource).default(() => ({})),
+  pages: z.record(z.string(), WikiPage).default(() => ({})),
   log: z.array(WikiLogEntry).default(() => []),
 });
 export type WikiStateT = z.infer<typeof WikiState>;

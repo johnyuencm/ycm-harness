@@ -56,6 +56,6 @@ export const Event = z.object({
   checkpoint_id: SlugId.optional(),
   smoke_id: SlugId.optional(),
   session_id: SlugId.optional(),
-  payload: z.record(z.unknown()).optional(),
+  payload: z.record(z.string(), z.unknown()).optional(),
 });
 export type EventT = z.infer<typeof Event>;
