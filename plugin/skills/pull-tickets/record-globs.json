@@ -1,0 +1,10 @@
+{
+  "$comment": "Single source of truth for 'record PR' classification (harness#192). Keep equal to TravelBuddy-Pro#311: ci.yml pull_request paths-ignore, docs-fragments.yml paths, and the grep regex in its 'Guard docs-only diff' step. tests/pull-tickets-frontier.test.ts asserts the lists are equal.",
+  "recordGlobs": [
+    "artifacts/reviews/**",
+    "artifacts/review-*.md",
+    "artifacts/verify-*.md",
+    "docs/agent-wiki/**/*.md",
+    "docs/journal/entries/**"
+  ]
+}

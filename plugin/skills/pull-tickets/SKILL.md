@@ -69,7 +69,23 @@ sources: issues  ─┐
    - `kind: decide` — the item needs an owner decision. Do not work it; list it in the report.
 9. `gh issue view` / `gh pr view` when criteria or test plan are thin.
 
-**Fail closed.** If `frontier.mjs` exits non-zero (missing or malformed `record-globs.json`, `gh` failure, unreadable `--records-dir`), do not guess record PRs from branch names or titles and do not skip anything: treat every open PR as `kind: review`-eligible and say so in the session report.
+### When GraphQL is blocked
+
+The Claude cloud GitHub proxy rejects every GraphQL call with a 403 that starts `GitHub GraphQL is not available from Claude Code sessions`. `gh pr list`, `gh issue list`, `gh pr view`, `gh issue view`, `gh pr edit`, `gh issue edit` and `gh project` use GraphQL. `gh search` and `gh api repos/...` use REST and still work. `frontier.mjs` falls back to REST by itself. When a `gh` command prints that 403, use the REST form:
+
+| GraphQL command | REST form |
+| --- | --- |
+| `gh issue list -R O/R --state open` | `gh api --paginate "repos/O/R/issues?state=open&per_page=100" --jq '.[] \| select(.pull_request \| not)'` |
+| `gh pr list -R O/R --state open` | `gh api --paginate "repos/O/R/pulls?state=open&per_page=100"` |
+| `gh issue view N` / `gh pr view N` | `gh api repos/O/R/issues/N` / `gh api repos/O/R/pulls/N` (`mergeable`, `head.sha`, `additions`, `deletions`) |
+| `statusCheckRollup` | `gh api "repos/O/R/commits/<head sha>/check-runs"` |
+| `reviewDecision` | `gh api repos/O/R/pulls/N/reviews` (last state per reviewer) |
+| `gh issue edit N --add-assignee @me` (also PRs) | `gh api -X POST repos/O/R/issues/N/assignees -f "assignees[]=<login>"` |
+| `gh issue comment N` / `gh pr comment N` | `gh api repos/O/R/issues/N/comments -f body=...` |
+
+The issues endpoint also returns PRs. Drop entries that have `pull_request`. GitHub Projects have no REST form here: skip Project items and say so in the session report.
+
+**Fail closed.** A blocked GraphQL call is not a failure: `frontier.mjs` lists PRs through REST. If `frontier.mjs` exits non-zero (missing or malformed `record-globs.json`, `gh` failure on both GraphQL and REST, unreadable `--records-dir`), do not guess record PRs from branch names or titles and do not skip anything: treat every open PR as `kind: review`-eligible and say so in the session report.
 
 `record-globs.json` is the single list. Keep it equal to the `pull_request` `paths-ignore` in the target repo's `ci.yml`, its `docs-fragments.yml` `paths`, and the guard regex there. `tests/pull-tickets-frontier.test.ts` fails when they differ.
 
