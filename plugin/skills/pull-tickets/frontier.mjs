@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pull-tickets PR frontier filter (harness#192).
+ * pull-tickets PR frontier filter.
  *
  * 1. A "record PR" is a PR whose changed files ALL match record-globs.json.
  *    The test is the file list, never the branch name.
@@ -171,14 +171,23 @@ export function listOpenPrs(repo, gh = defaultGh) {
   const fields = "number,title,headRefName,headRefOid,isDraft,labels,changedFiles,files,createdAt";
   try {
     return JSON.parse(gh(["pr", "list", "-R", repo, "--state", "open", "--limit", "200", "--json", fields]));
-  } catch {
-    return listOpenPrsRest(repo, gh);
+  } catch (graphqlErr) {
+    console.error("frontier: gh pr list failed; listing PRs through REST");
+    try {
+      return listOpenPrsRest(repo, gh);
+    } catch (restErr) {
+      throw new Error(`REST fallback failed: ${restErr.message}`, { cause: graphqlErr });
+    }
   }
 }
 
 /**
  * REST form of listOpenPrs. The REST list has no files, so read each PR's
- * files endpoint. That list is complete and already holds rename sources.
+ * files endpoint. That list already holds rename sources. A PR whose files
+ * cannot be read gets an empty list: it is reviewed, never a record PR.
+ * ponytail: the REST files endpoint stops at 3000 files and gives no count, so
+ * a >3000-file PR whose first 3000 paths are records looks like a record PR.
+ * Read pulls/N `changed_files` if that ever matters.
  */
 export function listOpenPrsRest(repo, gh = defaultGh) {
   const jq =
@@ -189,7 +198,13 @@ export function listOpenPrsRest(repo, gh = defaultGh) {
     .filter(Boolean)
     .map((line) => {
       const pr = JSON.parse(line);
-      return { ...pr, files: changedPathsWithRenames(repo, pr.number, gh).map((p) => ({ path: p })), renamesRead: true };
+      let files = [];
+      try {
+        files = changedPathsWithRenames(repo, pr.number, gh).map((p) => ({ path: p }));
+      } catch {
+        // Not provably a record PR: keep it reviewable.
+      }
+      return { ...pr, files, renamesRead: true };
     });
 }
 

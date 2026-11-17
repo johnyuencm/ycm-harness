@@ -71,23 +71,40 @@ sources: issues  ─┐
 
 ### When GraphQL is blocked
 
-The Claude cloud GitHub proxy rejects every GraphQL call with a 403 that starts `GitHub GraphQL is not available from Claude Code sessions`. `gh pr list`, `gh issue list`, `gh pr view`, `gh issue view`, `gh pr edit`, `gh issue edit` and `gh project` use GraphQL. `gh search` and `gh api repos/...` use REST and still work. `frontier.mjs` falls back to REST by itself. When a `gh` command prints that 403, use the REST form:
+The Claude cloud GitHub proxy rejects every GraphQL call with a 403 that starts `GitHub GraphQL is not available from Claude Code sessions`. These `gh` commands use GraphQL: `issue list|view|edit|close|comment`, `pr list|view|edit|checkout|comment`, `repo clone`, `project`. `gh search`, `gh pr diff <n>` and `gh api repos/...` use REST and still work. `frontier.mjs` falls back to REST by itself. When a `gh` command prints that 403, use the REST form (`O/R` = owner/repo, `N` = number):
 
-| GraphQL command | REST form |
-| --- | --- |
-| `gh issue list -R O/R --state open` | `gh api --paginate "repos/O/R/issues?state=open&per_page=100" --jq '.[] \| select(.pull_request \| not)'` |
-| `gh pr list -R O/R --state open` | `gh api --paginate "repos/O/R/pulls?state=open&per_page=100"` |
-| `gh issue view N` / `gh pr view N` | `gh api repos/O/R/issues/N` / `gh api repos/O/R/pulls/N` (`mergeable`, `head.sha`, `additions`, `deletions`) |
-| `statusCheckRollup` | `gh api "repos/O/R/commits/<head sha>/check-runs"` |
-| `reviewDecision` | `gh api repos/O/R/pulls/N/reviews` (last state per reviewer) |
-| `gh issue edit N --add-assignee @me` (also PRs) | `gh api -X POST repos/O/R/issues/N/assignees -f "assignees[]=<login>"` |
-| `gh issue comment N` / `gh pr comment N` | `gh api repos/O/R/issues/N/comments -f body=...` |
+```bash
+# gh issue list --state open  (the issues endpoint also returns PRs: drop them)
+gh api --paginate "repos/O/R/issues?state=open&per_page=100" --jq 'map(select(.pull_request == null))[]'
+# gh pr list --state open
+gh api --paginate "repos/O/R/pulls?state=open&per_page=100"
+# gh issue view N / gh pr view N  (PR: mergeable, head.sha, additions, deletions; mergeable can be null until GitHub computes it)
+gh api repos/O/R/issues/N
+gh api repos/O/R/pulls/N
+# statusCheckRollup = check runs + commit statuses
+gh api --paginate "repos/O/R/commits/<head sha>/check-runs?per_page=100" --jq '.check_runs[] | {name, status, conclusion}'
+gh api "repos/O/R/commits/<head sha>/status" --jq '{state, total_count}'   # total_count 0: no statuses, ignore "pending"
+# reviewDecision: last APPROVED / CHANGES_REQUESTED / DISMISSED per reviewer (ignore COMMENTED, PENDING)
+gh api --paginate "repos/O/R/pulls/N/reviews?per_page=100" --jq '.[] | {user: .user.login, state}'
+# gh issue edit N --add-assignee @me  (also PRs)
+gh api -X POST repos/O/R/issues/N/assignees -f "assignees[]=$(gh api user -q .login)"
+# gh pr edit N --add-label ready-for-agent  (also issues)
+gh api repos/O/R/issues/N/labels -f "labels[]=ready-for-agent"
+# gh issue comment N / gh pr comment N
+gh api repos/O/R/issues/N/comments -f body="..."
+# gh issue close N
+gh api -X PATCH repos/O/R/issues/N -f state=closed
+# gh pr checkout N
+git fetch origin "pull/N/head:pr-N" && git checkout pr-N
+# gh repo clone O/R
+git clone https://github.com/O/R.git
+```
 
-The issues endpoint also returns PRs. Drop entries that have `pull_request`. GitHub Projects have no REST form here: skip Project items and say so in the session report.
+GitHub Projects have no REST form here: skip Project items and say so in the session report.
 
 **Fail closed.** A blocked GraphQL call is not a failure: `frontier.mjs` lists PRs through REST. If `frontier.mjs` exits non-zero (missing or malformed `record-globs.json`, `gh` failure on both GraphQL and REST, unreadable `--records-dir`), do not guess record PRs from branch names or titles and do not skip anything: treat every open PR as `kind: review`-eligible and say so in the session report.
 
-`record-globs.json` is the single list. Keep it equal to the `pull_request` `paths-ignore` in the target repo's `ci.yml`, its `docs-fragments.yml` `paths`, and the guard regex there. `tests/pull-tickets-frontier.test.ts` fails when they differ.
+`record-globs.json` is the single list. Keep it equal to the `pull_request` `paths-ignore` in the target repo's `ci.yml`, its `docs-fragments.yml` `paths`, and the guard regex there. The frontier unit test fails when they differ.
 
 ## Phase 2 — Prioritize
 
