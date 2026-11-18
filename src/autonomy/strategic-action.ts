@@ -316,7 +316,7 @@ const RequestSchema = z.object({
     report_id: z.string().regex(REPORT_ID),
     report_sha256: z.string().regex(SHA256),
     report_bytes: z.string().min(1).max(1024 * 1024),
-    authentication: z.record(z.unknown()),
+    authentication: z.record(z.string(), z.unknown()),
   }).strict(),
   authority: z.object({
     installation_id: z.string().min(1).max(4096),

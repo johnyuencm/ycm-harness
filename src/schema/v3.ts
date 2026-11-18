@@ -140,7 +140,7 @@ export const EvidencePointer = z.object({
   remote_comment_id: ShortText.optional(),
   command: ShortText.optional(),
   outcome: z.enum(["pass", "fail", "not_applicable"]).optional(),
-  provenance: z.record(ShortText).default(() => ({})),
+  provenance: z.record(z.string(), ShortText).default(() => ({})),
   recorded_at: IsoDateTime,
 });
 export type EvidencePointerT = z.infer<typeof EvidencePointer>;
@@ -180,10 +180,10 @@ export const StateV3 = z.object({
   created_at: IsoDateTime,
   updated_at: IsoDateTime,
   active_goal_id: SlugId.optional(),
-  goals: z.record(GoalV3),
-  local_tickets: z.record(Ticket),
-  checkpoints: z.record(CheckpointV3),
-  evidence: z.record(EvidencePointer),
+  goals: z.record(z.string(), GoalV3),
+  local_tickets: z.record(z.string(), Ticket),
+  checkpoints: z.record(z.string(), CheckpointV3),
+  evidence: z.record(z.string(), EvidencePointer),
   wiki: WikiState.default(() => emptyWikiState()),
   tracker_cache: TrackerCache.optional(),
   legacy_archive: LegacyArchive.optional(),
