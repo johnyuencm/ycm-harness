@@ -34,7 +34,7 @@ sources: issues  ─┐
 
 1. Read project tracker docs when present: `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md`.
 2. Else read `plugin/skills/ycm-harness-work/github-tickets.md` for `gh` conventions.
-3. **Scope.** When the request or the routine prompt names one repository (for example "Repository: OWNER/REPO"), scope is that repository only; this keeps single-repo routines single-repo. Otherwise the default scope is every non-archived repo owned by the authenticated user (`gh api user -q .login`) and by each of that user's orgs (`gh api user/orgs -q ".[].login"`). If `gh api user/orgs` gives 403 (a session bound to its repositories), use the owners that the routine prompt names. Else use your login plus the owners that the owner row in [When GraphQL is blocked](#when-graphql-is-blocked) prints. With the `here` arg inside a repo clone, scope is that repo only (owner/repo from `git remote -v`). Archived repos are always out of scope.
+3. **Scope.** When the request or the routine prompt names one repository (for example "Repository: OWNER/REPO"), scope is that repository only; this keeps single-repo routines single-repo. Otherwise the default scope is every non-archived repo owned by the authenticated user (`gh api user -q .login`) and by each of that user's orgs (`gh api user/orgs -q ".[].login"`). If `gh api user/orgs` gives 403 (a session bound to its repositories), use the owners that the routine prompt names. Else use your login plus the owners that the owner row in [When GraphQL is blocked](#when-graphql-is-blocked) prints. That row misses an org where you wrote no open issue or PR, so the routine prompt's owners win when it names them. With the `here` arg inside a repo clone, scope is that repo only (owner/repo from `git remote -v`). Archived repos are always out of scope.
 4. Work each item inside a local clone of its repo. Look for the clone under the workspace root first; run `gh repo clone` only when none exists.
 
 ## Invocation args (optional)
@@ -74,9 +74,10 @@ sources: issues  ─┐
 The Claude cloud GitHub proxy rejects every GraphQL call with a 403. The error text contains `GitHub GraphQL is not available`. These `gh` commands use GraphQL: `issue list|view|edit|close|comment`, `pr list|view|edit|checkout|comment`, `search issues|prs`, `repo clone`, `project`. `gh pr diff <n>`, `gh api repos/...` and `gh api search/...` use REST and still work. `frontier.mjs` falls back to REST by itself. When a `gh` command prints that 403, use the REST form (`O/R` = owner/repo, `N` = number):
 
 ```bash
-# gh api user/orgs  (403 in a session bound to its repositories): owners where you are OWNER or MEMBER. Run for K=issue, then K=pull-request.
-gh api -X GET search/issues -f q='author:@me is:K' -f per_page=100 --paginate \
-  --jq '[.items[] | select(.author_association | IN("OWNER", "MEMBER")) | .repository_url | split("/")[4]] | unique[]'
+# gh api user/orgs  (403 in a session bound to its repositories): owners where you are OWNER or MEMBER and wrote an open issue or PR.
+# Run for K=issue, then K=pull-request. pipefail keeps gh's exit code through sort -u.
+set -o pipefail; gh api -X GET search/issues -f q='author:@me state:open is:K' -f per_page=100 --paginate \
+  --jq '.items[] | select(.author_association | IN("OWNER", "MEMBER")) | .repository_url | split("/")[4]' | sort -u
 # gh search issues --owner O --state open --archived=false
 gh api -X GET search/issues -f q='user:O state:open archived:false is:issue' -f per_page=100 --paginate \
   --jq 'if .incomplete_results then error("incomplete_results") end | .items[]'
@@ -115,13 +116,13 @@ git clone https://github.com/O/R.git
 Search rules:
 
 - `q` needs `is:issue` or `is:pull-request`, else HTTP 422. `user:O` works for a user or an org.
-- A non-zero exit means a part list: the search limit (30 requests a minute, each page counts) or `error: incomplete_results` (GitHub timed out). Wait one minute and rerun. Never score a part list.
+- A non-zero exit means a part list: the search limit (30 requests a minute, each page counts) or `error: incomplete_results` (GitHub timed out). Wait a few minutes (secondary rate limit), then rerun. Never score a part list.
 - A search returns at most 1000 items. At 1000 items the list is not complete: split `q` by a `created:` date range and search each part.
 - Items use REST names: repo = end of `repository_url`, `isDraft` = `draft`, `author` = `user.login`, `url` = `html_url`. A `pull_request` key marks a PR.
 
 GitHub Projects have no REST form here: skip Project items and say so in the session report.
 
-**Fail closed.** A blocked GraphQL call is not a failure: `frontier.mjs` lists PRs through REST. If `frontier.mjs` exits non-zero, it prints one line `frontier: <reason>` (missing or malformed `record-globs.json`, `gh` failure on both GraphQL and REST, unreadable `--records-dir`). Do not guess record PRs from branch names or titles and do not skip anything: treat every open PR as `kind: review`-eligible and say so in the session report.
+**Fail closed.** A blocked GraphQL call is not a failure: `frontier.mjs` lists PRs through REST. If `frontier.mjs` exits non-zero, the last stderr line is `frontier: <reason>` (missing or malformed `record-globs.json`, `gh` failure on both GraphQL and REST, unreadable `--records-dir`). Do not guess record PRs from branch names or titles and do not skip anything: treat every open PR as `kind: review`-eligible and say so in the session report.
 
 **Repo not attached.** If the `frontier:` line says `Use add_repo`, the session cannot read that repo at all, so this is not a fail-closed case. Attach the repo (`add_repo` in a Claude cloud session) and rerun `frontier.mjs`. If `add_repo` is refused, skip that repo and say so in the session report.
 
