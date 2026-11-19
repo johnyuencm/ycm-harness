@@ -34,7 +34,7 @@ sources: issues  ─┐
 
 1. Read project tracker docs when present: `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md`.
 2. Else read `plugin/skills/ycm-harness-work/github-tickets.md` for `gh` conventions.
-3. **Scope.** When the request or the routine prompt names one repository (for example "Repository: OWNER/REPO"), scope is that repository only; this keeps single-repo routines single-repo. Otherwise the default scope is every non-archived repo owned by the authenticated user (`gh api user -q .login`) and by each of that user's orgs (`gh api user/orgs -q ".[].login"`). With the `here` arg inside a repo clone, scope is that repo only (owner/repo from `git remote -v`). Archived repos are always out of scope.
+3. **Scope.** When the request or the routine prompt names one repository (for example "Repository: OWNER/REPO"), scope is that repository only; this keeps single-repo routines single-repo. Otherwise the default scope is every non-archived repo owned by the authenticated user (`gh api user -q .login`) and by each of that user's orgs (`gh api user/orgs -q ".[].login"`). If `gh api user/orgs` gives 403 (a session bound to its repositories), use the owners that the routine prompt names. Else use your login plus the owners that the owner row in [When GraphQL is blocked](#when-graphql-is-blocked) prints. That row misses an org where you wrote no open issue or PR, so the routine prompt's owners win when it names them. With the `here` arg inside a repo clone, scope is that repo only (owner/repo from `git remote -v`). Archived repos are always out of scope.
 4. Work each item inside a local clone of its repo. Look for the clone under the workspace root first; run `gh repo clone` only when none exists.
 
 ## Invocation args (optional)
@@ -53,9 +53,9 @@ sources: issues  ─┐
 
 ## Phase 1 — Pull
 
-1. `gh auth status` — stop if not authenticated. Project items need the `project` scope. If it is missing, say so and continue without Project items (`gh auth refresh -s project` is a human step).
-2. **Issues:** for each owner in scope, `gh search issues --owner <owner> --state open --archived=false --limit 200 --json repository,number,title,labels,assignees,createdAt,updatedAt,url` (add `--label` only when the user scoped a label). In `here` scope use `gh issue list --state open`.
-3. **PRs:** unless `issues-only`, `gh search prs --owner <owner> --state open --archived=false --json repository,number,title,labels,isDraft,author,url`, plus `gh search prs --review-requested @me --state open` for PRs in other owners' repos that wait on you. In `here` scope use `gh pr list --state open`. For each PR read `gh pr view <n> -R <repo> --json statusCheckRollup,mergeable,reviewDecision,headRefOid,additions,deletions`.
+1. **Auth.** Run `gh api user -q .login`. Stop only if it fails. In a Claude cloud session `gh auth status` exits 1 ("The token in GH_TOKEN is invalid") while REST works. That alone is expected: go on. Project items need the `project` scope (`gh auth status` lists scopes). If it is missing, say so and continue without Project items (`gh auth refresh -s project` is a human step).
+2. **Issues:** for each owner in scope, `gh search issues --owner <owner> --state open --archived=false --limit 200 --json repository,number,title,labels,assignees,createdAt,updatedAt,url` (add `--label` only when the user scoped a label). In `here` scope use `gh issue list --state open`. On a GraphQL 403, use the [REST form](#when-graphql-is-blocked).
+3. **PRs:** unless `issues-only`, `gh search prs --owner <owner> --state open --archived=false --json repository,number,title,labels,isDraft,author,url`, plus `gh search prs --review-requested @me --state open` for PRs in other owners' repos that wait on you. In `here` scope use `gh pr list --state open`. For each PR read `gh pr view <n> -R <repo> --json statusCheckRollup,mergeable,reviewDecision,headRefOid,additions,deletions`. On a GraphQL 403, use the [REST form](#when-graphql-is-blocked).
 4. **Project backlog:** unless `issues-only` or `prs-only`, for each owner run `gh project list --owner <owner> --format json`, then `gh project item-list <N> --owner <owner> --format json --limit 500`. Keep items whose Status is not Done or Closed. Read the `Priority`, `Status`, `Size` and iteration fields when present. A Project item that points at an issue or PR merges with that issue or PR (one entry, fields combined). A draft item becomes its own `kind: implement` entry.
 5. Fetch `number`, `title`, `body`, `labels`, `assignees`, `createdAt`, `updatedAt`, `issue_dependencies_summary`; for PRs also `isDraft`, `reviewDecision`, `additions`, `deletions`.
 6. **Drop:** `ready-for-human`; `wontfix`; assigned to someone else (unless overruled); open issue blockers.
@@ -67,11 +67,66 @@ sources: issues  ─┐
    - `kind: review` — a PR from the filter's `review-eligible` list with no passing review yet.
    - `kind: fix-pr` — a PR (yours or agent-authored) with failing checks, merge conflicts, or `reviewDecision: CHANGES_REQUESTED`. Fix it on its branch. Never force-push someone else's branch.
    - `kind: decide` — the item needs an owner decision. Do not work it; list it in the report.
-9. `gh issue view` / `gh pr view` when criteria or test plan are thin.
+9. `gh issue view` / `gh pr view` when criteria or test plan are thin. On a GraphQL 403, use the [REST form](#when-graphql-is-blocked).
 
-**Fail closed.** If `frontier.mjs` exits non-zero (missing or malformed `record-globs.json`, `gh` failure, unreadable `--records-dir`), do not guess record PRs from branch names or titles and do not skip anything: treat every open PR as `kind: review`-eligible and say so in the session report.
+### When GraphQL is blocked
 
-`record-globs.json` is the single list. Keep it equal to the `pull_request` `paths-ignore` in the target repo's `ci.yml`, its `docs-fragments.yml` `paths`, and the guard regex there. `tests/pull-tickets-frontier.test.ts` fails when they differ.
+The Claude cloud GitHub proxy rejects every GraphQL call with a 403. The error text contains `GitHub GraphQL is not available`. These `gh` commands use GraphQL: `issue list|view|edit|close|comment`, `pr list|view|edit|checkout|comment`, `search issues|prs`, `repo clone`, `project`. `gh pr diff <n>`, `gh api repos/...` and `gh api search/...` use REST and still work. `frontier.mjs` falls back to REST by itself. When a `gh` command prints that 403, use the REST form (`O/R` = owner/repo, `N` = number):
+
+```bash
+# gh api user/orgs  (403 in a session bound to its repositories): owners where you are OWNER or MEMBER and wrote an open issue or PR.
+# Run for K=issue, then K=pull-request. pipefail keeps gh's exit code through sort -u.
+set -o pipefail; gh api -X GET search/issues -f q='author:@me state:open is:K' -f per_page=100 --paginate \
+  --jq '.items[] | select(.author_association | IN("OWNER", "MEMBER")) | .repository_url | split("/")[4]' | sort -u
+# gh search issues --owner O --state open --archived=false
+gh api -X GET search/issues -f q='user:O state:open archived:false is:issue' -f per_page=100 --paginate \
+  --jq 'if .incomplete_results then error("incomplete_results") end | .items[]'
+# gh search prs --owner O --state open --archived=false
+gh api -X GET search/issues -f q='user:O state:open archived:false is:pull-request' -f per_page=100 --paginate \
+  --jq 'if .incomplete_results then error("incomplete_results") end | .items[]'
+# gh search prs --review-requested @me --state open
+gh api -X GET search/issues -f q='review-requested:@me state:open archived:false is:pull-request' -f per_page=100 --paginate \
+  --jq 'if .incomplete_results then error("incomplete_results") end | .items[]'
+# gh issue list --state open  (the issues endpoint also returns PRs: drop them)
+gh api --paginate "repos/O/R/issues?state=open&per_page=100" --jq 'map(select(.pull_request == null))[]'
+# gh pr list --state open
+gh api --paginate "repos/O/R/pulls?state=open&per_page=100"
+# gh issue view N / gh pr view N  (PR: mergeable, head.sha, additions, deletions; mergeable can be null until GitHub computes it)
+gh api repos/O/R/issues/N
+gh api repos/O/R/pulls/N
+# statusCheckRollup = check runs + commit statuses
+gh api --paginate "repos/O/R/commits/<head sha>/check-runs?per_page=100" --jq '.check_runs[] | {name, status, conclusion}'
+gh api "repos/O/R/commits/<head sha>/status" --jq '{state, total_count}'   # total_count 0: no statuses, ignore "pending"
+# reviewDecision: last APPROVED / CHANGES_REQUESTED / DISMISSED per reviewer (ignore COMMENTED, PENDING)
+gh api --paginate "repos/O/R/pulls/N/reviews?per_page=100" --jq '.[] | {user: .user.login, state}'
+# gh issue edit N --add-assignee @me  (also PRs). Prints the assignees: stop if your login is missing (GitHub drops it silently).
+gh api -X POST repos/O/R/issues/N/assignees -f "assignees[]=$(gh api user -q .login)" --jq '[.assignees[].login]'
+# gh pr edit N --add-label ready-for-agent  (also issues)
+gh api repos/O/R/issues/N/labels -f "labels[]=ready-for-agent"
+# gh issue comment N / gh pr comment N
+gh api repos/O/R/issues/N/comments -f body="..."
+# gh issue close N
+gh api -X PATCH repos/O/R/issues/N -f state=closed
+# gh pr checkout N
+git fetch origin "pull/N/head:pr-N" && git checkout pr-N
+# gh repo clone O/R
+git clone https://github.com/O/R.git
+```
+
+Search rules:
+
+- `q` needs `is:issue` or `is:pull-request`, else HTTP 422. `user:O` works for a user or an org.
+- A non-zero exit means a part list: the search limit (30 requests a minute, each page counts) or `error: incomplete_results` (GitHub timed out). Wait a few minutes (secondary rate limit), then rerun. Never score a part list.
+- A search returns at most 1000 items. At 1000 items the list is not complete: split `q` by a `created:` date range and search each part.
+- Items use REST names: repo = end of `repository_url`, `isDraft` = `draft`, `author` = `user.login`, `url` = `html_url`. A `pull_request` key marks a PR.
+
+GitHub Projects have no REST form here: skip Project items and say so in the session report.
+
+**Fail closed.** A blocked GraphQL call is not a failure: `frontier.mjs` lists PRs through REST. If `frontier.mjs` exits non-zero, the last stderr line is `frontier: <reason>` (missing or malformed `record-globs.json`, `gh` failure on both GraphQL and REST, unreadable `--records-dir`). Do not guess record PRs from branch names or titles and do not skip anything: treat every open PR as `kind: review`-eligible and say so in the session report.
+
+**Repo not attached.** If the `frontier:` line says `Use add_repo`, the session cannot read that repo at all, so this is not a fail-closed case. Attach the repo (`add_repo` in a Claude cloud session) and rerun `frontier.mjs`. If `add_repo` is refused, skip that repo and say so in the session report.
+
+`record-globs.json` is the single list. Keep it equal to the `pull_request` `paths-ignore` in the target repo's `ci.yml`, its `docs-fragments.yml` `paths`, and the guard regex there. The frontier unit test fails when they differ.
 
 ## Phase 2 — Prioritize
 
@@ -105,6 +160,8 @@ Run each claim in the item's repo (`-R OWNER/REPO`). For a Project item, also se
 ```bash
 gh issue edit <n> --add-assignee @me   # issues
 gh pr edit <n> --add-assignee @me      # PRs
+# GraphQL blocked (403): this REST form claims issues and PRs. It prints the assignees: stop if your login is missing.
+gh api -X POST repos/OWNER/REPO/issues/<n>/assignees -f "assignees[]=$(gh api user -q .login)" --jq '[.assignees[].login]'
 ```
 
 ## Phase 4 — Work via ycm-harness-work-lite
@@ -115,7 +172,7 @@ Orchestrator only. One lite run per item.
 
 Hand lite: issue link, acceptance criteria, done-when, workspace = repo root.
 
-Follow `plugin/skills/ycm-harness-work-lite/SKILL.md`. After PASS: comment; close when criteria met.
+Follow `plugin/skills/ycm-harness-work-lite/SKILL.md`. After PASS: comment; close when criteria met. On a GraphQL 403, use the comment and close rows in [When GraphQL is blocked](#when-graphql-is-blocked).
 
 ### `kind: review` (PR)
 
@@ -123,7 +180,7 @@ Hand lite: PR link, `gh pr diff <n>`, author test claims, done-when = two-phase 
 
 Checkout PR branch → verify on branch → **review panel** on diff → fix-loop if needed → report.
 
-After PASS: `gh pr comment` with verdict + verify; optionally `--add-label ready-for-agent`. Do not merge unless user asked.
+After PASS: `gh pr comment` with verdict + verify; optionally `--add-label ready-for-agent`. When GraphQL is blocked, use the comment and label rows in [When GraphQL is blocked](#when-graphql-is-blocked). Do not merge unless user asked.
 
 **Every review record names the head it reviewed**, so the next run can skip an unchanged tip. Put this front matter at the top of each record file (`artifacts/review-*.md`, `artifacts/reviews/*.md`):
 
