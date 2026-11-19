@@ -30,6 +30,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+// CLI: any failure (also a bad record-globs.json at load) is one stderr line
+// and exit 1, never a stack. The skill then fails closed.
+if (isMain) {
+  process.on("uncaughtException", (e) => {
+    console.error(`frontier: ${String(e?.message ?? e).replace(/\s+/g, " ").trim()}`);
+    process.exit(1);
+  });
+}
 
 export function loadRecordGlobs(file = path.join(here, "record-globs.json")) {
   const parsed = JSON.parse(readFileSync(file, "utf8"));
@@ -176,7 +186,8 @@ export function listOpenPrs(repo, gh = defaultGh) {
     try {
       return listOpenPrsRest(repo, gh);
     } catch (restErr) {
-      throw new Error(`REST fallback failed: ${restErr.message}`, { cause: graphqlErr });
+      // gh's own text ("... Use add_repo ...") first, not the long command line.
+      throw new Error(`REST fallback failed: ${(restErr.stderr || restErr.message).trim()}`, { cause: graphqlErr });
     }
   }
 }
@@ -296,4 +307,4 @@ function main(argv) {
   show("already recorded at this head (skipped)", r.recorded);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main(process.argv.slice(2));
+if (isMain) main(process.argv.slice(2));
