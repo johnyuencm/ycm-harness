@@ -185,9 +185,9 @@ export function listOpenPrs(repo, gh = defaultGh) {
  * REST form of listOpenPrs. The REST list has no files, so read each PR's
  * files endpoint. That list already holds rename sources. A PR whose files
  * cannot be read gets an empty list: it is reviewed, never a record PR.
- * ponytail: the REST files endpoint stops at 3000 files and gives no count, so
- * a >3000-file PR whose first 3000 paths are records looks like a record PR.
- * Read pulls/N `changed_files` if that ever matters.
+ * shortcut: the REST files endpoint stops at 3000 files and gives no count, so
+ * a >3000-file PR whose first 3000 paths are records looks like a record PR,
+ * upgrade to a pulls/N `changed_files` check if PRs that large occur.
  */
 export function listOpenPrsRest(repo, gh = defaultGh) {
   const jq =

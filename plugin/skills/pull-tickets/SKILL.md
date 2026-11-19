@@ -71,9 +71,15 @@ sources: issues  ─┐
 
 ### When GraphQL is blocked
 
-The Claude cloud GitHub proxy rejects every GraphQL call with a 403 that starts `GitHub GraphQL is not available from Claude Code sessions`. These `gh` commands use GraphQL: `issue list|view|edit|close|comment`, `pr list|view|edit|checkout|comment`, `repo clone`, `project`. `gh search`, `gh pr diff <n>` and `gh api repos/...` use REST and still work. `frontier.mjs` falls back to REST by itself. When a `gh` command prints that 403, use the REST form (`O/R` = owner/repo, `N` = number):
+The Claude cloud GitHub proxy rejects every GraphQL call with a 403 that starts `GitHub GraphQL is not available from Claude Code sessions`. These `gh` commands use GraphQL: `issue list|view|edit|close|comment`, `pr list|view|edit|checkout|comment`, `search issues|prs`, `repo clone`, `project`. `gh pr diff <n>`, `gh api repos/...` and `gh api search/...` use REST and still work. `frontier.mjs` falls back to REST by itself. When a `gh` command prints that 403, use the REST form (`O/R` = owner/repo, `N` = number):
 
 ```bash
+# gh search issues --owner O --state open --archived=false
+gh api -X GET search/issues -f q='user:O state:open archived:false is:issue' -f per_page=100 --paginate --jq '.items[]'
+# gh search prs --owner O --state open --archived=false
+gh api -X GET search/issues -f q='user:O state:open archived:false is:pull-request' -f per_page=100 --paginate --jq '.items[]'
+# gh search prs --review-requested @me --state open
+gh api -X GET search/issues -f q='review-requested:@me state:open archived:false is:pull-request' -f per_page=100 --paginate --jq '.items[]'
 # gh issue list --state open  (the issues endpoint also returns PRs: drop them)
 gh api --paginate "repos/O/R/issues?state=open&per_page=100" --jq 'map(select(.pull_request == null))[]'
 # gh pr list --state open
@@ -99,6 +105,8 @@ git fetch origin "pull/N/head:pr-N" && git checkout pr-N
 # gh repo clone O/R
 git clone https://github.com/O/R.git
 ```
+
+The search API needs `is:issue` or `is:pull-request` in `q`, else it returns HTTP 422. It returns at most 1000 results for each query. If a search returns 1000 items, the list is not complete: split `q` by a `created:` date range and search each part.
 
 GitHub Projects have no REST form here: skip Project items and say so in the session report.
 
@@ -138,6 +146,8 @@ Run each claim in the item's repo (`-R OWNER/REPO`). For a Project item, also se
 ```bash
 gh issue edit <n> --add-assignee @me   # issues
 gh pr edit <n> --add-assignee @me      # PRs
+# GraphQL blocked (403): this REST form claims issues and PRs
+gh api -X POST repos/OWNER/REPO/issues/<n>/assignees -f "assignees[]=$(gh api user -q .login)"
 ```
 
 ## Phase 4 — Work via ycm-harness-work-lite
@@ -156,7 +166,7 @@ Hand lite: PR link, `gh pr diff <n>`, author test claims, done-when = two-phase 
 
 Checkout PR branch → verify on branch → **review panel** on diff → fix-loop if needed → report.
 
-After PASS: `gh pr comment` with verdict + verify; optionally `--add-label ready-for-agent`. Do not merge unless user asked.
+After PASS: `gh pr comment` with verdict + verify; optionally `--add-label ready-for-agent`. When GraphQL is blocked, use the comment and label rows in [When GraphQL is blocked](#when-graphql-is-blocked). Do not merge unless user asked.
 
 **Every review record names the head it reviewed**, so the next run can skip an unchanged tip. Put this front matter at the top of each record file (`artifacts/review-*.md`, `artifacts/reviews/*.md`):
 
