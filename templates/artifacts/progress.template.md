@@ -1,19 +1,20 @@
 ---
 goal_id: ""
 title: ""
-active_phase: explore
+status: active
+assurance: standard
+backend: local
 worktree_path: ""
 branch: ""
-status: active
 updated_at: ""
 ---
 
 # Progress
 
-## Phase log
+## Ticket log
 
-| Phase | Status | Completed |
-|-------|--------|-----------|
+| Ticket | Status | Evidence |
+|--------|--------|----------|
 
 ## Open questions
 

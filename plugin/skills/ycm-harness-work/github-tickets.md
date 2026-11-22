@@ -1,11 +1,12 @@
 # GitHub tickets
 
-Use GitHub Issues + the **harness** Project board as the kanban mirror for every active ycm-harness goal. Do **not** add a ycm-harness ticket wrapper for day-to-day mirroring; call the `gh` CLI directly. Harness lean goals may also bind `--backend github` for provider-backed tickets.
+Use GitHub Issues as the kanban mirror for an active ycm-harness goal. The work skill records the ledger with `ycm-harness ticket` when the goal uses `--backend github`. Use `gh` for board fields and comments the CLI does not set.
 
-Default destination for this product repo:
+Default destination for this public product repo (`DEFAULT_GITHUB_TRACKER` in `src/schema/v3.ts`):
 
-- Issues repo: `johnyuencm/harness`
-- Project: `TheNewBee` / **harness** (project number `1`)
+- Issues repo: `johnyuencm/ycm-harness`
+- Project owner: `johnyuencm`
+- Project number: `1`
 
 ## Preflight
 
@@ -31,7 +32,7 @@ Default destination for this product repo:
 - Create one child issue per ticket (not per retired V5 phase).
 - At finish, create one child **follow-up** issue for each actionable leftover item.
 
-Link children to the parent in the body (`Parent: #<n>`) and board every issue onto Project `harness`. Prefer GitHub sub-issues when the API/UI supports them; otherwise keep the parent link visible in the body.
+Link children to the parent in the body (`Parent: #<n>`) and board every issue on project number `1`. Prefer GitHub sub-issues when the API supports them. Otherwise keep the parent link in the body.
 
 Project **Status** mapping:
 
@@ -56,29 +57,29 @@ Project **Status** mapping:
 Parent issue:
 
 ```bash
-gh issue create --repo johnyuencm/harness --title "<goal>" --body-file artifacts/github-goal.md
-gh project item-add 1 --owner TheNewBee --url <issue-url>
+gh issue create --repo johnyuencm/ycm-harness --title "<goal>" --body-file artifacts/github-goal.md
+gh project item-add 1 --owner johnyuencm --url <issue-url>
 ```
 
 Ticket child issue:
 
 ```bash
-gh issue create --repo johnyuencm/harness --title "[ticket] <title>" --body-file artifacts/github-ticket.md
-gh project item-add 1 --owner TheNewBee --url <issue-url>
+gh issue create --repo johnyuencm/ycm-harness --title "[ticket] <title>" --body-file artifacts/github-ticket.md
+gh project item-add 1 --owner johnyuencm --url <issue-url>
 ```
 
 Comments and evidence:
 
 ```bash
-gh issue comment <n> --repo johnyuencm/harness --body-file artifacts/<note>.md
+gh issue comment <n> --repo johnyuencm/ycm-harness --body-file artifacts/<note>.md
 ```
 
 Status sync (body marker + Project Status + close when Done/Cancelled):
 
 ```bash
-gh issue edit <n> --repo johnyuencm/harness --body-file artifacts/github-status.md
-gh issue close <n> --repo johnyuencm/harness --reason completed   # Done
-gh issue reopen <n> --repo johnyuencm/harness                     # leave Todo/In Progress/In Review/Blocked open
+gh issue edit <n> --repo johnyuencm/ycm-harness --body-file artifacts/github-status.md
+gh issue close <n> --repo johnyuencm/ycm-harness --reason completed   # Done
+gh issue reopen <n> --repo johnyuencm/ycm-harness                     # leave Todo/In Progress/In Review/Blocked open
 ```
 
 Triage labels (see `docs/agents/triage-labels.md`): `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
@@ -94,6 +95,6 @@ Triage labels (see `docs/agents/triage-labels.md`): `needs-triage`, `needs-info`
 
 Before the harness goal is treated as done:
 
-1. Convert each actionable leftover into a child **follow-up** issue under the parent (body `Parent: #<parent>` + board on Project harness) — **search existing issues first**. Architecture-report candidates implemented in the finish pass are **not** leftovers. File architecture follow-ups for each candidate not implemented: review recommendations (Speculative-only, or outside the Goal/Spec) and skipped ones (ADR conflict, blocked, human-only).
+1. Convert each actionable leftover into a child **follow-up** issue under the parent (body `Parent: #<parent>` + board on project number `1`) — **search existing issues first**. Architecture-report candidates implemented in the finish pass are **not** leftovers. File architecture follow-ups for each candidate not implemented: review recommendations (Speculative-only, or outside the Goal/Spec) and skipped ones (ADR conflict, blocked, human-only).
 2. Add one final parent issue comment summarizing completed work, verification, PR URL, risks, and future notes.
 3. Mark ticket child issues Done on the Project board (and close them), then mark the parent issue Done.
