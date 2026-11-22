@@ -32,4 +32,6 @@ directory. `npm test` and `npm run smoke` run the folder when it exists.
 
 ## Docs
 
+- Index of every doc: [`docs/README.md`](docs/README.md)
 - Lean 0.3 contract: [`docs/lean-0.3.md`](docs/lean-0.3.md)
+- CLI reference: [`docs/reference.md`](docs/reference.md)

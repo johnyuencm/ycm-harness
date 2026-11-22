@@ -34,7 +34,8 @@ The following bridge behavior is intentional and testable:
 
 - `task` is a compatibility alias for `ticket`.
 - `smoke` is a compatibility alias for `verify`.
-- `sync` and `plugin update` are idempotent aliases for `install --force`.
+- `plugin update` is a deprecated alias. It runs `install --force` and changes no goal state.
+- `sync` is a separate command. It calls the same install kit with force, detects Cursor, Codex, OpenCode, and Claude Code, and accepts the client flags. It is safe to retry. It is not an alias of `install --force` (`install` projects Cursor unless `--client` says otherwise).
 - `phase`, `review`, `ritual`, `session`, `user-wiki`, `artifact`, and `commit` return exit 2 with a replacement and perform no state mutation.
 - Help remains available for every bridge command so scripts can discover the migration message.
 - 0.4 may remove the stubs after usage review or explicit approval; do not delete them opportunistically during 0.3.
