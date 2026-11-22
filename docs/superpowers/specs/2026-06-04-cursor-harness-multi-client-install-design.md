@@ -1,7 +1,9 @@
 # YCM Harness Multi-Client Plugin Install/Update Design
 
 Date: 2026-06-04
-Status: Proposed
+Status: Historical proposal
+
+The 0.3 install and `sync` behavior is in [`docs/reference.md`](../../reference.md). This file keeps the original proposal. Do not treat "Proposed" as the current contract. `sync` now also covers OpenCode and Claude Code.
 
 ## Goal
 Make `ycm-harness` releasable as a reusable plugin/installer for both Cursor and Codex CLI plugin surfaces, with one-click install/update that pulls the latest stable npm release by default and optionally syncs from a git source for dev/latest workflows.

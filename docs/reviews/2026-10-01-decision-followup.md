@@ -1,5 +1,7 @@
 # Harness decision follow-up — public export (2026-10-01)
 
+> Record date: 2026-10-01. This file is the export log for that decision. It is not the current install guide. Living docs are [`docs/reference.md`](../reference.md) and [`docs/lean-0.3.md`](../lean-0.3.md).
+
 Branch: `fix/2026-10-01-review-decisions` (base `74eab73`)
 Owner-approved plan: `2026-10-01-approved-plan.md` §5 harness bullets.
 Serial ownership: the same worker owns private-harness; private source fixes are ported/exported here after

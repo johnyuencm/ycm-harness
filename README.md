@@ -166,8 +166,9 @@ npm install && npm run build && npm link
 ycm-harness sync          # install skills and hooks into Cursor, Codex, OpenCode, Claude Code
 ycm-harness doctor        # check the install
 npm run commander:install
-npm run commander:overlay -- --force
 ```
+
+This checkout does not ship `operator-system/`. Do not run `npm run commander:overlay` here.
 
 Node.js 20 or later. For a hands-off setup, paste the agent prompt in
 [`docs/reference.md`](docs/reference.md#paste-this-to-an-agent) into your agent.
@@ -206,8 +207,9 @@ folder keeps only the `LESSONS.md` machine journal.
 
 ## More
 
+- [`docs/README.md`](docs/README.md) — index of every doc in this repo.
 - [`docs/reference.md`](docs/reference.md) — install variants, Claude Code marketplace, hooks, wiki, review panel, state layout.
-- [`docs/workflow-doctrine.md`](docs/workflow-doctrine.md) — the full workflow doctrine.
+- [`docs/lean-0.3.md`](docs/lean-0.3.md) — the 0.3 release contract. The work procedure is `plugin/skills/ycm-harness-work/SKILL.md`.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — development and tests (`npm test`, `npm run typecheck`).
 
 ## License

@@ -1,6 +1,6 @@
 # ycm-harness reference
 
-Full reference for the CLI, hooks, install paths and state layout. Start with the [README](../README.md).
+Full reference for the CLI, hooks, install paths and state layout. Start with the [README](../README.md). The doc index is [`docs/README.md`](README.md). The release contract is [`docs/lean-0.3.md`](lean-0.3.md).
 
 ## Output style
 
@@ -58,12 +58,13 @@ On Windows PowerShell, use a stable tools path instead of `$HOME/src/...`
 (e.g. `$env:USERPROFILE\src\ycm-harness`). Reuse an existing clone if present;
 do not nest a second clone inside my project unless I ask.
 
-Also install portable commander templates, then the personal overlay:
+Also point this machine at the plugin commander protocol:
 
 ```bash
 npm run commander:install
-npm run commander:overlay -- --force
 ```
+
+This public checkout does not ship `operator-system/`. Do not run `npm run commander:overlay` here. That script is not in the tree. `commander:install` creates `~/.agents/system/LESSONS.md` when the file is missing. It does not overwrite an existing journal.
 
 ### 2. Project client assets into my agent host
 Detect whether this workspace is Cursor and/or OpenCode. Then:
@@ -79,7 +80,7 @@ paths or commit machine-specific audits into a public product repo.
 
 ### 3. Recommended vendor plugins (not bundled)
 ycm-harness does not ship these. Prefer installing them; `ycm-harness doctor`
-audits all four when Cursor and/or Claude Code is present:
+audits all three when Cursor and/or Claude Code is present:
 
 - mattpocock-skills@mattpocock — TDD / architecture finish
   `claude plugin marketplace add mattpocock/skills && claude plugin install mattpocock-skills@mattpocock`
@@ -171,7 +172,8 @@ Behavior:
 
 - `sync` updates managed Cursor, Codex CLI, OpenCode, and Claude Code plugin installs in one step.
 - Cursor GitHub marketplace installs **pin a commit SHA** and do not auto-update. `sync --cursor` copies current plugin assets into `~/.cursor/plugins/local/ycm-harness` **and** overwrites any SHA-pinned `plugins/cache/**/ycm-harness/<sha>/` copy Cursor is actually loading. A Cursor SessionStart hook then starts `plugin/scripts/github-refresh.mjs` in the background (fail-open). That script does not need a sibling `runtime/` CLI — SHA-pinned marketplace copies only ship plugin files — so later chats can track GitHub HEAD. This chat still uses already-loaded rules; start a new chat after refresh. `YCM_HARNESS_SKIP_GITHUB_PLUGIN=1` skips that SessionStart clone/overwrite; `sync --cursor` still writes this checkout onto dests.
-- `plugin update` is the simplest local update path: it syncs managed plugin files and, for Codex, refreshes the installed plugin cache using official `codex plugin remove/add`.
+- `sync` is the live multi-client update. It detects Cursor, Codex, OpenCode, and Claude Code, then installs with force. Codex sync also refreshes the installed plugin cache.
+- `plugin update` is a deprecated alias. It runs `install --force`. `install` projects Cursor unless you pass `--client all` or `--client opencode`. It does not take the `sync` client flags.
 - Stable/default sync uses the bundled package assets, then refreshes the GitHub clone when network is allowed.
 - `doctor --repair` repairs the global installs. In the current project it removes only identical harness copies listed in `project_leftovers`; same-named paths that differ (`project_leftovers_kept`) and other `.cursor/` files stay. Inspect a kept leftover and delete it manually if it is an old harness copy. It also flags pinned Cursor/Claude cache copies whose rules/agents are behind the package. If `--repair` tries to remove a leftover and `fs.rm` fails, the path stays on disk, text mode prints `project leftover not removed` (or `not fully removed` after a partial delete), `--json` includes that path in `repair_errors` as `{path, code}`, and the command exits nonzero in both text and JSON mode.
 - `doctor --json` fields include `project_leftovers` (identical copies `--repair` can remove), `project_leftovers_kept` (same-named paths that differ), `needs_sync`, `repaired` (true when this invocation ran `--repair`), `repair_command`, and `repair_errors` (array of `{path, code}` for leftover removals that failed; empty when none failed or `--repair` was not used).
@@ -215,8 +217,8 @@ ycm-harness init
 
 The packaged plugin exposes two harness entrypoints:
 
-- `ycm-harness-design`: pre-work design flow. It runs explore, `grill-with-docs` in Plan mode, then spec and ticket planning with `to-spec`, `to-tickets`, and Wayfinder when the route is still unclear.
-- `ycm-harness-work`: execution flow. It starts from implementation-ready work, follows `/ralph` through execute, then continues through validate and finish without stopping after implementation.
+- `ycm-harness-design`: pre-work design flow. It resolves scope, then creates one goal and implementation-ready tickets. Optional Matt Pocock skills are `grill-with-docs`, `to-spec`, `to-tickets`, and `wayfinder`.
+- `ycm-harness-work`: execution flow. It starts from implementation-ready tickets, then runs implement, submit, the two-phase review, `verify run`, and goal close-out. It does not walk retired phase or ritual commands.
 
 **Matt Pocock skills are external.** `to-spec`, `to-tickets`, `wayfinder`, `grill-with-docs`, `tdd`, `domain-modeling`, `codebase-design`, and `improve-codebase-architecture` are **not** vendored into this repo. Install and keep them updated via Claude Code:
 
@@ -228,122 +230,46 @@ claude plugin install mattpocock-skills@mattpocock
 
 `ycm-harness doctor` / `sync` report whether `mattpocock-skills` is present and prune any stale formerly-vendored copies from managed Cursor/OpenCode skill dirs.
 
-## V1 golden path
+## Lean workflow (0.3)
+
+The live loop is goal, ticket, submit, verify. Do not run `phase`, `ritual`, `artifact`, `review`, `session`, `user-wiki`, or `commit`. Those commands exit 2. They do not change state. The old command lists are in [`docs/archive/2026-11-22-retired-workflow-reference.md`](archive/2026-11-22-retired-workflow-reference.md).
 
 ```bash
 ycm-harness init
-ycm-harness goal create "Ship feature X"
-ycm-harness goal worktree init        # V5: bind .worktrees/<slug>/ (detached HEAD, no new branch)
-ycm-harness phase start explore       # V5: first phase
-ycm-harness artifact register --kind explore-synthesis --path artifacts/explore-synthesis.md
-ycm-harness ritual record --kind explore-codebase --evidence-file artifacts/explore-synthesis.md --summary "..."
-ycm-harness ritual record --kind explore-knowledge-base --evidence-file artifacts/explore-knowledge-base.md --summary "..."
-ycm-harness phase start discuss
+ycm-harness goal create "Ship feature X" --backend local
+ycm-harness ticket create "Implement the change" --code-changed --acceptance "Targeted tests pass"
+ycm-harness ticket start <ticket-id>
 ycm-harness checkpoint decision "Approach chosen" --decision "Use approach A"
-ycm-harness phase start plan
-ycm-harness phase start execute
-ycm-harness task create "Implement first feature"
-ycm-harness task start <task_id>
-ycm-harness smoke --task <task_id> --command "npm test" --expected "tests pass" --actual "tests pass" --outcome pass --exit 0
-ycm-harness task done <task_id>
-ycm-harness phase start validate
-ycm-harness smoke --phase <phase_id> --outcome pass --command "npm run e2e"
-ycm-harness phase complete
-ycm-harness phase start finish
-ycm-harness checkpoint manual "Goal closed"
+ycm-harness ticket submit <ticket-id>
+ycm-harness verify run --ticket <ticket-id> --command "npm test" \
+  --implementer-run <run-id> --verifier-run <different-run-id> --knowledge none
+ycm-harness verify verdict <ticket-id>
+ycm-harness ticket done <ticket-id>
+ycm-harness goal verify <goal-id>
+ycm-harness goal complete <goal-id>
 ```
 
-`ycm-harness status` prints the current goal/phase/task with recent decisions and the suggested next command. `ycm-harness next` prints just the next-action command.
+`init` writes version 2 state. The first lean command migrates that file to version 3. `task` is an alias of `ticket`. `smoke` is an alias of `verify`. `status` prints the active goal. `next` prints the next action.
 
-Tasks drafted during `plan` migrate forward automatically: `task list` from `execute` shows the active-phase tasks first and queues plan-phase tasks underneath, and `task start <id>` migrates the task into the active phase.
+A GitHub goal needs `--backend github` and an existing `--parent <issue>`. The CLI does not create the parent issue. Omitted owner, repo, and project use `johnyuencm`, `ycm-harness`, and project number `1`. The default backend is `local`.
 
-## V4 strict SOP: how the workflow actually runs
+High-assurance work uses `ycm-harness goal worktree init` before `ticket start`. Stop enforcement is `ycm-harness goal enforce on`. It applies only when assurance is `high`.
 
-V4 is not just a command log. It is a strict SOP:
+The work procedure is `plugin/skills/ycm-harness-work/SKILL.md`. The release rules are [`docs/lean-0.3.md`](lean-0.3.md).
 
-```text
-discuss -> plan -> execute -> validate -> finish
-```
+## Project wiki
 
-Each phase has mandatory rituals. The CLI refuses to leave a phase until its ritual and artifact gate is satisfied.
-
-### Discuss
-
-Always invoke `grill-with-docs` (and `domain-modeling` as decisions crystallize). Resolve the goal, constraints, accepted approach, non-goals, unresolved risks, and success criteria. Record at least one decision checkpoint and a ritual:
-
-```powershell
-ycm-harness checkpoint decision "Design resolved" -d "..."
-ycm-harness ritual record --kind grill-me --evidence-file <file> --summary "grill-me resolved the design tree"
-```
-
-### Plan
-
-Always invoke `writing-plans`. Record whether `ralplan` is required. `ralplan` is required for architecture, security, data persistence, multiple subsystems, more than 5 files, parallel agents, or high-risk scope.
-
-```powershell
-ycm-harness ritual record --kind writing-plans --evidence-file <plan-file> --summary "Plan complete" --meta ralplan_required=true
-ycm-harness ritual record --kind ralplan --evidence-file <consensus-file> --summary "Consensus plan complete"
-ycm-harness task create "First task" -b "Acceptance criteria and validation notes"
-```
-
-Use `--meta ralplan_required=false` when no trigger applies.
-
-### Execute
-
-Always invoke `ultrawork`, then `ralph`. Record both rituals. Complete or block every task. Runnable tasks need smoke evidence before `task done`.
-
-```powershell
-ycm-harness ritual record --kind ultrawork --evidence-file <ledger> --summary "Task lanes executed"
-ycm-harness ritual record --kind ralph --evidence-file <completion-report> --summary "Ralph completion verified"
-ycm-harness smoke --task <task_id> --command "npm test" --expected "pass" --actual "pass" --outcome pass --exit 0
-ycm-harness task done <task_id>
-```
-
-### Validate
-
-Run phase-level build/test/lint/smoke. Always open the review gate with the two-phase panel (`tech_lead` × `project_manager` debate, then `user_advocate` last), different from every author/implementer. If the gate fails, run the fix-loop using `$hard-problem-solving` before editing (RCA, Evidence, 3 Whys, Fix plan, why it fixes the root cause, fix, re-test, re-review). Close a passed phase-targeted review and record `review-gate`.
-
-### Finish
-
-Update the project wiki, record `project-wiki-update`, run user-wiki dry-run for reusable cross-project lessons, ask before `--confirm`, and record the final manual checkpoint.
-
-Full doctrine: [`docs/workflow-doctrine.md`](workflow-doctrine.md).
-
-## V2 wiki memory
-
-The wiki is a project-local knowledge surface the agent grows over time. Sources are immutable inputs (copied into `wiki/raw/`); pages are agent-synthesised summaries of one or more sources. JSON state owns metadata; `pages/<id>.md` and the generated overview and log files are readable mirrors.
+Live wiki commands:
 
 ```bash
-ycm-harness wiki init
-ycm-harness wiki source add docs/architecture.md --title "Architecture overview"
-ycm-harness wiki page upsert \
-  --id arch-summary \
-  --title "Architecture summary" \
-  --source <source_id> \
-  --body-file /tmp/page-body.md
-ycm-harness wiki page list
-ycm-harness wiki query "session digest"
-ycm-harness wiki lint --json
-ycm-harness wiki checkpoint -n "post-refactor knowledge sweep"
+ycm-harness wiki durable --id <slug> --title "<title>" \
+  --trigger <contract|decision|environment|root-cause> \
+  --body-file <path>
+ycm-harness wiki list
+ycm-harness wiki show <slug>
 ```
 
-Page bodies may reference other pages with `[[other-page-id]]`. `wiki lint` reports orphans (no sources), missing references, and pages stale beyond `--stale-days` (default 14). The session-start hook adds a compact wiki block (`Wiki: pages=N sources=M`, last 3 wiki log entries) so the agent re-orients on the project's knowledge state at the top of every conversation.
-
-## V3 user wiki + promotion
-
-The user wiki at `~/.ycm-harness/wiki/` mirrors the project wiki layout but holds knowledge that is durable across projects. Promotion is explicit: project pages are scrubbed by a builtin redactor before they land in the user wiki.
-
-```bash
-ycm-harness user-wiki init                      # one-time scaffold under $HOME
-ycm-harness wiki promote arch-summary --rules   # list redaction rule ids
-ycm-harness wiki promote arch-summary --dry-run # preview redacted body
-ycm-harness wiki promote arch-summary --confirm # write to ~/.ycm-harness/wiki/pages/arch-summary.md
-ycm-harness user-wiki page-list
-ycm-harness user-wiki query "deployment"
-ycm-harness user-wiki lint --json
-```
-
-Builtin redactor strips emails, IPv4 addresses, OpenAI / Anthropic / GitHub / Stripe / AWS API keys, PEM private-key blocks, and absolute home-directory paths. Use `--allow <regex>` to keep specific matches, `--extra <regex>` to add project-specific patterns. Override the user-wiki home for testing with the `YCM_HARNESS_HOME` environment variable.
+`wiki init`, `wiki source`, `wiki page`, `wiki query`, `wiki lint`, `wiki promote`, and `wiki checkpoint` exit 2. `user-wiki` exits 2. The 0.3 CLI does not write `~/.ycm-harness/wiki`. See `plugin/skills/llm-wiki/harness-wiki.md`.
 
 ## Independent review (skill procedure, not a harness review file)
 
@@ -364,16 +290,9 @@ ycm-harness verify verdict <ticket-id>
 
 Fix-loop: max 3 rounds. Invoke `$hard-problem-solving` before editing; re-submit after code changes; restart the two-phase panel (phase 1 first) distinct from the fix author; obtain fresh `verify run`. Round 3 still failing → delegate to a human reviewer. See the `ycm-harness-work` skill.
 
-## V3 session nudge
+## Session
 
-Cursor does not yet expose per-message hook events, so the harness exposes a polled counter the agent ticks itself.
-
-```bash
-ycm-harness session tick --kind user_message    # call once per visible user reply
-ycm-harness session nudge --json                # {due, count, threshold:15}
-```
-
-`wiki init`, `wiki source add`, and `wiki page upsert` reset the counter automatically. The session-start hook adds a `WIKI UPDATE DUE` line to `additional_context` whenever the threshold is exceeded, prompting the agent to capture the most recent learning before continuing.
+The `session` command exits 2. Use `status`, `next`, and `checkpoint`. The SessionStart hook prints the active goal, ticket, and next action. The old poll commands are in the [archive](archive/2026-11-22-retired-workflow-reference.md).
 
 ## Cursor plugin
 
@@ -396,7 +315,7 @@ The `plugin/` folder is a ready-to-install Cursor plugin layout:
 - `plugin/skills/llm-wiki/SKILL.md` — Karpathy compounding-wiki pattern: ingest, query, lint (`$llm-wiki`); pairs with `ycm-harness wiki` CLI.
 - `plugin/skills/commander/SKILL.md` — commander protocol router into this plugin's `commander-system/system/` (`$commander` / `/commander`).
 - `plugin/rules/commander.mdc` — always-apply pointer at the plugin-sourced commander files.
-- `plugin/commands/commander.md` — Claude slash-command pointer at the same skill.
+- This tree has no `plugin/commands/commander.md`. The skill file is the command source.
 - `plugin/skills/plan-and-advance/SKILL.md` — plan first, mandatory self-grill (Decisions + Edge cases), advance the idea, then implement without interviewing.
 - `plugin/skills/pull-tickets/SKILL.md` — pull unblocked `ready-for-agent` issues, prioritize top 3, implement each via `ycm-harness-work-lite`.
 - `plugin/skills/summarizing-goal-achievement/SKILL.md` — finish closing report: achieved / what now / phase purpose+status / how much / how well (invoked from `ycm-harness-work` after finish bookkeeping).
@@ -415,54 +334,45 @@ The global Cursor plugin loads `plugin/rules/ycm-harness.mdc` in every project. 
 
 ## Workflow contract
 
-Phases (V4): `discuss → plan → execute → validate → finish`. `blocked` is an escape state, not a phase.
+Goal status values are `planning`, `active`, `verifying`, `blocked`, `done`, and `abandoned`.
+
+Ticket status values are `todo`, `in_progress`, `in_review`, `done`, `blocked`, and `cancelled`.
 
 Rules:
 
-- First phase must be `discuss`.
-- Forward transitions advance one phase at a time. Rollbacks are allowed and recorded.
-- Forward transitions and `phase complete` are blocked unless the current phase's V4 ritual/artifact gate is satisfied.
-- Tasks belong to the active phase. Only one task is `active` per phase at a time.
-- A task with `smoke = required` cannot be marked `done` until at least one `SmokeEvidence` is attached. Use `--smoke not_applicable` plus `--reason` for docs/config-only tasks.
-- `phase complete` marks the active phase complete; starting the next phase auto-completes the previous one.
+- `ticket submit` stores a submission digest and sets status `in_review`.
+- `verify run` needs that digest. A code or acceptance change makes the digest stale. Submit again.
+- `ticket done` needs a fresh PASS. The implementer run and the verifier run must differ.
+- `goal complete` rejects a goal that still has a ticket outside `done` or `cancelled`.
+- A code-changing done ticket also needs fresh independent PASS evidence.
+- Checkpoint kinds are `phase_transition`, `task_complete`, `blocker`, `decision`, `context_compaction`, and `manual`.
 
 ## State layout
+
+`ycm-harness init` creates these paths and writes **version 2** `state.json`. The first lean command migrates the file to **version 3**.
 
 ```
 .ycm-harness/
   state.json          # canonical JSON, validated by Zod
   events.jsonl        # append-only event log
-  goals/              # reserved for future Markdown artifacts
-  phases/
-  tasks/
+  goals/              # goal directories; worktree.json when a worktree exists
+  phases/             # created by init; 0.3 commands do not store phase records
+  tasks/              # created by init; 0.3 tickets live in state.json
   checkpoints/
-  rituals/           # reserved for future Markdown ritual artifacts; JSON owns records
   sessions/
   smoke/
-  followups.md        # low-severity review findings drained on review close
-  wiki/
-    schema.md         # generated, do not edit by hand
-    ...               # plus a generated overview page and an append-only log
-    raw/              # immutable source files (registered via 'wiki source add')
-    pages/            # one Markdown body per page; metadata lives in state.json
-```
-
-User-level state lives separately:
-
-```
-~/.ycm-harness/
-  state.json          # canonical user-level state (wiki block + counters)
-  wiki/
-    schema.md
-    ...               # plus the overview page and the log
+  wiki/               # created by `wiki durable`
+    index.md          # generated, do not edit by hand
+    log.md            # append-only, do not edit by hand
     raw/
-    pages/
-    promotions.jsonl  # append-only history of project->user promotions
+    pages/            # one Markdown body per durable page
 ```
 
-Override the user-state root with `YCM_HARNESS_HOME=<dir>` (used by tests).
+Version 3 `state.json` holds `goals`, `local_tickets`, `checkpoints`, `evidence`, `wiki`, `tracker_cache`, `session_claims`, and an optional `legacy_archive`. There is no `rituals/` directory. The store still names `followups.md`, and 0.3 commands do not write that file.
 
-Atomic writes use temp-file + rename. The events log is append-only; never edit it by hand.
+`user-wiki` exits 2. The 0.3 CLI does not write `~/.ycm-harness/wiki`. Tests may set `YCM_HARNESS_HOME=<dir>` as a home override.
+
+Atomic writes use temp-file + rename. The events log is append-only. Do not edit it by hand.
 
 > **Concurrency note.** `state.json` is written through `tmp + rename`, so a single in-flight write is crash-safe. There is no advisory lock or optimistic-concurrency token, so two CLI invocations racing the same file (for example a session-start hook firing while the agent runs `wiki page upsert`) will last-write-wins and silently drop the loser's mutation. The harness assumes serial CLI usage from a single agent loop. A version field is on the follow-up list once we see it bite in practice.
 
@@ -474,18 +384,16 @@ npm run smoke       # CLI golden path only
 npm run typecheck
 ```
 
-## Future phase backlog
+## Open follow-ups
 
-V4 lands strict SOP ritual enforcement. V5 adds executed-smoke and subagent-evidence review enforcement (strict by default).
+These items are still open. They are not a second workflow.
 
-Open work:
-
-- **Native per-message hooks.** Replace the polled `session tick` with a Cursor-native hook event once `userMessage` (or equivalent) is exposed.
-- **Wiki conflict resolution.** When `wiki promote` updates an existing user-wiki page, surface a structured diff and let the agent merge instead of overwrite.
+- **Native per-message hooks.** Cursor still has no per-prompt context hook. The 0.3 CLI does not poll `session tick`. That command exits 2. The always-on plugin rules carry the output style.
+- **User-wiki merge.** `wiki promote` and `user-wiki` exit 2. A cross-project wiki merge is not a 0.3 command.
 
 ## Commander system (plugin-sourced operating contract)
 
-`plugin/commander-system/` is the **only** golden source for the commander protocol. It ships inside the ycm-harness plugin (`skills/commander`, `rules/commander.mdc`, Claude `commands/commander.md`) and updates when that plugin updates. Do not copy protocol files to `~/.agents/system/`.
+`plugin/commander-system/` is the **only** golden source for the commander protocol. It ships inside the ycm-harness plugin (`skills/commander`, `rules/commander.mdc`) and updates when that plugin updates. This tree has no `plugin/commands/commander.md`. Do not copy protocol files to `~/.agents/system/`.
 
 On a machine that still has local protocol copies or old CLAUDE.md / AGENTS.md routers:
 
@@ -498,5 +406,5 @@ That migrate script rewrites entry pointers, retires local `~/.agents/system/` p
 
 Refresh client copies from this checkout with `ycm-harness sync` (Cursor/Codex local marketplace + pinned caches). Claude GitHub marketplace autoUpdate tracks `master`. Do not run `sync` on a dirty git checkout of this plugin — GitHub clone refresh can reset uncommitted work.
 
-Personal overlay (`npm run commander:overlay`) may copy **only** `LESSONS.md`.
+This public checkout does not ship `operator-system/scripts/install-overlay.mjs`. Do not run `npm run commander:overlay` here. `npm run commander:install` writes a `LESSONS.md` stub only when that file is missing.
 
