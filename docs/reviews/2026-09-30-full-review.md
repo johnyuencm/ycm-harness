@@ -1,5 +1,7 @@
 # Full review — ycm-harness — 2026-09-30
 
+> Record date: 2026-09-30. This file is a point-in-time review. Later commits may have fixed the findings. The classification is [`2026-09-30-fix-log.md`](2026-09-30-fix-log.md). Do not treat the findings below as the current tree.
+
 ## Summary
 
 Verdict (post-verification): mostly-reliable review with two corrections and one significant omission — the repo's own CI is red, and the report's "environment-caused failures" caveat does not hold on CI. Real P1s: dead default GitHub repo name (fallback path), and a Linux-failing committed test that makes `npm test` red on CI. The reported Codex `config.toml` incident is verified FIXED at this SHA.

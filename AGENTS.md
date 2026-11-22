@@ -28,6 +28,10 @@ Use the default five-role vocabulary. See `docs/agents/triage-labels.md`.
 
 Use a single-context layout. See `docs/agents/domain.md`.
 
+### Doc index
+
+Every document in this repo is listed in `docs/README.md`.
+
 ## Commander (ycm-harness plugin)
 
 Protocol lives in the enabled **ycm-harness** plugin and updates when that plugin updates. Do not use `~/.agents/system/` as protocol.
